@@ -1,0 +1,55 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "generic",
+      "binding_url" : "bindings_generic.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/input/in/left_stick",
+      "requirement": "mandatory",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/input/in/left_click",
+      "requirement": "optional",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/input/in/left_haptic",
+      "type": "vibration"
+    },
+    {
+      "name": "/actions/input/in/right_stick",
+      "requirement": "mandatory",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/input/in/right_click",
+      "requirement": "optional",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/input/in/right_haptic",
+      "type": "vibration"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/input",
+      "usage": "in inputting mode"
+    }
+  ],
+  "localization" : [
+    {
+      "language_tag": "en_us",
+
+      "/actions/input/in/left_stick": "Left stick",
+      "/actions/input/in/left_click": "Left click",
+
+      "/actions/input/in/right_stick": "Right stick",
+      "/actions/input/in/right_click": "Right click"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "bindings" : {
+    "/actions/demo" : {
+      "poses" : [],
+      "haptics" : [
+        {
+          "output" : "/actions/input/out/left_haptic",
+          "path" : "/user/hand/left/output/haptic"
+        },
+        {
+          "output" : "/actions/input/out/right_haptic",
+          "path" : "/user/hand/right/output/haptic"
+        }
+      ],
+      "sources" : [
+        {
+          "inputs" : {
+            "click" : {
+              "output" : "/actions/input/in/right_click"
+            }
+          },
+          "mode" : "button",
+          "path" : "/user/hand/right/input/trigger"
+        },
+        {
+          "inputs" : {
+            "position" : {
+              "output" : "/actions/input/in/left_stick"
+            }
+          },
+          "mode" : "trackpad",
+          "path" : "/user/hand/left/input/trackpad"
+        },
+        {
+          "inputs" : {
+            "click" : {
+              "output" : "/actions/input/in/left_click"
+            }
+          },
+          "mode" : "button",
+          "path" : "/user/hand/left/input/trigger"
+        },
+        {
+          "inputs" : {
+            "position" : {
+              "output" : "/actions/input/in/left_stick"
+            }
+          },
+          "mode" : "trackpad",
+          "path" : "/user/hand/left/input/trackpad"
+        }
+      ]
+    }
+  },
+  "controller_type" : "generic",
+  "description" : "Bindings for the clekey OVR for a generic controller",
+  "name" : "clekey IVR bindings for a generic controller"
+}

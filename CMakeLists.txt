@@ -6,4 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 include(cmake/openvr.cmake)
 
 add_executable(clekey_ovr src/main.cpp)
+
+configure_file(resources/actions.json          actions.json          COPYONLY)
+configure_file(resources/bindings_generic.json bindings_generic.json COPYONLY)
 link_openvr(clekey_ovr)
