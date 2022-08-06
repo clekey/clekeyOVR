@@ -7,6 +7,7 @@ include(cmake/openvr.cmake)
 
 add_executable(clekey_ovr src/main.cpp)
 
-configure_file(resources/actions.json          actions.json          COPYONLY)
+configure_file(resources/actions.json actions.json COPYONLY)
 configure_file(resources/bindings_generic.json bindings_generic.json COPYONLY)
+configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
 link_openvr(clekey_ovr)
