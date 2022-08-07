@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     }
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_Window * window = SDL_CreateWindow(
+    SDL_Window *window = SDL_CreateWindow(
             WINDOW_CAPTION,
             0, 0,
             WINDOW_WIDTH, WINDOW_HEIGHT,
@@ -51,57 +51,6 @@ int main(int argc, char** argv) {
 
     static const Uint32 interval = 1000 / 90;
     static Uint32 nextTime = SDL_GetTicks() + interval;
-    while (true) {
-        // check event
-
-        SDL_Event ev;
-        SDL_Keycode key;
-        while ( SDL_PollEvent(&ev) )
-        {
-            switch(ev.type){
-                case SDL_QUIT:
-                    goto quit;
-                case SDL_KEYDOWN:
-                    key = ev.key.keysym.sym;
-                    if(key == SDLK_ESCAPE)
-                        goto quit;
-                    break;
-            }
-        }
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // draw sphere
-        glEnable(GL_COLOR_MATERIAL);
-        glColor3ub(255, 0, 0);
-        glBegin(GL_QUADS);
-#define POLY_SIZE .5
-
-        glVertex2d(-POLY_SIZE, -POLY_SIZE);
-        glVertex2d(+POLY_SIZE, -POLY_SIZE);
-        glVertex2d(+POLY_SIZE, +POLY_SIZE);
-        glVertex2d(-POLY_SIZE, +POLY_SIZE);
-
-        glVertex2d(-POLY_SIZE, -POLY_SIZE);
-        glVertex2d(-POLY_SIZE, +POLY_SIZE);
-        glVertex2d(+POLY_SIZE, +POLY_SIZE);
-        glVertex2d(+POLY_SIZE, -POLY_SIZE);
-
-        glEnd();
-
-        SDL_GL_SwapWindow(window);
-
-        int delayTime = (int) (nextTime - SDL_GetTicks());
-        if (delayTime > 0) {
-            SDL_Delay((Uint32) delayTime);
-        }
-
-        nextTime += interval;
-    }
-    quit:
-    SDL_Quit();
-
-#if 0
     std::cout << "Hello, World!" << std::endl;
 
     vr::HmdError err;
@@ -148,16 +97,59 @@ int main(int argc, char** argv) {
         std::cout << "left click:  " << digital_data.bActive << ": " << digital_data.bState << std::endl;
         handle_input_err(vr::VRInput()->GetDigitalActionData(action_right_click, &digital_data, sizeof (digital_data), vr::k_ulInvalidInputValueHandle));
         std::cout << "right click: " << digital_data.bActive << ": " << digital_data.bState << std::endl;
-        // */
-        Sleep(100);
+
+        SDL_Event ev;
+        SDL_Keycode key;
+        while ( SDL_PollEvent(&ev) )
+        {
+            switch(ev.type){
+                case SDL_QUIT:
+                    goto quit;
+                case SDL_KEYDOWN:
+                    key = ev.key.keysym.sym;
+                    if(key == SDLK_ESCAPE)
+                        goto quit;
+                    break;
+            }
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // draw sphere
+        glEnable(GL_COLOR_MATERIAL);
+        glColor3ub(255, 0, 0);
+        glBegin(GL_QUADS);
+#define POLY_SIZE .5
+
+        glVertex2d(-POLY_SIZE, -POLY_SIZE);
+        glVertex2d(+POLY_SIZE, -POLY_SIZE);
+        glVertex2d(+POLY_SIZE, +POLY_SIZE);
+        glVertex2d(-POLY_SIZE, +POLY_SIZE);
+
+        glVertex2d(-POLY_SIZE, -POLY_SIZE);
+        glVertex2d(-POLY_SIZE, +POLY_SIZE);
+        glVertex2d(+POLY_SIZE, +POLY_SIZE);
+        glVertex2d(+POLY_SIZE, -POLY_SIZE);
+
+        glEnd();
+
+        SDL_GL_SwapWindow(window);
+
+        int delayTime = (int) (nextTime - SDL_GetTicks());
+        if (delayTime > 0) {
+            SDL_Delay((Uint32) delayTime);
+        }
+
+        nextTime += interval;
     }
 
+    quit:
+    SDL_Quit();
     vr::VR_Shutdown();
 
     std::cout << "shutdown finished" << std::endl;
 
     return 0;
-#endif
 }
 
 void handle_input_err(vr::EVRInputError error) {
