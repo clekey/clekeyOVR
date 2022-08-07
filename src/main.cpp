@@ -126,11 +126,6 @@ int main(int argc, char** argv) {
         glVertex2d(+POLY_SIZE, +POLY_SIZE);
         glVertex2d(-POLY_SIZE, +POLY_SIZE);
 
-        glVertex2d(-POLY_SIZE, -POLY_SIZE);
-        glVertex2d(-POLY_SIZE, +POLY_SIZE);
-        glVertex2d(+POLY_SIZE, +POLY_SIZE);
-        glVertex2d(+POLY_SIZE, -POLY_SIZE);
-
         glEnd();
 
         SDL_GL_SwapWindow(window);
