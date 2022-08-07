@@ -113,18 +113,27 @@ int main(int argc, char** argv) {
             }
         }
 
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        glTranslatef(-1, 1, 0);
+        glScaled(2.0 / WINDOW_WIDTH, -2.0 / WINDOW_HEIGHT, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // draw sphere
         glEnable(GL_COLOR_MATERIAL);
         glColor3ub(255, 0, 0);
         glBegin(GL_QUADS);
-#define POLY_SIZE .5
+#define POLY_SIZE 25
 
         glVertex2d(-POLY_SIZE, -POLY_SIZE);
         glVertex2d(+POLY_SIZE, -POLY_SIZE);
         glVertex2d(+POLY_SIZE, +POLY_SIZE);
         glVertex2d(-POLY_SIZE, +POLY_SIZE);
+
+        glVertex2d(-POLY_SIZE + 100, -POLY_SIZE + 100);
+        glVertex2d(+POLY_SIZE + 100, -POLY_SIZE + 100);
+        glVertex2d(+POLY_SIZE + 100, +POLY_SIZE + 100);
+        glVertex2d(-POLY_SIZE + 100, +POLY_SIZE + 100);
 
         glEnd();
 
