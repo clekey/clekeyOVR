@@ -1,6 +1,6 @@
 {
   "bindings" : {
-    "/actions/demo" : {
+    "/actions/input" : {
       "poses" : [],
       "haptics" : [
         {
@@ -25,11 +25,11 @@
         {
           "inputs" : {
             "position" : {
-              "output" : "/actions/input/in/left_stick"
+              "output" : "/actions/input/in/right_stick"
             }
           },
-          "mode" : "trackpad",
-          "path" : "/user/hand/left/input/trackpad"
+          "mode" : "joystick",
+          "path" : "/user/hand/right/input/trackpad"
         },
         {
           "inputs" : {
@@ -46,13 +46,14 @@
               "output" : "/actions/input/in/left_stick"
             }
           },
-          "mode" : "trackpad",
+          "mode" : "joystick",
           "path" : "/user/hand/left/input/trackpad"
         }
       ]
     }
   },
-  "controller_type" : "generic",
-  "description" : "Bindings for the clekey OVR for a generic controller",
-  "name" : "clekey IVR bindings for a generic controller"
+  "controller_type" : "vive_controller",
+  "description" : "Bindings for the clekey OVR for a Vive Controller",
+  "name" : "clekey OVR bindings for a Vive Controller"
 }
+

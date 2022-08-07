@@ -1,8 +1,6 @@
 {
-  "action_manifest_version" : 0,
-  "alias_info" : {},
   "bindings" : {
-    "/actions/tiltbrush" : {
+    "/actions/input" : {
       "chords" : [],
       "haptics" : [
         {
@@ -28,11 +26,11 @@
         },
         {
           "inputs" : {
-            "pull" : {
+            "click" : {
               "output" : "/actions/input/in/left_click"
             }
           },
-          "mode" : "trigger",
+          "mode" : "button",
           "path" : "/user/hand/left/input/trigger"
         },
         {
@@ -46,11 +44,11 @@
         },
         {
           "inputs" : {
-            "pull" : {
+            "click" : {
               "output" : "/actions/input/in/right_click"
             }
           },
-          "mode" : "trigger",
+          "mode" : "button",
           "path" : "/user/hand/right/input/trigger"
         }
       ]
@@ -62,3 +60,4 @@
   "options" : {},
   "simulated_actions" : []
 }
+
