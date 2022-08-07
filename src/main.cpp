@@ -63,7 +63,9 @@ int main() {
         std::cout << "right input: " << analog_data.bActive << ": " << analog_data.x << ", " << analog_data.y << std::endl;
         vr::InputDigitalActionData_t digital_data = {};
         handle_input_err(vr::VRInput()->GetDigitalActionData(action_left_click, &digital_data, sizeof (digital_data), vr::k_ulInvalidInputValueHandle));
-        std::cout << "right input: " << digital_data.bActive << ": " << digital_data.bState << std::endl;
+        std::cout << "left click:  " << digital_data.bActive << ": " << digital_data.bState << std::endl;
+        handle_input_err(vr::VRInput()->GetDigitalActionData(action_right_click, &digital_data, sizeof (digital_data), vr::k_ulInvalidInputValueHandle));
+        std::cout << "right click: " << digital_data.bActive << ": " << digital_data.bState << std::endl;
         // */
         Sleep(100);
     }
