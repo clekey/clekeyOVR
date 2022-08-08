@@ -64,10 +64,11 @@ int main(int argc, char** argv) {
         const char *vertex_shader_src =
                 "#version 330 core\n"
                 "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                "layout(location = 1) in vec4 color;\n"
                 "out vec4 out_color;\n"
                 "void main() {\n"
                 "    gl_Position.xyz = vertexPosition_modelspace;\n"
-                "    out_color = vec4(vertexPosition_modelspace, 1);\n"
+                "    out_color = color;\n"
                 "}\n";
         const char *fragment_shader_src =
                 "#version 330 core\n"
@@ -149,6 +150,16 @@ int main(int argc, char** argv) {
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+    static const GLfloat g_color_buffer_data[] = {
+            1.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 1.0f, 0.0f, 1.0f,
+            0.0f,  0.0f, 1.0f, 1.0f,
+    };
+    GLuint colorbuffer;
+    glGenBuffers(1, &colorbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+
     static const Uint32 interval = 1000 / 90;
     static Uint32 nextTime = SDL_GetTicks() + interval;
     std::cout << "Hello, World!" << std::endl;
@@ -219,6 +230,9 @@ int main(int argc, char** argv) {
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
         // Draw the triangle !
         glDrawArrays(GL_TRIANGLES, 0, 3); // 3 indices starting at 0 -> 1 triangle
         glDisableVertexAttribArray(0);
