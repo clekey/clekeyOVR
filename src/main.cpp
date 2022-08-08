@@ -64,17 +64,21 @@ int main(int argc, char** argv) {
         const char *vertex_shader_src =
                 "#version 330 core\n"
                 "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+                "out vec4 out_color;\n"
                 "void main() {\n"
                 "    gl_Position.xyz = vertexPosition_modelspace;\n"
+                "    out_color = vec4(vertexPosition_modelspace, 1);\n"
                 "}\n";
         const char *fragment_shader_src =
                 "#version 330 core\n"
+                "in vec4 out_color;\n"
+                ""
                 "// Ouput data\n"
-                "out vec3 color;\n"
+                "out vec4 color;\n"
                 "\n"
                 "void main() {\n"
                 "    // Output color = red \n"
-                "    color = vec3(1,0,0);\n"
+                "    color = out_color;\n"
                 "}\n";
 
         glShaderSource(vertex_shader, 1, &vertex_shader_src, nullptr);
