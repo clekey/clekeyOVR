@@ -23,7 +23,9 @@ GLuint compile_shader_program(const char *vertex_shader_src, const char *fragmen
 
 // error handling
 #define check_gl_err() check_gl_err_impl(__LINE__)
+
 void check_gl_err_impl(int line);
+
 void handle_input_err(vr::EVRInputError error);
 
 vr::VRActionHandle_t action_left_stick;
@@ -188,26 +190,36 @@ int main(int argc, char **argv) {
         action.ulActionSet = action_set_input;
         handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
         vr::InputAnalogActionData_t analog_data = {};
-        handle_input_err(vr::VRInput()->GetAnalogActionData(action_left_stick, &analog_data, sizeof (analog_data), vr::k_ulInvalidInputValueHandle));
-        std::cout << "left input:  " << analog_data.bActive << ": " << analog_data.x << ", " << analog_data.y << std::endl;
-        handle_input_err(vr::VRInput()->GetAnalogActionData(action_right_stick, &analog_data, sizeof (analog_data), vr::k_ulInvalidInputValueHandle));
-        std::cout << "right input: " << analog_data.bActive << ": " << analog_data.x << ", " << analog_data.y << std::endl;
+        handle_input_err(vr::VRInput()->GetAnalogActionData(action_left_stick, &analog_data, sizeof(analog_data),
+                                                            vr::k_ulInvalidInputValueHandle));
+        std::cout << "left input:  " << analog_data.bActive << ": "
+                  << analog_data.x << ", " << analog_data.y << std::endl;
+        handle_input_err(vr::VRInput()->GetAnalogActionData(
+                action_right_stick, &analog_data, sizeof(analog_data),
+                vr::k_ulInvalidInputValueHandle));
+        std::cout << "right input: " << analog_data.bActive << ": "
+                  << analog_data.x << ", " << analog_data.y << std::endl;
         vr::InputDigitalActionData_t digital_data = {};
-        handle_input_err(vr::VRInput()->GetDigitalActionData(action_left_click, &digital_data, sizeof (digital_data), vr::k_ulInvalidInputValueHandle));
-        std::cout << "left click:  " << digital_data.bActive << ": " << digital_data.bState << std::endl;
-        handle_input_err(vr::VRInput()->GetDigitalActionData(action_right_click, &digital_data, sizeof (digital_data), vr::k_ulInvalidInputValueHandle));
-        std::cout << "right click: " << digital_data.bActive << ": " << digital_data.bState << std::endl;
+        handle_input_err(vr::VRInput()->GetDigitalActionData(
+                action_left_click, &digital_data, sizeof(digital_data),
+                vr::k_ulInvalidInputValueHandle));
+        std::cout << "left click:  " << digital_data.bActive << ": "
+                  << digital_data.bState << std::endl;
+        handle_input_err(vr::VRInput()->GetDigitalActionData(
+                action_right_click, &digital_data, sizeof(digital_data),
+                vr::k_ulInvalidInputValueHandle));
+        std::cout << "right click: " << digital_data.bActive << ": "
+                  << digital_data.bState << std::endl;
 
         SDL_Event ev;
         SDL_Keycode key;
-        while ( SDL_PollEvent(&ev) )
-        {
-            switch(ev.type){
+        while (SDL_PollEvent(&ev)) {
+            switch (ev.type) {
                 case SDL_QUIT:
                     goto quit;
                 case SDL_KEYDOWN:
                     key = ev.key.keysym.sym;
-                    if(key == SDLK_ESCAPE)
+                    if (key == SDLK_ESCAPE)
                         goto quit;
                     break;
             }
