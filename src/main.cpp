@@ -91,10 +91,10 @@ int main(int argc, char **argv) {
         GLuint frame_buffer;
     } rendered_textures[2];
 
-    for (int i = 0; i < 2; ++i) {
-        glGenTextures(1, &rendered_textures[i].texture);
+    for (auto & rendered_texture : rendered_textures) {
+        glGenTextures(1, &rendered_texture.texture);
         // 新しく作ったテクスチャを"バインド"する。：以降のすべてのテクスチャ関数はこのテクスチャを修正する。
-        glBindTexture(GL_TEXTURE_2D, rendered_textures[i].texture);
+        glBindTexture(GL_TEXTURE_2D, rendered_texture.texture);
 
         // 空の画像をOpenGLに渡す。（最後が"0"）
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, \
@@ -105,10 +105,10 @@ int main(int argc, char **argv) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-        glGenFramebuffers(1, &rendered_textures[i].frame_buffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[i].frame_buffer);
+        glGenFramebuffers(1, &rendered_texture.frame_buffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, rendered_texture.frame_buffer);
 
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rendered_textures[0].texture, 0);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rendered_texture.texture, 0);
 
         GLuint depth_buffer;
         glGenRenderbuffers(1, &depth_buffer);
