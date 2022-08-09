@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
                 "in vec4 out_color;\n"
                 ""
                 "// Ouput data\n"
-                "out vec4 color;\n"
+                "layout(location = 0) out vec4 color;\n"
                 "\n"
                 "void main() {\n"
                 "    // Output color = red \n"
@@ -136,7 +136,48 @@ int main(int argc, char** argv) {
         glDeleteShader(fragment_shader);
     }
 
+    struct {
+        GLuint texture;
+        GLuint frame_buffer;
+    } rendered_textures[2];
+
+    for (int i = 0; i < 2; ++i) {
+        glGenTextures(1, &rendered_textures[i].texture);
+        // 新しく作ったテクスチャを"バインド"する。：以降のすべてのテクスチャ関数はこのテクスチャを修正する。
+        glBindTexture(GL_TEXTURE_2D, rendered_textures[i].texture);
+
+        // 空の画像をOpenGLに渡す。（最後が"0"）
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, \
+                WINDOW_WIDTH, WINDOW_HEIGHT, 0, \
+                GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+        // 貧弱なフィルタリング。
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+        glGenFramebuffers(1, &rendered_textures[i].frame_buffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[i].frame_buffer);
+
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rendered_textures[0].texture, 0);
+
+        GLuint depth_buffer;
+        glGenRenderbuffers(1, &depth_buffer);
+        glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 768);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer);
+
+        GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+        glDrawBuffers(1, DrawBuffers);
+
+        GLenum buffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (buffer_status != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "GL_FRAMEBUFFER mismatch: " << buffer_status << std::endl;
+            return -1;
+        }
+    }
+
     // setup viewport
+    glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[0].frame_buffer);
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
