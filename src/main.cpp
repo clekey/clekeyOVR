@@ -8,7 +8,9 @@
 #include <windows.h>
 #define sleep(n) Sleep(n * 1000)
 #else
+
 #include <csignal>
+
 #define Sleep(n) usleep(n * 1000)
 #endif
 
@@ -16,6 +18,10 @@
 #define WINDOW_HEIGHT 256
 #define WINDOW_WIDTH 512
 
+// shader
+GLuint compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src);
+
+// error handling
 #define check_gl_err() check_gl_err_impl(__LINE__)
 void check_gl_err_impl(int line);
 void handle_input_err(vr::EVRInputError error);
@@ -28,7 +34,7 @@ vr::VRActionHandle_t action_right_click;
 vr::VRActionHandle_t action_right_haptic;
 vr::VRActionSetHandle_t action_set_input;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     if (SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "sdl error: " << SDL_GetError() << std::endl;
         return -1;
@@ -57,84 +63,26 @@ int main(int argc, char** argv) {
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
 
-    GLuint shader_program;
-    {
-        GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-        GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-        const char *vertex_shader_src =
-                "#version 330 core\n"
-                "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-                "layout(location = 1) in vec4 color;\n"
-                "out vec4 out_color;\n"
-                "void main() {\n"
-                "    gl_Position.xyz = vertexPosition_modelspace;\n"
-                "    out_color = color;\n"
-                "}\n";
-        const char *fragment_shader_src =
-                "#version 330 core\n"
-                "in vec4 out_color;\n"
-                ""
-                "// Ouput data\n"
-                "layout(location = 0) out vec4 color;\n"
-                "\n"
-                "void main() {\n"
-                "    // Output color = red \n"
-                "    color = out_color;\n"
-                "}\n";
-
-        glShaderSource(vertex_shader, 1, &vertex_shader_src, nullptr);
-        glCompileShader(vertex_shader);
-
-        {
-            GLint result;
-            GLint info_log_len;
-
-            glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &result);
-            glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &info_log_len);
-            if (info_log_len != 0) {
-                std::vector<char> shader_err_msg(info_log_len);
-                glGetShaderInfoLog(vertex_shader, info_log_len, nullptr, &shader_err_msg[0]);
-                fprintf(stdout, "%s\n", &shader_err_msg[0]);
-            }
-        }
-
-        glShaderSource(fragment_shader, 1, &fragment_shader_src, nullptr);
-        glCompileShader(fragment_shader);
-
-        {
-            GLint result;
-            GLint info_log_len;
-
-            glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &result);
-            glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &info_log_len);
-            if (info_log_len != 0) {
-                std::vector<char> shader_err_msg(info_log_len);
-                glGetShaderInfoLog(fragment_shader, info_log_len, nullptr, &shader_err_msg[0]);
-                fprintf(stdout, "%s\n", &shader_err_msg[0]);
-            }
-        }
-
-        shader_program = glCreateProgram();
-        glAttachShader(shader_program, vertex_shader);
-        glAttachShader(shader_program, fragment_shader);
-        glLinkProgram(shader_program);
-
-        {
-            GLint result;
-            GLint info_log_len;
-
-            glGetProgramiv(shader_program, GL_LINK_STATUS, &result);
-            glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &info_log_len);
-            if (info_log_len != 0) {
-                std::vector<char> shader_err_msg(info_log_len);
-                glGetShaderInfoLog(shader_program, info_log_len, nullptr, &shader_err_msg[0]);
-                fprintf(stdout, "%s\n", &shader_err_msg[0]);
-            }
-        }
-
-        glDeleteShader(vertex_shader);
-        glDeleteShader(fragment_shader);
-    }
+    GLuint shader_program = compile_shader_program(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+            "layout(location = 1) in vec4 color;\n"
+            "out vec4 out_color;\n"
+            "void main() {\n"
+            "    gl_Position.xyz = vertexPosition_modelspace;\n"
+            "    out_color = color;\n"
+            "}\n",
+            "#version 330 core\n"
+            "in vec4 out_color;\n"
+            ""
+            "// Ouput data\n"
+            "layout(location = 0) out vec4 color;\n"
+            "\n"
+            "void main() {\n"
+            "    // Output color = red \n"
+            "    color = out_color;\n"
+            "}\n"
+    );
 
     struct {
         GLuint texture;
@@ -184,7 +132,7 @@ int main(int argc, char** argv) {
     static const GLfloat g_vertex_buffer_data[] = {
             -1.0f, -1.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
-            0.0f,  1.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
     };
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
@@ -194,7 +142,7 @@ int main(int argc, char** argv) {
     static const GLfloat g_color_buffer_data[] = {
             1.0f, 0.0f, 0.0f, 1.0f,
             0.0f, 1.0f, 0.0f, 1.0f,
-            0.0f,  0.0f, 1.0f, 1.0f,
+            0.0f, 0.0f, 1.0f, 1.0f,
     };
     GLuint colorbuffer;
     glGenBuffers(1, &colorbuffer);
@@ -301,6 +249,55 @@ int main(int argc, char** argv) {
     std::cout << "shutdown finished" << std::endl;
 
     return 0;
+}
+
+
+GLuint compile_shader(GLenum kind, const char *source) {
+    GLuint shader = glCreateShader(kind);
+
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+
+    GLint result;
+    GLint info_log_len;
+
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_len);
+    if (info_log_len != 0) {
+        std::vector<char> shader_err_msg(info_log_len);
+        glGetShaderInfoLog(shader, info_log_len, nullptr, &shader_err_msg[0]);
+        fprintf(stdout, "%s\n", &shader_err_msg[0]);
+    }
+
+    return shader;
+}
+
+GLuint compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src) {
+    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_shader_src);
+    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src);
+
+    GLuint shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
+
+
+    GLint result;
+    GLint info_log_len;
+
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &result);
+    glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &info_log_len);
+    if (info_log_len != 0) {
+        std::vector<char> shader_err_msg(info_log_len);
+        glGetShaderInfoLog(shader_program, info_log_len, nullptr, &shader_err_msg[0]);
+        fprintf(stdout, "%s\n", &shader_err_msg[0]);
+    }
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    return shader_program;
 }
 
 void check_gl_err_impl(int line) {
