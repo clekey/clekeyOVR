@@ -7,16 +7,6 @@
 #include <filesystem>
 #include <fstream>
 
-#ifdef WIN32
-#include <windows.h>
-#define sleep(n) Sleep(n * 1000)
-#else
-
-#include <csignal>
-
-#define Sleep(n) usleep(n * 1000)
-#endif
-
 #define WINDOW_CAPTION "clekeyOVR"
 #define WINDOW_HEIGHT 256
 #define WINDOW_WIDTH 512
