@@ -295,7 +295,6 @@ int main(int argc, char **argv) {
 
         // スクリーンに描画する。
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.0f, 1.0f, 1.0f, 0.0f);
 
         glViewport(0, 0,WINDOW_WIDTH, WINDOW_HEIGHT);
         glClear( GL_COLOR_BUFFER_BIT);
