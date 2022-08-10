@@ -3,6 +3,9 @@
 #include <SDL.h>
 #include <GL/glew.h>
 #include <vector>
+#include <sstream>
+#include <filesystem>
+#include <fstream>
 
 #ifdef WIN32
 #include <windows.h>
@@ -27,6 +30,8 @@ GLuint compile_shader_program(const char *vertex_shader_src, const char *fragmen
 void check_gl_err_impl(int line, const char * func);
 
 void handle_input_err(vr::EVRInputError error);
+
+void get_texture_data(GLuint texture, GLint level = 0);
 
 vr::VRActionHandle_t action_left_stick;
 vr::VRActionHandle_t action_left_click;
@@ -274,7 +279,7 @@ int main(int argc, char **argv) {
                     break;
             }
         }
-#if 0
+
         glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[0].frame_buffer);
         //glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -295,9 +300,9 @@ int main(int argc, char **argv) {
         glDisableVertexAttribArray(1);
 
         check_gl_err("framebuffer render");
-#endif
 
-#if 1
+        get_texture_data(rendered_textures[0].texture, 0);
+
         // スクリーンに描画する。
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0f, 1.0f, 1.0f, 0.0f);
@@ -317,7 +322,7 @@ int main(int argc, char **argv) {
         glDisableVertexAttribArray(0);
 
         check_gl_err(nullptr);
-#endif
+
         SDL_GL_SwapWindow(window);
 
         int delayTime = (int) (nextTime - SDL_GetTicks());
@@ -405,4 +410,49 @@ void handle_input_err(vr::EVRInputError error) {
     if (error != vr::VRInputError_None) {
         std::cerr << "input error: " << error << std::endl;
     }
+}
+
+void get_texture_data(GLuint texture, GLint level) {
+    static int index = 0;
+
+    GLint w, h;
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_HEIGHT, &h);
+
+    std::vector<uint8_t> tex_data(w * h * 4);
+
+    glGetTexImage(GL_TEXTURE_2D, level,
+                  GL_RGBA, GL_UNSIGNED_BYTE,
+                  &tex_data[0]);
+    check_gl_err(__func__);
+
+    std::filesystem::create_directories("frames");
+
+    std::stringstream bmp_path_builder;
+    bmp_path_builder << "frames/frame_" << std::setfill('0') << std::setw(5) << (index++) << ".bmp";
+    std::string bmp_path = bmp_path_builder.str();
+    std::ofstream bmp_file;
+    bmp_file.open(bmp_path, std::ios::out);
+
+    int32_t int_slot;
+
+#define write_int(data, size) do { int_slot = data; bmp_file.write(reinterpret_cast<const char *>(&int_slot), size);} while (0)
+    // file header
+    bmp_file << "BM";
+    write_int((int32_t)(tex_data.size()) + 12 + 14, 4);
+    write_int(0, 4);
+    write_int(12 + 14, 4); // sum of header size
+
+    // OS/2 bitmap header
+    write_int(12, 4);
+    write_int(w, 2);
+    write_int(h, 2);
+    write_int(1, 2);
+    write_int(32, 2);
+    bmp_file.write(reinterpret_cast<const char *>(&tex_data[0]), tex_data.size());
+#undef write_int
+
+    bmp_file.close();
 }
