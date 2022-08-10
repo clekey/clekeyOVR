@@ -6,6 +6,7 @@
 #include <sstream>
 #include <filesystem>
 #include <fstream>
+#include "gl-utils.h"
 
 #define WINDOW_CAPTION "clekeyOVR"
 #define WINDOW_HEIGHT 256
@@ -45,10 +46,10 @@ void GLAPIENTRY openglMessageCallback(
              type, severity, message );
 }
 
-int main(int argc, char **argv) {
+SDL_Window *init_SDL() {
     if (SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "sdl error: " << SDL_GetError() << std::endl;
-        return -1;
+        return nullptr;
     }
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -59,13 +60,18 @@ int main(int argc, char **argv) {
             SDL_WINDOW_OPENGL);
     if (!window) {
         std::cerr << "sdl error: " << SDL_GetError() << std::endl;
-        return -1;
+        return nullptr;
     }
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+
+    return window;
+}
+
+bool init_gl(SDL_Window *window) {
     SDL_GLContext context = SDL_GL_CreateContext(window);
-    if (!context) return -1;
+    if (!context) return false;
 
     glewExperimental = true;
     glewInit();
@@ -73,11 +79,46 @@ int main(int argc, char **argv) {
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(openglMessageCallback, nullptr);
 
-    GLuint vertex_array;
-    glGenVertexArrays(1, &vertex_array);
-    glBindVertexArray(vertex_array);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-    GLuint shader_program = compile_shader_program(
+    return true;
+}
+
+bool init_ovr() {
+
+    vr::HmdError err;
+    vr::VR_Init(&err, vr::EVRApplicationType::VRApplication_Overlay);
+    if (!vr::VROverlay()) {
+        std::cerr << "error: " << vr::VR_GetVRInitErrorAsEnglishDescription(err) << std::endl;
+        return false;
+    }
+    handle_input_err(vr::VRInput()->SetActionManifestPath(
+            R"(C:\Users\anata\clekey-ovr-build\actions.json)"));
+
+#define GetActionHandle(name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/input/in/" #name, &action_##name))
+    GetActionHandle(left_stick);
+    GetActionHandle(left_click);
+    GetActionHandle(left_haptic);
+    GetActionHandle(right_stick);
+    GetActionHandle(right_click);
+    GetActionHandle(right_haptic);
+    handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/input", &action_set_input));
+#undef GetActionHandle
+
+    std::cout << "action_left_stick:   " << action_left_stick << std::endl;
+    std::cout << "action_left_click:   " << action_left_click << std::endl;
+    std::cout << "action_left_haptic:  " << action_left_haptic << std::endl;
+    std::cout << "action_right_stick:  " << action_right_stick << std::endl;
+    std::cout << "action_right_click:  " << action_right_click << std::endl;
+    std::cout << "action_right_haptic: " << action_right_haptic << std::endl;
+    std::cout << "action_set_input:    " << action_set_input << std::endl;
+
+    std::cout << "successfully launched" << std::endl;
+    return true;
+}
+
+int glmain(SDL_Window *window) {
+    GLShaderProgram shader_program = GLShaderProgram::compile(
             "#version 330 core\n"
             "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
             "layout(location = 1) in vec4 color;\n"
@@ -98,7 +139,7 @@ int main(int argc, char **argv) {
             "}\n"
     );
 
-    GLuint texture_quad_shader_program = compile_shader_program(
+    GLShaderProgram texture_quad_shader_program = GLShaderProgram::compile(
             "#version 330 core\n"
             "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
             "out vec2 UV;\n"
@@ -117,16 +158,16 @@ int main(int argc, char **argv) {
             //"    color = vec3(UV, 0);\n"
             "}\n"
     );
-    GLint texture_id = glGetUniformLocation(texture_quad_shader_program, "rendered_texture");
+    GLUniformLocation texture_id = texture_quad_shader_program.getUniformLocation("rendered_texture");
 
     static const GLfloat g_quad_vertex_buffer_data[] = {
             1.0f, -1.0f, 0.0f,
             -1.0f, -1.0f, 0.0f,
-            -1.0f,  1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f,
 
-            -1.0f,  1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
-            1.0f,  1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,
     };
 
     GLuint quad_vertex_array;
@@ -145,7 +186,7 @@ int main(int argc, char **argv) {
     } rendered_textures[1];
 
 
-    for (auto & rendered_texture : rendered_textures) {
+    for (auto &rendered_texture: rendered_textures) {
         glGenFramebuffers(1, &rendered_texture.frame_buffer);
         glBindFramebuffer(GL_FRAMEBUFFER, rendered_texture.frame_buffer);
 
@@ -173,9 +214,6 @@ int main(int argc, char **argv) {
         check_gl_err("rendered_texture generation");
     }
 
-    // setup viewport
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
     static const GLfloat g_vertex_buffer_data[] = {
             -1.0f, -1.0f, 0.0f,
             1.0f, -1.0f, 0.0f,
@@ -198,36 +236,6 @@ int main(int argc, char **argv) {
 
     static const Uint32 interval = 1000 / 90;
     static Uint32 nextTime = SDL_GetTicks() + interval;
-    std::cout << "Hello, World!" << std::endl;
-
-    vr::HmdError err;
-    vr::VR_Init(&err, vr::EVRApplicationType::VRApplication_Overlay);
-    if (!vr::VROverlay()) {
-        std::cerr << "error: " << vr::VR_GetVRInitErrorAsEnglishDescription(err) << std::endl;
-        return -1;
-    }
-    handle_input_err(vr::VRInput()->SetActionManifestPath(
-            R"(C:\Users\anata\clekey-ovr-build\actions.json)"));
-
-#define GetActionHandle(name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/input/in/" #name, &action_##name))
-    GetActionHandle(left_stick);
-    GetActionHandle(left_click);
-    GetActionHandle(left_haptic);
-    GetActionHandle(right_stick);
-    GetActionHandle(right_click);
-    GetActionHandle(right_haptic);
-    handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/input", &action_set_input));
-#undef GetActionHandle
-
-    std::cout << "action_left_stick:   " << action_left_stick << std::endl;
-    std::cout << "action_left_click:   " << action_left_click << std::endl;
-    std::cout << "action_left_haptic:  " << action_left_haptic << std::endl;
-    std::cout << "action_right_stick:  " << action_right_stick << std::endl;
-    std::cout << "action_right_click:  " << action_right_click << std::endl;
-    std::cout << "action_right_haptic: " << action_right_haptic << std::endl;
-    std::cout << "action_set_input:    " << action_set_input << std::endl;
-
-    std::cout << "successfully launched" << std::endl;
 
     for (;;) {
         //*
@@ -261,11 +269,11 @@ int main(int argc, char **argv) {
         while (SDL_PollEvent(&ev)) {
             switch (ev.type) {
                 case SDL_QUIT:
-                    goto quit;
+                    return 0;
                 case SDL_KEYDOWN:
                     key = ev.key.keysym.sym;
                     if (key == SDLK_ESCAPE)
-                        goto quit;
+                        return 0;
                     break;
             }
         }
@@ -273,9 +281,9 @@ int main(int argc, char **argv) {
         glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[0].frame_buffer);
         //glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shader_program);
+        shader_program.use();
 
         // 1rst attribute buffer : vertices
         glEnableVertexAttribArray(0);
@@ -296,13 +304,13 @@ int main(int argc, char **argv) {
         // スクリーンに描画する。
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        glViewport(0, 0,WINDOW_WIDTH, WINDOW_HEIGHT);
-        glClear( GL_COLOR_BUFFER_BIT);
-        glUseProgram(texture_quad_shader_program);
+        glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+        glClear(GL_COLOR_BUFFER_BIT);
+        texture_quad_shader_program.use();
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, rendered_textures[0].texture);
-        glUniform1i(texture_id, 1);
+        texture_id.set1i(1);
 
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
@@ -321,18 +329,22 @@ int main(int argc, char **argv) {
 
         nextTime += interval;
     }
+}
 
-    quit:
-    // Cleanup VBO
-    glDeleteBuffers(1, &vertexbuffer);
-    glDeleteVertexArrays(1, &vertex_array);
-    glDeleteProgram(shader_program);
+int main(int argc, char **argv) {
+    SDL_Window *window = init_SDL();
+    if (!window) return 1;
+    if (!init_gl(window)) return 2;
+    if (!init_ovr()) return 3;
+
+    int exit_code = glmain(window);
+
     SDL_Quit();
     vr::VR_Shutdown();
 
     std::cout << "shutdown finished" << std::endl;
 
-    return 0;
+    return exit_code;
 }
 
 
