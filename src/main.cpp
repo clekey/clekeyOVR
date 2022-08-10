@@ -22,9 +22,9 @@
 GLuint compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src);
 
 // error handling
-#define check_gl_err() check_gl_err_impl(__LINE__)
+#define check_gl_err(func) check_gl_err_impl(__LINE__, func)
 
-void check_gl_err_impl(int line);
+void check_gl_err_impl(int line, const char * func);
 
 void handle_input_err(vr::EVRInputError error);
 
@@ -35,6 +35,20 @@ vr::VRActionHandle_t action_right_stick;
 vr::VRActionHandle_t action_right_click;
 vr::VRActionHandle_t action_right_haptic;
 vr::VRActionSetHandle_t action_set_input;
+
+void GLAPIENTRY openglMessageCallback(
+        GLenum source,
+        GLenum type,
+        GLuint id,
+        GLenum severity,
+        GLsizei length,
+        const GLchar* message,
+        const void* userParam )
+{
+    fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+             ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+             type, severity, message );
+}
 
 int main(int argc, char **argv) {
     if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -61,6 +75,9 @@ int main(int argc, char **argv) {
     glewExperimental = true;
     glewInit();
 
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(openglMessageCallback, nullptr);
+
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
@@ -86,35 +103,69 @@ int main(int argc, char **argv) {
             "}\n"
     );
 
+    GLuint texture_quad_shader_program = compile_shader_program(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+            "out vec2 UV;\n"
+            "void main() {\n"
+            "    gl_Position.xyz = vertexPosition_modelspace;\n"
+            "    UV = (vertexPosition_modelspace.xy+vec2(1,1))/2.0;\n"
+            "}\n",
+            "#version 330 core\n"
+            "in vec2 UV;\n"
+            "out vec3 color;\n"
+            "\n"
+            "uniform sampler2D rendered_texture;\n"
+            "\n"
+            "void main() {\n"
+            "    color = texture(rendered_texture, UV).xyz;\n"
+            //"    color = vec3(UV, 0);\n"
+            "}\n"
+    );
+    GLint texture_id = glGetUniformLocation(texture_quad_shader_program, "rendered_texture");
+
+    static const GLfloat g_quad_vertex_buffer_data[] = {
+            1.0f, -1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f,
+            -1.0f,  1.0f, 0.0f,
+
+            -1.0f,  1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f,
+            1.0f,  1.0f, 0.0f,
+    };
+
+    GLuint quad_vertex_array;
+    glGenVertexArrays(1, &quad_vertex_array);
+    glBindVertexArray(quad_vertex_array);
+
+    GLuint quad_vertex_buffer;
+    glGenBuffers(1, &quad_vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+
     struct {
         GLuint texture;
         GLuint frame_buffer;
-    } rendered_textures[2];
+    } rendered_textures[1];
+
 
     for (auto & rendered_texture : rendered_textures) {
-        glGenTextures(1, &rendered_texture.texture);
-        // 新しく作ったテクスチャを"バインド"する。：以降のすべてのテクスチャ関数はこのテクスチャを修正する。
-        glBindTexture(GL_TEXTURE_2D, rendered_texture.texture);
-
-        // 空の画像をOpenGLに渡す。（最後が"0"）
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, \
-                WINDOW_WIDTH, WINDOW_HEIGHT, 0, \
-                GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-
-        // 貧弱なフィルタリング。
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
         glGenFramebuffers(1, &rendered_texture.frame_buffer);
         glBindFramebuffer(GL_FRAMEBUFFER, rendered_texture.frame_buffer);
 
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rendered_texture.texture, 0);
+        glGenTextures(1, &rendered_texture.texture);
+        glBindTexture(GL_TEXTURE_2D, rendered_texture.texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         GLuint depth_buffer;
         glGenRenderbuffers(1, &depth_buffer);
         glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 768);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WINDOW_WIDTH, WINDOW_HEIGHT);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer);
+
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rendered_texture.texture, 0);
 
         GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
         glDrawBuffers(1, DrawBuffers);
@@ -124,11 +175,10 @@ int main(int argc, char **argv) {
             std::cerr << "GL_FRAMEBUFFER mismatch: " << buffer_status << std::endl;
             return -1;
         }
+        check_gl_err("rendered_texture generation");
     }
 
     // setup viewport
-    glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[0].frame_buffer);
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     static const GLfloat g_vertex_buffer_data[] = {
@@ -224,6 +274,11 @@ int main(int argc, char **argv) {
                     break;
             }
         }
+#if 0
+        glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[0].frame_buffer);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shader_program);
 
@@ -235,11 +290,34 @@ int main(int argc, char **argv) {
         glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
         // Draw the triangle !
-        glDrawArrays(GL_TRIANGLES, 0, 3); // 3 indices starting at 0 -> 1 triangle
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+
+        check_gl_err("framebuffer render");
+#endif
+
+#if 1
+        // スクリーンに描画する。
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 1.0f, 1.0f, 0.0f);
+
+        glViewport(0, 0,WINDOW_WIDTH, WINDOW_HEIGHT);
+        glClear( GL_COLOR_BUFFER_BIT);
+        glUseProgram(texture_quad_shader_program);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, rendered_textures[0].texture);
+        glUniform1i(texture_id, 1);
+
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
         glDisableVertexAttribArray(0);
 
-        check_gl_err();
-
+        check_gl_err(nullptr);
+#endif
         SDL_GL_SwapWindow(window);
 
         int delayTime = (int) (nextTime - SDL_GetTicks());
@@ -312,10 +390,14 @@ GLuint compile_shader_program(const char *vertex_shader_src, const char *fragmen
     return shader_program;
 }
 
-void check_gl_err_impl(int line) {
+void check_gl_err_impl(int line, const char *func) {
     GLenum err;
-    while (err = glGetError()) {
-        std::cerr << "err #" << line << ": " << gluErrorString(err) << std::endl;
+    while ((err = glGetError())) {
+        std::cerr << "err #" << line;
+        if (func && *func) {
+            std::cerr << "(" << func << ")";
+        }
+        std::cerr << ": 0x" << std::hex << err << std::dec << ": " << gluErrorString(err) << std::endl;
     }
 }
 
