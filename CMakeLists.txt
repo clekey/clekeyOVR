@@ -9,7 +9,12 @@ find_package(GLEW REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 
-add_executable(clekey_ovr src/main.cpp)
+add_executable(clekey_ovr
+        src/main.cpp
+        src/graphics/OVRController.cpp
+        src/graphics/MainGuiRenderer.cpp
+        src/graphics/DesktopGuiRenderer.cpp
+        src/graphics/bmp_export.cpp src/graphics/bmp_export.h)
 
 configure_file(resources/actions.json actions.json COPYONLY)
 configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
