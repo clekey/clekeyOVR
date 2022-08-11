@@ -6,6 +6,7 @@
 #define CLEKEY_OVR_OVRCONTROLLER_H
 
 #include "openvr.h"
+#include "GL/glew.h"
 
 bool init_ovr();
 void shutdown_ovr();
@@ -18,9 +19,10 @@ class OVRController {
     vr::VRActionHandle_t action_right_click;
     vr::VRActionHandle_t action_right_haptic;
     vr::VRActionSetHandle_t action_set_input;
+    vr::VROverlayHandle_t overlay_handle;
 public:
     OVRController();
-    void tick() const;
+    void tick(GLuint texture) const;
 };
 
 

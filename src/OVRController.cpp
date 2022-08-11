@@ -12,6 +12,13 @@ void handle_input_err(vr::EVRInputError error) {
     }
 }
 
+void handle_overlay_err(vr::EVROverlayError error) {
+    if (error != vr::VROverlayError_None) {
+        std::cerr << "input error (" << error << "): " << vr::VROverlay()->GetOverlayErrorNameFromEnum(error)
+                  << std::endl;
+    }
+}
+
 bool init_ovr() {
     vr::HmdError err;
     vr::VR_Init(&err, vr::EVRApplicationType::VRApplication_Overlay);
@@ -35,6 +42,7 @@ OVRController::OVRController() {
     action_right_click = 0;
     action_right_haptic = 0;
     action_set_input = 0;
+    overlay_handle = 0;
 
     handle_input_err(vr::VRInput()->SetActionManifestPath(
             R"(C:\Users\anata\clekey-ovr-build\actions.json)"));
@@ -49,6 +57,10 @@ OVRController::OVRController() {
     handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/input", &action_set_input));
 #undef GetActionHandle
 
+    handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr", "clekey-ovr", &overlay_handle));
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, 2);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handle, 0.7);
+
     std::cout << "action_left_stick:   " << action_left_stick << std::endl;
     std::cout << "action_left_click:   " << action_left_click << std::endl;
     std::cout << "action_left_haptic:  " << action_left_haptic << std::endl;
@@ -60,7 +72,7 @@ OVRController::OVRController() {
     std::cout << "successfully launched" << std::endl;
 }
 
-void OVRController::tick() const {
+void OVRController::tick(GLuint texture) const {
     vr::VRActiveActionSet_t action = {};
     action.ulActionSet = action_set_input;
     handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
@@ -85,4 +97,32 @@ void OVRController::tick() const {
             vr::k_ulInvalidInputValueHandle));
     std::cout << "right click: " << digital_data.bActive << ": "
               << digital_data.bState << std::endl;
+
+    vr::VROverlay()->ShowOverlay(overlay_handle);
+    if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {
+        vr::HmdMatrix34_t position = {};
+
+        position.m[0][0] = 1;
+        position.m[1][1] = 1;
+        position.m[2][2] = 1;
+
+        position.m[0][3] = 0;
+        position.m[1][3] = 0;
+        position.m[2][3] = -10;
+
+        vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
+                overlay_handle,
+                vr::k_unTrackedDeviceIndex_Hmd,
+                &position);
+
+        vr::Texture_t vr_texture = {};
+
+        vr_texture.handle = (void *)(uintptr_t)texture;
+        vr_texture.eType = vr::TextureType_OpenGL;
+        vr_texture.eColorSpace = vr::ColorSpace_Auto;
+
+        handle_overlay_err(vr::VROverlay()->SetOverlayTexture(
+                overlay_handle,
+                &vr_texture));
+    }
 }

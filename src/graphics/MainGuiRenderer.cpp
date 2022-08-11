@@ -41,7 +41,7 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
 
         gl::Bind(texture);
         texture.upload(
-                gl::kRgb, width, height,
+                gl::kRgba8, width, height,
                 gl::kRgb, gl::kUnsignedByte, nullptr
         );
         texture.magFilter(gl::kNearest);

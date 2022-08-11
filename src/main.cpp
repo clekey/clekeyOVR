@@ -79,9 +79,6 @@ int glmain(SDL_Window *window) {
     static Uint32 nextTime = SDL_GetTicks() + interval;
 
     for (;;) {
-        //*
-        ovr_controller.tick();
-
         SDL_Event ev;
         SDL_Keycode key;
         while (SDL_PollEvent(&ev)) {
@@ -101,6 +98,8 @@ int glmain(SDL_Window *window) {
         //export_as_bmp(main_renderer.rendered_textures[0].texture, 0);
 
         desktop_renderer.draw(main_renderer.rendered_textures[0].texture);
+
+        ovr_controller.tick(main_renderer.rendered_textures[0].texture.expose());
 
         SDL_GL_SwapWindow(window);
 
