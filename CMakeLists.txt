@@ -11,7 +11,7 @@ find_package(OpenGL REQUIRED)
 
 add_executable(clekey_ovr
         src/main.cpp
-        src/graphics/OVRController.cpp
+        src/OVRController.cpp
         src/graphics/MainGuiRenderer.cpp
         src/graphics/DesktopGuiRenderer.cpp
         src/graphics/bmp_export.cpp src/graphics/bmp_export.h)

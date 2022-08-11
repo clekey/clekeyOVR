@@ -3,7 +3,7 @@
 #include <GL/glew.h>
 #include <oglwrap/oglwrap.h>
 
-#include "graphics/OVRController.h"
+#include "OVRController.h"
 #include "graphics/MainGuiRenderer.h"
 #include "graphics/DesktopGuiRenderer.h"
 #include "graphics/bmp_export.h"
