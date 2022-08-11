@@ -31,7 +31,7 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
         vertexPositionAttrib(shader_program, "vertexPosition_modelspace"),
         colorAttrib(shader_program, "color")
 {
-
+//*
     for (auto &rendered_texture: rendered_textures) {
         gl::Texture2D& texture(rendered_texture.texture);
         gl::Renderbuffer& depth_buffer(rendered_texture.depth_buffer);
@@ -45,6 +45,7 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
                 gl::kRgb, gl::kUnsignedByte, nullptr
         );
         texture.magFilter(gl::kNearest);
+        texture.minFilter(gl::kNearest);
 
         gl::Bind(depth_buffer);
         depth_buffer.storage(gl::kDepthComponent, width, height);
@@ -60,6 +61,9 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
         }
         check_gl_err("rendered_texture generation");
     }
+// */
+
+    gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     static const GLfloat g_vertex_buffer_data[] = {
             -1.0f, -1.0f, 0.0f,
@@ -79,9 +83,8 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
 }
 
 void MainGuiRenderer::draw() {
-    gl::Bind(vertex_array);
     gl::Bind(rendered_textures[0].frame_buffer);
-    //gl::Unbind(gl::kFramebuffer);
+    gl::Bind(vertex_array);
     gl::Viewport(0, 0, width, height);
     gl::Clear().Color().Depth();
 
@@ -98,6 +101,8 @@ void MainGuiRenderer::draw() {
     gl::DrawArrays(gl::kTriangles, 0, 3);
     vertexPositionAttrib.disable();
     colorAttrib.disable();
+
+    gl::Unbind(rendered_textures[0].frame_buffer);
 
     check_gl_err("main gui rendering");
 }

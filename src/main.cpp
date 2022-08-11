@@ -54,6 +54,27 @@ int glmain(SDL_Window *window) {
     DesktopGuiRenderer desktop_renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
     OVRController ovr_controller;
 
+    gl::Texture2D texture;
+    {
+        gl::Bind(texture);
+        std::vector<uint8_t> tex_data(WINDOW_WIDTH * WINDOW_HEIGHT * 4);
+
+        for (int i = 0; i < tex_data.size(); i += 4) {
+            tex_data[i + 0] = 0x80;
+            tex_data[i + 1] = 0x40;
+            tex_data[i + 2] = 0xC0;
+            tex_data[i + 3] = 0xFF;
+        }
+
+        texture.upload(
+                gl::kRgba, WINDOW_WIDTH, WINDOW_HEIGHT,
+                gl::kRgba, gl::kUnsignedByte, tex_data.data()
+        );
+
+        texture.minFilter(gl::kLinear);
+        texture.magFilter(gl::kNearest);
+    }
+
     static const Uint32 interval = 1000 / 90;
     static Uint32 nextTime = SDL_GetTicks() + interval;
 
@@ -77,7 +98,7 @@ int glmain(SDL_Window *window) {
 
         main_renderer.draw();
 
-        export_as_bmp(main_renderer.rendered_textures[0].texture, 0);
+        //export_as_bmp(main_renderer.rendered_textures[0].texture, 0);
 
         desktop_renderer.draw(main_renderer.rendered_textures[0].texture);
 

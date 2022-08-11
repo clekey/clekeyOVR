@@ -8,7 +8,7 @@
 DesktopGuiRenderer::DesktopGuiRenderer(int width, int height) :
         width(width),
         height(height),
-        shader_program(std::move(compile_shader_program(
+        shader_program((gl::Unbind(gl::kFramebuffer), std::move(compile_shader_program(
                 "#version 330 core\n"
                 "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
                 "out vec2 UV;\n"
@@ -26,10 +26,9 @@ DesktopGuiRenderer::DesktopGuiRenderer(int width, int height) :
                 "    color = texture(rendered_texture, UV).xyz;\n"
                 //"    color = vec3(UV, 0);\n"
                 "}\n"
-        ))),
+        )))),
         vertexPositionAttrib(shader_program, "vertexPosition_modelspace"),
-        texture_id((gl::Bind(shader_program), shader_program), "rendered_texture")
-{
+        texture_id((gl::Bind(shader_program), shader_program), "rendered_texture") {
 
     static const GLfloat g_quad_vertex_buffer_data[] = {
             1.0f, -1.0f, 0.0f,
@@ -52,7 +51,7 @@ void DesktopGuiRenderer::draw(gl::Texture2D &texture) {
     gl::Bind(vertex_array);
 
     glViewport(0, 0, width, height);
-    glClear(GL_COLOR_BUFFER_BIT);
+    gl::Clear().Color().Depth();
     gl::Use(shader_program);
 
     gl::BindToTexUnit(texture, 0);
