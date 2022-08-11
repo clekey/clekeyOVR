@@ -19,6 +19,8 @@ include_directories(
         ${SDL2_INCLUDE_DIRS}
         ${GLEW_INCLUDE_DIRS}
         ${OPENGL_INCLUDE_DIRS}
+        oglwrap
+        glm
 )
 target_link_libraries(
         clekey_ovr

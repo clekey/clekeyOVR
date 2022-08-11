@@ -6,14 +6,11 @@
 #include <sstream>
 #include <filesystem>
 #include <fstream>
-#include "gl-utils.h"
+#include <oglwrap/oglwrap.h>
 
 #define WINDOW_CAPTION "clekeyOVR"
 #define WINDOW_HEIGHT 256
 #define WINDOW_WIDTH 512
-
-// shader
-GLuint compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src);
 
 // error handling
 #define check_gl_err(func) check_gl_err_impl(__LINE__, func)
@@ -22,7 +19,7 @@ void check_gl_err_impl(int line, const char * func);
 
 void handle_input_err(vr::EVRInputError error);
 
-void get_texture_data(GLuint texture, GLint level = 0);
+void get_texture_data(gl::Texture2D& texture, GLint level = 0);
 
 vr::VRActionHandle_t action_left_stick;
 vr::VRActionHandle_t action_left_click;
@@ -76,10 +73,7 @@ bool init_gl(SDL_Window *window) {
     glewExperimental = true;
     glewInit();
 
-    glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(openglMessageCallback, nullptr);
-
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     return true;
 }
@@ -117,8 +111,20 @@ bool init_ovr() {
     return true;
 }
 
+gl::Program compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src) {
+    gl::Shader vertex(gl::kVertexShader);
+    gl::Shader fragment(gl::kFragmentShader);
+    vertex.set_source(vertex_shader_src);
+    vertex.compile();
+    fragment.set_source(fragment_shader_src);
+    fragment.compile();
+    gl::Program program(vertex, fragment);
+    program.link();
+    return program;
+}
+
 int glmain(SDL_Window *window) {
-    GLShaderProgram shader_program = GLShaderProgram::compile(
+    gl::Program shader_program = compile_shader_program(
             "#version 330 core\n"
             "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
             "layout(location = 1) in vec4 color;\n"
@@ -138,8 +144,11 @@ int glmain(SDL_Window *window) {
             "    color = out_color;\n"
             "}\n"
     );
+    gl::VertexAttrib vertexPositionAttrib(shader_program, "vertexPosition_modelspace");
+    gl::VertexAttrib colorAttrib(shader_program, "color");
+    std::cerr << "glmain init shader program" << std::endl;
 
-    GLShaderProgram texture_quad_shader_program = GLShaderProgram::compile(
+    gl::Program texture_quad_shader_program = compile_shader_program(
             "#version 330 core\n"
             "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
             "out vec2 UV;\n"
@@ -158,7 +167,10 @@ int glmain(SDL_Window *window) {
             //"    color = vec3(UV, 0);\n"
             "}\n"
     );
-    GLUniformLocation texture_id = texture_quad_shader_program.getUniformLocation("rendered_texture");
+    gl::VertexAttrib texVertexPositionAttrib(shader_program, "vertexPosition_modelspace");
+    gl::Bind(texture_quad_shader_program);
+    gl::UniformSampler texture_id(texture_quad_shader_program, "rendered_texture");
+    std::cerr << "glmain init texture program" << std::endl;
 
     static const GLfloat g_quad_vertex_buffer_data[] = {
             1.0f, -1.0f, 0.0f,
@@ -170,45 +182,45 @@ int glmain(SDL_Window *window) {
             1.0f, 1.0f, 0.0f,
     };
 
-    GLuint quad_vertex_array;
-    glGenVertexArrays(1, &quad_vertex_array);
-    glBindVertexArray(quad_vertex_array);
+    gl::VertexArray quad_vertex_array;
+    gl::Bind(quad_vertex_array);
 
-    GLuint quad_vertex_buffer;
-    glGenBuffers(1, &quad_vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
+    gl::ArrayBuffer quad_vertex_buffer;
+    gl::Bind(quad_vertex_buffer);
+    quad_vertex_buffer.data(sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, gl::kStaticDraw);
 
     struct {
-        GLuint texture;
-        GLuint frame_buffer;
+        gl::Texture2D texture;
+        gl::Renderbuffer depth_buffer;
+        gl::Framebuffer frame_buffer;
     } rendered_textures[1];
 
 
     for (auto &rendered_texture: rendered_textures) {
-        glGenFramebuffers(1, &rendered_texture.frame_buffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, rendered_texture.frame_buffer);
+        gl::Texture2D& texture(rendered_texture.texture);
+        gl::Renderbuffer& depth_buffer(rendered_texture.depth_buffer);
+        gl::Framebuffer& frame_buffer(rendered_texture.frame_buffer);
 
-        glGenTextures(1, &rendered_texture.texture);
-        glBindTexture(GL_TEXTURE_2D, rendered_texture.texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        gl::Bind(frame_buffer);
 
-        GLuint depth_buffer;
-        glGenRenderbuffers(1, &depth_buffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WINDOW_WIDTH, WINDOW_HEIGHT);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer);
+        gl::Bind(texture);
+        texture.upload(
+                gl::kRgb, WINDOW_WIDTH, WINDOW_HEIGHT,
+                gl::kRgb, gl::kUnsignedByte, nullptr
+                );
+        texture.magFilter(gl::kNearest);
 
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, rendered_texture.texture, 0);
+        gl::Bind(depth_buffer);
+        depth_buffer.storage(gl::kDepthComponent, WINDOW_WIDTH, WINDOW_HEIGHT);
+        frame_buffer.attachBuffer(gl::kDepthAttachment, depth_buffer);
 
-        GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-        glDrawBuffers(1, DrawBuffers);
+        frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
 
-        GLenum buffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (buffer_status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "GL_FRAMEBUFFER mismatch: " << buffer_status << std::endl;
+        gl::DrawBuffers({gl::kColorAttachment0});
+
+        gl::FramebufferStatus buffer_status = frame_buffer.status();
+        if (buffer_status != gl::kFramebufferComplete) {
+            std::cerr << "GL_FRAMEBUFFER mismatch: " << GLenum(buffer_status) << std::endl;
             return -1;
         }
         check_gl_err("rendered_texture generation");
@@ -219,20 +231,18 @@ int glmain(SDL_Window *window) {
             1.0f, -1.0f, 0.0f,
             0.0f, 1.0f, 0.0f,
     };
-    GLuint vertexbuffer;
-    glGenBuffers(1, &vertexbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    gl::ArrayBuffer vertexbuffer;
+    gl::Bind(vertexbuffer);
+    vertexbuffer.data(sizeof(g_vertex_buffer_data), g_vertex_buffer_data, gl::kStaticDraw);
 
     static const GLfloat g_color_buffer_data[] = {
             1.0f, 0.0f, 0.0f, 1.0f,
             0.0f, 1.0f, 0.0f, 1.0f,
             0.0f, 0.0f, 1.0f, 1.0f,
     };
-    GLuint colorbuffer;
-    glGenBuffers(1, &colorbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+    gl::ArrayBuffer colorbuffer;
+    gl::Bind(colorbuffer);
+    colorbuffer.data(sizeof(g_color_buffer_data), g_color_buffer_data, gl::kStaticDraw);
 
     static const Uint32 interval = 1000 / 90;
     static Uint32 nextTime = SDL_GetTicks() + interval;
@@ -278,45 +288,44 @@ int glmain(SDL_Window *window) {
             }
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, rendered_textures[0].frame_buffer);
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        gl::Bind(rendered_textures[0].frame_buffer);
+        //gl::Unbind(gl::kFramebuffer);
+        gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+        gl::Clear().Color().Depth();
 
-        shader_program.use();
+        gl::Use(shader_program);
 
         // 1rst attribute buffer : vertices
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-        glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
+        vertexPositionAttrib.enable();
+        gl::Bind(vertexbuffer);
+        vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
+        colorAttrib.enable();
+        gl::Bind(colorbuffer);
+        colorAttrib.pointer(4, gl::kFloat, false, 0, nullptr);
         // Draw the triangle !
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
+        gl::DrawArrays(gl::kTriangles, 0, 3);
+        vertexPositionAttrib.disable();
+        colorAttrib.disable();
 
         check_gl_err("framebuffer render");
 
         get_texture_data(rendered_textures[0].texture, 0);
 
         // スクリーンに描画する。
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        gl::Unbind(gl::kFramebuffer);
 
         glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
         glClear(GL_COLOR_BUFFER_BIT);
-        texture_quad_shader_program.use();
+        gl::Use(texture_quad_shader_program);
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, rendered_textures[0].texture);
-        texture_id.set1i(1);
+        gl::BindToTexUnit(rendered_textures[0].texture, 0);
+        texture_id.set(0);
 
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glDisableVertexAttribArray(0);
+        texVertexPositionAttrib.enable();
+        gl::Bind(quad_vertex_buffer);
+        texVertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
+        gl::DrawArrays(gl::kTriangles, 0, 6);
+        texVertexPositionAttrib.disable();
 
         check_gl_err(nullptr);
 
@@ -369,33 +378,6 @@ GLuint compile_shader(GLenum kind, const char *source) {
     return shader;
 }
 
-GLuint compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src) {
-    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_shader_src);
-    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_src);
-
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-
-    GLint result;
-    GLint info_log_len;
-
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &result);
-    glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &info_log_len);
-    if (info_log_len != 0) {
-        std::vector<char> shader_err_msg(info_log_len);
-        glGetShaderInfoLog(shader_program, info_log_len, nullptr, &shader_err_msg[0]);
-        fprintf(stdout, "%s\n", &shader_err_msg[0]);
-    }
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    return shader_program;
-}
-
 void check_gl_err_impl(int line, const char *func) {
     GLenum err;
     while ((err = glGetError())) {
@@ -413,16 +395,14 @@ void handle_input_err(vr::EVRInputError error) {
     }
 }
 
-void get_texture_data(GLuint texture, GLint level) {
+void get_texture_data(gl::Texture2D& texture, GLint level) {
     const size_t header_size = 14 + 40;
 
     static int index = 0;
 
-    GLint w, h;
-
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_WIDTH, &w);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_HEIGHT, &h);
+    gl::Bind(texture);
+    GLint w = texture.width(level);
+    GLint h = texture.height(level);
 
     std::vector<uint8_t> bmp_data(w * h * 4 + header_size);
 
