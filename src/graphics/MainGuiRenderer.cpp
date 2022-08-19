@@ -31,37 +31,29 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
         vertexPositionAttrib(shader_program, "vertexPosition_modelspace"),
         colorAttrib(shader_program, "color")
 {
-//*
-    for (auto &rendered_texture: rendered_textures) {
-        gl::Texture2D& texture(rendered_texture.texture);
-        gl::Renderbuffer& depth_buffer(rendered_texture.depth_buffer);
-        gl::Framebuffer& frame_buffer(rendered_texture.frame_buffer);
+     gl::Bind(frame_buffer);
 
-        gl::Bind(frame_buffer);
+    gl::Bind(dest_texture);
+    dest_texture.upload(
+            gl::kRgba8, width, height,
+            gl::kRgb, gl::kUnsignedByte, nullptr
+    );
+    dest_texture.magFilter(gl::kNearest);
+    dest_texture.minFilter(gl::kNearest);
 
-        gl::Bind(texture);
-        texture.upload(
-                gl::kRgba8, width, height,
-                gl::kRgb, gl::kUnsignedByte, nullptr
-        );
-        texture.magFilter(gl::kNearest);
-        texture.minFilter(gl::kNearest);
+    gl::Bind(depth_buffer);
+    depth_buffer.storage(gl::kDepthComponent, width, height);
+    frame_buffer.attachBuffer(gl::kDepthAttachment, depth_buffer);
 
-        gl::Bind(depth_buffer);
-        depth_buffer.storage(gl::kDepthComponent, width, height);
-        frame_buffer.attachBuffer(gl::kDepthAttachment, depth_buffer);
+    frame_buffer.attachTexture(gl::kColorAttachment0, dest_texture, 0);
 
-        frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
+    gl::DrawBuffers({gl::kColorAttachment0});
 
-        gl::DrawBuffers({gl::kColorAttachment0});
-
-        gl::FramebufferStatus buffer_status = frame_buffer.status();
-        if (buffer_status != gl::kFramebufferComplete) {
-            std::cerr << "GL_FRAMEBUFFER mismatch: " << GLenum(buffer_status) << std::endl;
-        }
-        check_gl_err("rendered_texture generation");
+    gl::FramebufferStatus buffer_status = frame_buffer.status();
+    if (buffer_status != gl::kFramebufferComplete) {
+        std::cerr << "GL_FRAMEBUFFER mismatch: " << GLenum(buffer_status) << std::endl;
     }
-// */
+    check_gl_err("rendered_texture generation");
 
     gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 

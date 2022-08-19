@@ -19,11 +19,9 @@ public:
     gl::VertexAttrib vertexPositionAttrib;
     gl::VertexAttrib colorAttrib;
 
-    struct {
-        gl::Texture2D texture;
-        gl::Renderbuffer depth_buffer;
-        gl::Framebuffer frame_buffer;
-    } rendered_textures[1];
+    gl::Texture2D dest_texture;
+    gl::Renderbuffer depth_buffer;
+    gl::Framebuffer frame_buffer;
 
     gl::VertexArray vertex_array;
     gl::ArrayBuffer vertexbuffer;
