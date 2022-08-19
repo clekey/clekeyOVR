@@ -100,9 +100,9 @@ int glmain(SDL_Window *window) {
 
         //export_as_bmp(main_renderer.rendered_textures[0].texture, 0);
 
-        desktop_renderer.draw(main_renderer.rendered_textures[0].texture);
+        desktop_renderer.draw(main_renderer.dest_texture);
 
-        ovr_controller.tick(main_renderer.rendered_textures[0].texture.expose());
+        ovr_controller.tick(main_renderer.dest_texture.expose());
 
         SDL_GL_SwapWindow(window);
 

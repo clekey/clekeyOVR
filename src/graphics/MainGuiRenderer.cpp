@@ -75,7 +75,7 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
 }
 
 void MainGuiRenderer::draw() {
-    gl::Bind(rendered_textures[0].frame_buffer);
+    gl::Bind(frame_buffer);
     gl::Bind(vertex_array);
     gl::Viewport(0, 0, width, height);
     gl::Clear().Color().Depth();
@@ -94,7 +94,7 @@ void MainGuiRenderer::draw() {
     vertexPositionAttrib.disable();
     colorAttrib.disable();
 
-    gl::Unbind(rendered_textures[0].frame_buffer);
+    gl::Unbind(frame_buffer);
 
     check_gl_err("main gui rendering");
 }
