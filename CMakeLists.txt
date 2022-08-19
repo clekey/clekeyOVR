@@ -23,7 +23,6 @@ configure_file(resources/bindings_vive_controller.json bindings_vive_controller.
 #link_openvr(clekey_ovr)
 include_directories(
         ${SDL2_INCLUDE_DIRS}
-        ${GLEW_INCLUDE_DIRS}
         ${OPENGL_INCLUDE_DIRS}
         oglwrap
         glm
@@ -31,6 +30,6 @@ include_directories(
 target_link_libraries(
         clekey_ovr
         ${SDL2_LIBRARIES}
-        ${GLEW_LIBRARIES}
+        GLEW::GLEW
         ${OPENGL_LIBRARIES}
 )
