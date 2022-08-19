@@ -39,7 +39,10 @@ SDL_Window *init_SDL() {
 
 bool init_gl(SDL_Window *window) {
     SDL_GLContext context = SDL_GL_CreateContext(window);
-    if (!context) return false;
+    if (!context) {
+        std::cerr << "SDL init error: " << SDL_GetError() << std::endl;
+        return false;
+    }
 
     glewExperimental = true;
     glewInit();
