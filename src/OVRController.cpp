@@ -4,6 +4,8 @@
 
 #include "OVRController.h"
 
+#ifdef WITH_OPEN_VR
+
 #include <iostream>
 
 void handle_input_err(vr::EVRInputError error) {
@@ -126,3 +128,17 @@ void OVRController::tick(GLuint texture) const {
                 &vr_texture));
     }
 }
+#else
+
+// no openVR
+bool init_ovr() {
+    return true;
+}
+
+void shutdown_ovr() {
+}
+
+OVRController::OVRController() = default;
+void OVRController::tick(GLuint texture) const {}
+
+#endif

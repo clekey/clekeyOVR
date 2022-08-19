@@ -19,7 +19,8 @@ add_executable(clekey_ovr
 configure_file(resources/actions.json actions.json COPYONLY)
 configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
 configure_file(resources/bindings_vive_controller.json bindings_vive_controller.json COPYONLY)
-link_openvr(clekey_ovr)
+#add_definitions(-DWITH_OPEN_VR)
+#link_openvr(clekey_ovr)
 include_directories(
         ${SDL2_INCLUDE_DIRS}
         ${GLEW_INCLUDE_DIRS}
