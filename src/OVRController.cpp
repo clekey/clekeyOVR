@@ -101,7 +101,8 @@ void OVRController::tick(GLuint texture) const {
               << digital_data.bState << std::endl;
 
     vr::VROverlay()->ShowOverlay(overlay_handle);
-    if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {
+
+    {
         vr::HmdMatrix34_t position = {};
 
         position.m[0][0] = 1;
@@ -110,12 +111,15 @@ void OVRController::tick(GLuint texture) const {
 
         position.m[0][3] = 0;
         position.m[1][3] = 0;
-        position.m[2][3] = -10;
+        position.m[2][3] = -2;
 
         vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
                 overlay_handle,
                 vr::k_unTrackedDeviceIndex_Hmd,
                 &position);
+    }
+
+    if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {
 
         vr::Texture_t vr_texture = {};
 
