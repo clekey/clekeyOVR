@@ -1,0 +1,3 @@
+[submodule "openvr-rust-wrapper"]
+	path = openvr
+	url = https://github.com/anatawa12/openvr-rust-wrapper.git
