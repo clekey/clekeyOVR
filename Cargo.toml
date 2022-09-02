@@ -13,3 +13,5 @@ edition = "2021"
 
 [dependencies]
 openvr = { path = "openvr" }
+sdl2 = "0.35"
+glium = "0.32"
