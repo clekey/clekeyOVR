@@ -98,6 +98,7 @@ OVRController::OVRController() {
 void OVRController::input_tick() const {
   vr::VRActiveActionSet_t action = {};
   action.ulActionSet = action_set_input;
+  action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
   handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
 }
 
