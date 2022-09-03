@@ -48,33 +48,33 @@ DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
   vertex_buffer.data(sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, gl::kStaticDraw);
 
   return {
-    .width = width,
-    .height = height,
-    .shader_program = std::move(shader_program),
-    .vertexPositionAttrib = std::move(vertexPositionAttrib),
-    .texture_id = std::move(texture_id),
-    .vertex_array = std::move(vertex_array),
-    .vertex_buffer = std::move(vertex_buffer),
+      .width = width,
+      .height = height,
+      .shader_program = std::move(shader_program),
+      .vertexPositionAttrib = std::move(vertexPositionAttrib),
+      .texture_id = std::move(texture_id),
+      .vertex_array = std::move(vertex_array),
+      .vertex_buffer = std::move(vertex_buffer),
   };
 }
 
 void DesktopGuiRenderer::draw(const gl::Texture2D &texture) {
-    // スクリーンに描画する。
-    gl::Unbind(gl::kFramebuffer);
-    gl::Bind(vertex_array);
+  // スクリーンに描画する。
+  gl::Unbind(gl::kFramebuffer);
+  gl::Bind(vertex_array);
 
-    glViewport(0, 0, width, height);
-    gl::Clear().Color().Depth();
-    gl::Use(shader_program);
+  glViewport(0, 0, width, height);
+  gl::Clear().Color().Depth();
+  gl::Use(shader_program);
 
-    gl::BindToTexUnit(texture, 0);
-    texture_id.set(0);
+  gl::BindToTexUnit(texture, 0);
+  texture_id.set(0);
 
-    vertexPositionAttrib.enable();
-    gl::Bind(vertex_buffer);
-    vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
-    gl::DrawArrays(gl::kTriangles, 0, 6);
-    vertexPositionAttrib.disable();
+  vertexPositionAttrib.enable();
+  gl::Bind(vertex_buffer);
+  vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
+  gl::DrawArrays(gl::kTriangles, 0, 6);
+  vertexPositionAttrib.disable();
 
-    check_gl_err("drawing desktop gui");
+  check_gl_err("drawing desktop gui");
 }

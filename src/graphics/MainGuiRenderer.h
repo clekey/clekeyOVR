@@ -10,21 +10,22 @@
 
 class MainGuiRenderer {
 public:
-    static MainGuiRenderer create(int width, int height);
-    void draw();
+  static MainGuiRenderer create(int width, int height);
 
-    int width, height;
+  void draw();
 
-    gl::Program shader_program;
-    gl::VertexAttrib vertexPositionAttrib;
-    gl::VertexAttrib colorAttrib;
+  int width, height;
 
-    gl::Texture2D dest_texture;
-    gl::Renderbuffer depth_buffer;
-    gl::Framebuffer frame_buffer;
+  gl::Program shader_program;
+  gl::VertexAttrib vertexPositionAttrib;
+  gl::VertexAttrib colorAttrib;
 
-    gl::VertexArray vertex_array;
-    gl::ArrayBuffer vertexbuffer;
+  gl::Texture2D dest_texture;
+  gl::Renderbuffer depth_buffer;
+  gl::Framebuffer frame_buffer;
+
+  gl::VertexArray vertex_array;
+  gl::ArrayBuffer vertexbuffer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

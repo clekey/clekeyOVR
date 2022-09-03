@@ -8,6 +8,6 @@
 #include <GL/glew.h>
 #include <oglwrap/oglwrap.h>
 
-void export_as_bmp(gl::Texture2D& texture, GLint level);
+void export_as_bmp(gl::Texture2D &texture, GLint level);
 
 #endif //CLEKEY_OVR_BMP_EXPORT_H

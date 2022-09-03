@@ -10,17 +10,17 @@
 
 class DesktopGuiRenderer {
 public:
-    static DesktopGuiRenderer create(int width, int height);
+  static DesktopGuiRenderer create(int width, int height);
 
-    void draw(const gl::Texture2D &texture);
+  void draw(const gl::Texture2D &texture);
 
-    int width, height;
+  int width, height;
 
-    gl::Program shader_program;
-    gl::VertexAttrib vertexPositionAttrib;
-    gl::UniformSampler texture_id;
-    gl::VertexArray vertex_array;
-    gl::ArrayBuffer vertex_buffer;
+  gl::Program shader_program;
+  gl::VertexAttrib vertexPositionAttrib;
+  gl::UniformSampler texture_id;
+  gl::VertexArray vertex_array;
+  gl::ArrayBuffer vertex_buffer;
 };
 
 

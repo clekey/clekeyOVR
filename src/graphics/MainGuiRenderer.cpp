@@ -90,25 +90,25 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
 }
 
 void MainGuiRenderer::draw() {
-    gl::Bind(frame_buffer);
-    gl::Bind(vertex_array);
-    gl::Viewport(0, 0, width, height);
-    gl::Clear().Color().Depth();
+  gl::Bind(frame_buffer);
+  gl::Bind(vertex_array);
+  gl::Viewport(0, 0, width, height);
+  gl::Clear().Color().Depth();
 
-    gl::Use(shader_program);
+  gl::Use(shader_program);
 
-    // 1rst attribute buffer : vertices
-    vertexPositionAttrib.enable();
-    colorAttrib.enable();
-    gl::Bind(vertexbuffer);
-    vertexPositionAttrib.pointer(3, gl::kFloat, false, sizeof(Vertex), (const void *) offsetof(Vertex, rgb));
-    colorAttrib.pointer(4, gl::kFloat, false, sizeof(Vertex), (const void *) offsetof(Vertex, color));
-    // Draw the triangle !
-    gl::DrawArrays(gl::kTriangles, 0, 3);
-    vertexPositionAttrib.disable();
-    colorAttrib.disable();
+  // 1rst attribute buffer : vertices
+  vertexPositionAttrib.enable();
+  colorAttrib.enable();
+  gl::Bind(vertexbuffer);
+  vertexPositionAttrib.pointer(3, gl::kFloat, false, sizeof(Vertex), (const void *) offsetof(Vertex, rgb));
+  colorAttrib.pointer(4, gl::kFloat, false, sizeof(Vertex), (const void *) offsetof(Vertex, color));
+  // Draw the triangle !
+  gl::DrawArrays(gl::kTriangles, 0, 3);
+  vertexPositionAttrib.disable();
+  colorAttrib.disable();
 
-    gl::Unbind(frame_buffer);
+  gl::Unbind(frame_buffer);
 
-    check_gl_err("main gui rendering");
+  check_gl_err("main gui rendering");
 }
