@@ -32,6 +32,11 @@ public:
   OVRController();
 
   void tick(GLuint texture) const;
+
+  OVRController(const OVRController&) = delete;
+  OVRController& operator=(const OVRController&) = delete;
+  OVRController(OVRController&&) = delete;
+  OVRController& operator=(OVRController&&) = delete;
 };
 
 
