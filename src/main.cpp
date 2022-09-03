@@ -9,8 +9,8 @@
 #include "graphics/bmp_export.h"
 
 #define WINDOW_CAPTION "clekeyOVR"
-#define WINDOW_HEIGHT 256
-#define WINDOW_WIDTH 512
+#define WINDOW_HEIGHT 512
+#define WINDOW_WIDTH 1024
 
 // error handling
 
