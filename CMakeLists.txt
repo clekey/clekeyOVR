@@ -8,6 +8,7 @@ find_package(SDL2 REQUIRED)
 find_package(GLEW REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
+find_package(Freetype REQUIRED)
 
 add_executable(clekey_ovr
         src/main.cpp
@@ -34,5 +35,6 @@ target_link_libraries(
         clekey_ovr
         ${SDL2_LIBRARIES}
         GLEW::GLEW
+        Freetype::Freetype
         ${OPENGL_LIBRARIES}
 )
