@@ -15,7 +15,7 @@ class MainGuiRenderer {
 public:
   static MainGuiRenderer create(int width, int height);
 
-  void draw();
+  void draw(const OVRController &controller);
 
   int width, height;
 

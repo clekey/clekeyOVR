@@ -49,17 +49,22 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
   };
 }
 
-void MainGuiRenderer::draw() {
+void MainGuiRenderer::draw(const OVRController &controller) {
   gl::Bind(frame_buffer);
   gl::Viewport(0, 0, width, height);
   gl::Clear().Color().Depth();
   gl::Enable(gl::kBlend);
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
-  backgroundRingRenderer.draw(0, -1, 1, 2);
-  cursorCircleRenderer.draw(0, -1, 1, 2, 1, 0);
-  backgroundRingRenderer.draw(-.5, -1, 1, 2);
-  cursorCircleRenderer.draw(-.5, -1, 1, 2, 1, 0);
+
+  glm::vec2 left {-1, -1};
+  glm::vec2 right {0.5, -1};
+  glm::vec2 size {0.5, 1};
+
+  backgroundRingRenderer.draw(left, size);
+  cursorCircleRenderer.draw(left, size, controller.getStickPos(LeftRight::Left));
+  backgroundRingRenderer.draw(right, size);
+  cursorCircleRenderer.draw(right, size, controller.getStickPos(LeftRight::Right));
 
   gl::Unbind(frame_buffer);
 

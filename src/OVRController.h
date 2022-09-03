@@ -12,10 +12,16 @@
 #endif
 
 #include "GL/glew.h"
+#include "glm/vec2.hpp"
 
 bool init_ovr();
 
 void shutdown_ovr();
+
+enum LeftRight {
+  Left,
+  Right,
+};
 
 class OVRController {
 #ifdef WITH_OPEN_VR
@@ -32,6 +38,8 @@ public:
   OVRController();
 
   void tick(GLuint texture) const;
+
+  [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;
 
   OVRController(const OVRController&) = delete;
   OVRController& operator=(const OVRController&) = delete;

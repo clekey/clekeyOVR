@@ -14,9 +14,9 @@ public:
   static CursorCircleRenderer create();
 
   void draw(
-      float x1, float y1,
-      float x2, float y2,
-      float stickX, float stickY,
+      glm::vec2 origin,
+      glm::vec2 size,
+      glm::vec2 stick,
       glm::vec4 color = glm::vec4(0.22, 0.22, 0.22, 1.0)
   );
 
@@ -26,7 +26,8 @@ public:
   gl::ArrayBuffer vertexBuffer;
 
   // transform
-  gl::Uniform<glm::mat3> uMat;
+  gl::Uniform<glm::vec2> uOrigin;
+  gl::Uniform<glm::vec2> uSize;
   // colors
   gl::Uniform<glm::vec4> uStickColor;
   gl::Uniform<glm::vec2> uStickPos;

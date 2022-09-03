@@ -9,10 +9,11 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
   gl::Program program = std::move(compile_shader_program(
       "#version 330 core\n"
       "layout(location = 0) in vec2 position;\n"
-      "uniform mat3 mat;"
+      "uniform vec2 origin;"
+      "uniform vec2 size;"
       "out vec2 xy;\n"
       "void main() {\n"
-      "    gl_Position.xy = (vec3(position, 1) * mat).xy;\n"
+      "    gl_Position.xy = position * size + origin;\n"
       "    xy = position * 2 - vec2(1, 1);\n"
       "}\n",
       "#version 330 core\n"
@@ -68,7 +69,8 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
 
   gl::Bind(program);
   // transform
-  gl::Uniform<glm::mat3> mat(program, "mat");
+  gl::Uniform<glm::vec2> origin(program, "origin");
+  gl::Uniform<glm::vec2> size(program, "size");
   // colors
   gl::Uniform<glm::vec4> center(program, "center");
   gl::Uniform<glm::vec4> background(program, "background");
@@ -79,23 +81,26 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
       .vertexArray = std::move(vertexArray),
       .vertexBuffer = std::move(vertexBuffer),
-      .uMat = std::move(mat),
+      .uOrigin = std::move(origin),
+      .uSize = std::move(size),
       .uCenter = std::move(center),
       .uBackground = std::move(background),
       .uEdge = std::move(edge),
   };
 }
 
-void BackgroundRingRenderer::draw(float x1, float y1, float width, float height, glm::vec4 center, glm::vec4 background,
-                                  glm::vec4 edge) {
+void BackgroundRingRenderer::draw(
+    glm::vec2 origin,
+    glm::vec2 size,
+    glm::vec4 center,
+    glm::vec4 background,
+    glm::vec4 edge
+) {
   gl::Bind(vertexArray);
   gl::Use(program);
 
-  uMat.set(glm::mat3(
-      width, 0, x1,
-      0, height, y1,
-      0, 0, 1
-  ));
+  uOrigin.set(origin);
+  uSize.set(size);
   uCenter.set(center);
   uBackground.set(background);
   uEdge.set(edge);

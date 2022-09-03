@@ -133,6 +133,15 @@ void OVRController::tick(GLuint texture) const {
   }
 }
 
+glm::vec2 OVRController::getStickPos(LeftRight hand) const {
+  vr::InputAnalogActionData_t analog_data = {};
+  handle_input_err(vr::VRInput()->GetAnalogActionData(
+      hand == LeftRight::Left ? action_left_stick : action_right_stick,
+      &analog_data, sizeof(analog_data),
+      vr::k_ulInvalidInputValueHandle));
+  return {analog_data.x, analog_data.y};
+}
+
 #else
 
 // no openVR
