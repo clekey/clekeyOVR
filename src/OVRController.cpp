@@ -61,7 +61,7 @@ OVRController::OVRController() {
 
   handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr", "clekey-ovr", &overlay_handle));
   vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, 2);
-  vr::VROverlay()->SetOverlayAlpha(overlay_handle, 0.7);
+  vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
 
   std::cout << "action_left_stick:   " << action_left_stick << std::endl;
   std::cout << "action_left_click:   " << action_left_click << std::endl;
@@ -111,12 +111,14 @@ void OVRController::tick(GLuint texture) const {
 
     position.m[0][3] = 0;
     position.m[1][3] = 0;
-    position.m[2][3] = -2;
+    position.m[2][3] = -1.5;
 
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handle,
         vr::k_unTrackedDeviceIndex_Hmd,
         &position);
+
+    vr::VROverlay()->SetOverlayCurvature(overlay_handle, .2);
   }
 
   if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {
