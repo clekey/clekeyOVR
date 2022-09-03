@@ -7,6 +7,7 @@
 #ifdef WITH_OPEN_VR
 
 #include <iostream>
+#include <filesystem>
 
 void handle_input_err(vr::EVRInputError error) {
   if (error != vr::VRInputError_None) {
@@ -46,8 +47,9 @@ OVRController::OVRController() {
   action_set_input = 0;
   overlay_handle = 0;
 
-  handle_input_err(vr::VRInput()->SetActionManifestPath(
-      R"(C:\Users\anata\clekey-ovr-build\actions.json)"));
+  std::filesystem::path path = std::filesystem::current_path() / "actions.json";
+
+  handle_input_err(vr::VRInput()->SetActionManifestPath(path.string().c_str()));
 
 #define GetActionHandle(name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/input/in/" #name, &action_##name))
   GetActionHandle(left_stick);
