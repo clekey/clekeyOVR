@@ -52,8 +52,8 @@ void MainGuiRenderer::draw() {
   gl::Viewport(0, 0, width, height);
   gl::Clear().Color().Depth();
 
-  backgroundRingRenderer.draw(0, -1, 1, 1);
-  backgroundRingRenderer.draw(-1, -1, 0, 1);
+  backgroundRingRenderer.draw(0, -1, 1, 2);
+  backgroundRingRenderer.draw(-1, -1, 1, 2);
 
   gl::Unbind(frame_buffer);
 

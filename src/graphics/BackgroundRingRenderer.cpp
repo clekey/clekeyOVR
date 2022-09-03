@@ -86,13 +86,10 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
   };
 }
 
-void BackgroundRingRenderer::draw(float x1, float y1, float x2, float y2, glm::vec4 center, glm::vec4 background,
+void BackgroundRingRenderer::draw(float x1, float y1, float width, float height, glm::vec4 center, glm::vec4 background,
                                   glm::vec4 edge) {
   gl::Bind(vertexArray);
   gl::Use(program);
-
-  float width = x2 - x1;
-  float height = y2 - y1;
 
   uMat.set(glm::mat3(
       width, 0, x1,
