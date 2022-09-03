@@ -25,7 +25,6 @@ public:
 
     gl::VertexArray vertex_array;
     gl::ArrayBuffer vertexbuffer;
-    gl::ArrayBuffer colorbuffer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

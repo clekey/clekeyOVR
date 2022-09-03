@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(clekey_ovr)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 include(cmake/openvr.cmake)
 find_package(SDL2 REQUIRED)

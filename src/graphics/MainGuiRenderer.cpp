@@ -5,6 +5,11 @@
 #include "MainGuiRenderer.h"
 #include "glutil.h"
 
+struct Vertex {
+  GLfloat rgb[3];
+  GLfloat color[4];
+};
+
 MainGuiRenderer::MainGuiRenderer(int width, int height) :
         width(width),
         height(height),
@@ -57,21 +62,13 @@ MainGuiRenderer::MainGuiRenderer(int width, int height) :
 
     gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-    static const GLfloat g_vertex_buffer_data[] = {
-            -1.0f, -1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
+    static const Vertex g_vertex_buffer_data[] = {
+        {.rgb = {-1.0f, -1.0f, 0.0f}, .color = {1.0f, 0.0f, 0.0f, 1.0f}},
+        {.rgb = {+1.0f, -1.0f, 0.0f}, .color = {0.0f, 1.0f, 0.0f, 1.0f}},
+        {.rgb = {+0.0f, +1.0f, 0.0f}, .color = {0.0f, 0.0f, 1.0f, 1.0f}},
     };
     gl::Bind(vertexbuffer);
     vertexbuffer.data(sizeof(g_vertex_buffer_data), g_vertex_buffer_data, gl::kStaticDraw);
-
-    static const GLfloat g_color_buffer_data[] = {
-            1.0f, 0.0f, 0.0f, 1.0f,
-            0.0f, 1.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f, 1.0f,
-    };
-    gl::Bind(colorbuffer);
-    colorbuffer.data(sizeof(g_color_buffer_data), g_color_buffer_data, gl::kStaticDraw);
 }
 
 void MainGuiRenderer::draw() {
@@ -84,11 +81,10 @@ void MainGuiRenderer::draw() {
 
     // 1rst attribute buffer : vertices
     vertexPositionAttrib.enable();
-    gl::Bind(vertexbuffer);
-    vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
     colorAttrib.enable();
-    gl::Bind(colorbuffer);
-    colorAttrib.pointer(4, gl::kFloat, false, 0, nullptr);
+    gl::Bind(vertexbuffer);
+    vertexPositionAttrib.pointer(3, gl::kFloat, false, sizeof(Vertex), (const void *) offsetof(Vertex, rgb));
+    colorAttrib.pointer(4, gl::kFloat, false, sizeof(Vertex), (const void *) offsetof(Vertex, color));
     // Draw the triangle !
     gl::DrawArrays(gl::kTriangles, 0, 3);
     vertexPositionAttrib.disable();
