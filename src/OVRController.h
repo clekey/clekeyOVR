@@ -37,6 +37,7 @@ class OVRController {
 public:
   OVRController();
 
+  void input_tick() const;
   void tick(GLuint texture) const;
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;

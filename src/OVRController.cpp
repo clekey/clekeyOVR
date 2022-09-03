@@ -95,32 +95,13 @@ OVRController::OVRController() {
   std::cout << "successfully launched" << std::endl;
 }
 
-void OVRController::tick(GLuint texture) const {
+void OVRController::input_tick() const {
   vr::VRActiveActionSet_t action = {};
   action.ulActionSet = action_set_input;
   handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
-  vr::InputAnalogActionData_t analog_data = {};
-  handle_input_err(vr::VRInput()->GetAnalogActionData(action_left_stick, &analog_data, sizeof(analog_data),
-                                                      vr::k_ulInvalidInputValueHandle));
-  std::cout << "left input:  " << analog_data.bActive << ": "
-            << analog_data.x << ", " << analog_data.y << std::endl;
-  handle_input_err(vr::VRInput()->GetAnalogActionData(
-      action_right_stick, &analog_data, sizeof(analog_data),
-      vr::k_ulInvalidInputValueHandle));
-  std::cout << "right input: " << analog_data.bActive << ": "
-            << analog_data.x << ", " << analog_data.y << std::endl;
-  vr::InputDigitalActionData_t digital_data = {};
-  handle_input_err(vr::VRInput()->GetDigitalActionData(
-      action_left_click, &digital_data, sizeof(digital_data),
-      vr::k_ulInvalidInputValueHandle));
-  std::cout << "left click:  " << digital_data.bActive << ": "
-            << digital_data.bState << std::endl;
-  handle_input_err(vr::VRInput()->GetDigitalActionData(
-      action_right_click, &digital_data, sizeof(digital_data),
-      vr::k_ulInvalidInputValueHandle));
-  std::cout << "right click: " << digital_data.bActive << ": "
-            << digital_data.bState << std::endl;
+}
 
+void OVRController::tick(GLuint texture) const {
   vr::VROverlay()->ShowOverlay(overlay_handle);
 
   if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {

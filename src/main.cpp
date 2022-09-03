@@ -97,6 +97,8 @@ int glmain(SDL_Window *window) {
       }
     }
 
+    ovr_controller.input_tick();
+
     main_renderer.draw(ovr_controller);
 
     //export_as_bmp(main_renderer.rendered_textures[0].texture, 0);
