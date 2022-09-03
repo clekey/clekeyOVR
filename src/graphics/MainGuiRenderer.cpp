@@ -51,9 +51,11 @@ void MainGuiRenderer::draw() {
   gl::Bind(frame_buffer);
   gl::Viewport(0, 0, width, height);
   gl::Clear().Color().Depth();
+  gl::Enable(gl::kBlend);
+  gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
   backgroundRingRenderer.draw(0, -1, 1, 2);
-  backgroundRingRenderer.draw(-1, -1, 1, 2);
+  backgroundRingRenderer.draw(-.5, -1, 1, 2);
 
   gl::Unbind(frame_buffer);
 

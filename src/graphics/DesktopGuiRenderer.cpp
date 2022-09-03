@@ -62,6 +62,7 @@ void DesktopGuiRenderer::draw(const gl::Texture2D &texture) {
   // スクリーンに描画する。
   gl::Unbind(gl::kFramebuffer);
   gl::Bind(vertex_array);
+  gl::Disable(gl::kBlend);
 
   glViewport(0, 0, width, height);
   gl::Clear().Color().Depth();
