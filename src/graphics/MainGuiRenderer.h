@@ -7,6 +7,7 @@
 
 #include <GL/glew.h>
 #include "oglwrap/oglwrap.h"
+#include "BackgroundRingRenderer.h"
 
 class MainGuiRenderer {
 public:
@@ -16,16 +17,11 @@ public:
 
   int width, height;
 
-  gl::Program shader_program;
-  gl::VertexAttrib vertexPositionAttrib;
-  gl::VertexAttrib colorAttrib;
-
   gl::Texture2D dest_texture;
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
 
-  gl::VertexArray vertex_array;
-  gl::ArrayBuffer vertexbuffer;
+  BackgroundRingRenderer backgroundRingRenderer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

@@ -14,7 +14,9 @@ add_executable(clekey_ovr
         src/OVRController.cpp
         src/graphics/MainGuiRenderer.cpp
         src/graphics/DesktopGuiRenderer.cpp
-        src/graphics/bmp_export.cpp src/graphics/bmp_export.h)
+        src/graphics/bmp_export.cpp
+        src/graphics/BackgroundRingRenderer.cpp
+)
 
 configure_file(resources/actions.json actions.json COPYONLY)
 configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
