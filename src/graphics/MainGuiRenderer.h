@@ -8,6 +8,8 @@
 #include <GL/glew.h>
 #include "oglwrap/oglwrap.h"
 #include "BackgroundRingRenderer.h"
+#include "CursorCircleRenderer.h"
+#include "../OVRController.h"
 
 class MainGuiRenderer {
 public:
@@ -22,6 +24,7 @@ public:
   gl::Framebuffer frame_buffer;
 
   BackgroundRingRenderer backgroundRingRenderer;
+  CursorCircleRenderer cursorCircleRenderer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

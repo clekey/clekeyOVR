@@ -4,6 +4,7 @@
 
 #include "MainGuiRenderer.h"
 #include "glutil.h"
+#include "../OVRController.h"
 
 MainGuiRenderer MainGuiRenderer::create(int width, int height) {
   gl::Texture2D dest_texture;
@@ -44,6 +45,7 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
       .frame_buffer = std::move(frame_buffer),
 
       .backgroundRingRenderer = BackgroundRingRenderer::create(),
+      .cursorCircleRenderer = CursorCircleRenderer::create(),
   };
 }
 
@@ -55,7 +57,9 @@ void MainGuiRenderer::draw() {
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
   backgroundRingRenderer.draw(0, -1, 1, 2);
+  cursorCircleRenderer.draw(0, -1, 1, 2, 1, 0);
   backgroundRingRenderer.draw(-.5, -1, 1, 2);
+  cursorCircleRenderer.draw(-.5, -1, 1, 2, 1, 0);
 
   gl::Unbind(frame_buffer);
 

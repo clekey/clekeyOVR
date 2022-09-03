@@ -16,6 +16,7 @@ add_executable(clekey_ovr
         src/graphics/DesktopGuiRenderer.cpp
         src/graphics/bmp_export.cpp
         src/graphics/BackgroundRingRenderer.cpp
+        src/graphics/CursorCircleRenderer.cpp
 )
 
 configure_file(resources/actions.json actions.json COPYONLY)
