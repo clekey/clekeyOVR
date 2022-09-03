@@ -71,6 +71,25 @@ OVRController::OVRController() {
   std::cout << "action_right_haptic: " << action_right_haptic << std::endl;
   std::cout << "action_set_input:    " << action_set_input << std::endl;
 
+  {
+    vr::HmdMatrix34_t position = {};
+
+    position.m[0][0] = 1;
+    position.m[1][1] = 1;
+    position.m[2][2] = 1;
+
+    position.m[0][3] = 0;
+    position.m[1][3] = 0;
+    position.m[2][3] = -1.5;
+
+    vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
+        overlay_handle,
+        vr::k_unTrackedDeviceIndex_Hmd,
+        &position);
+
+    vr::VROverlay()->SetOverlayCurvature(overlay_handle, .2);
+  }
+
   std::cout << "successfully launched" << std::endl;
 }
 
@@ -101,25 +120,6 @@ void OVRController::tick(GLuint texture) const {
             << digital_data.bState << std::endl;
 
   vr::VROverlay()->ShowOverlay(overlay_handle);
-
-  {
-    vr::HmdMatrix34_t position = {};
-
-    position.m[0][0] = 1;
-    position.m[1][1] = 1;
-    position.m[2][2] = 1;
-
-    position.m[0][3] = 0;
-    position.m[1][3] = 0;
-    position.m[2][3] = -1.5;
-
-    vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
-        overlay_handle,
-        vr::k_unTrackedDeviceIndex_Hmd,
-        &position);
-
-    vr::VROverlay()->SetOverlayCurvature(overlay_handle, .2);
-  }
 
   if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {
 
