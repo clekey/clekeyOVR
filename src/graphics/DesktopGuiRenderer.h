@@ -10,9 +10,9 @@
 
 class DesktopGuiRenderer {
 public:
-    DesktopGuiRenderer(int width, int height);
+    static DesktopGuiRenderer create(int width, int height);
 
-    void draw(gl::Texture2D &texture);
+    void draw(const gl::Texture2D &texture);
 
     int width, height;
 

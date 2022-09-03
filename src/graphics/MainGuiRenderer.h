@@ -10,7 +10,7 @@
 
 class MainGuiRenderer {
 public:
-    MainGuiRenderer(int width, int height);
+    static MainGuiRenderer create(int width, int height);
     void draw();
 
     int width, height;

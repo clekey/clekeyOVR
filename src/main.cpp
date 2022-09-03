@@ -54,8 +54,8 @@ bool init_gl(SDL_Window *window) {
 }
 
 int glmain(SDL_Window *window) {
-    MainGuiRenderer main_renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
-    DesktopGuiRenderer desktop_renderer(WINDOW_WIDTH, WINDOW_HEIGHT);
+    MainGuiRenderer main_renderer = MainGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
+    DesktopGuiRenderer desktop_renderer = DesktopGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
     OVRController ovr_controller;
 
     gl::Texture2D texture;

@@ -5,47 +5,60 @@
 #include "DesktopGuiRenderer.h"
 #include "glutil.h"
 
-DesktopGuiRenderer::DesktopGuiRenderer(int width, int height) :
-        width(width),
-        height(height),
-        shader_program((gl::Unbind(gl::kFramebuffer), std::move(compile_shader_program(
-                "#version 330 core\n"
-                "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
-                "out vec2 UV;\n"
-                "void main() {\n"
-                "    gl_Position.xyz = vertexPosition_modelspace;\n"
-                "    UV = (vertexPosition_modelspace.xy+vec2(1,1))/2.0;\n"
-                "}\n",
-                "#version 330 core\n"
-                "in vec2 UV;\n"
-                "out vec3 color;\n"
-                "\n"
-                "uniform sampler2D rendered_texture;\n"
-                "\n"
-                "void main() {\n"
-                "    color = texture(rendered_texture, UV).xyz;\n"
-                //"    color = vec3(UV, 0);\n"
-                "}\n"
-        )))),
-        vertexPositionAttrib(shader_program, "vertexPosition_modelspace"),
-        texture_id((gl::Bind(shader_program), shader_program), "rendered_texture") {
+DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
+  gl::Unbind(gl::kFramebuffer);
+  gl::Program shader_program = std::move(compile_shader_program(
+      "#version 330 core\n"
+      "layout(location = 0) in vec3 vertexPosition_modelspace;\n"
+      "out vec2 UV;\n"
+      "void main() {\n"
+      "    gl_Position.xyz = vertexPosition_modelspace;\n"
+      "    UV = (vertexPosition_modelspace.xy+vec2(1,1))/2.0;\n"
+      "}\n",
+      "#version 330 core\n"
+      "in vec2 UV;\n"
+      "out vec3 color;\n"
+      "\n"
+      "uniform sampler2D rendered_texture;\n"
+      "\n"
+      "void main() {\n"
+      "    color = texture(rendered_texture, UV).xyz;\n"
+      //"    color = vec3(UV, 0);\n"
+      "}\n"
+  ));
+  gl::VertexAttrib vertexPositionAttrib(shader_program, "vertexPosition_modelspace");
 
-    static const GLfloat g_quad_vertex_buffer_data[] = {
-            1.0f, -1.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f,
-            -1.0f, 1.0f, 0.0f,
+  gl::Bind(shader_program);
+  gl::UniformSampler texture_id(shader_program, "rendered_texture");
 
-            -1.0f, 1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,
-    };
+  gl::VertexArray vertex_array;
+  gl::ArrayBuffer vertex_buffer;
+  static const GLfloat g_quad_vertex_buffer_data[] = {
+      1.0f, -1.0f, 0.0f,
+      -1.0f, -1.0f, 0.0f,
+      -1.0f, 1.0f, 0.0f,
 
-    gl::Bind(vertex_array);
-    gl::Bind(vertex_buffer);
-    vertex_buffer.data(sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, gl::kStaticDraw);
+      -1.0f, 1.0f, 0.0f,
+      1.0f, -1.0f, 0.0f,
+      1.0f, 1.0f, 0.0f,
+  };
+
+  gl::Bind(vertex_array);
+  gl::Bind(vertex_buffer);
+  vertex_buffer.data(sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, gl::kStaticDraw);
+
+  return {
+    .width = width,
+    .height = height,
+    .shader_program = std::move(shader_program),
+    .vertexPositionAttrib = std::move(vertexPositionAttrib),
+    .texture_id = std::move(texture_id),
+    .vertex_array = std::move(vertex_array),
+    .vertex_buffer = std::move(vertex_buffer),
+  };
 }
 
-void DesktopGuiRenderer::draw(gl::Texture2D &texture) {
+void DesktopGuiRenderer::draw(const gl::Texture2D &texture) {
     // スクリーンに描画する。
     gl::Unbind(gl::kFramebuffer);
     gl::Bind(vertex_array);
