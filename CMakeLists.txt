@@ -13,7 +13,6 @@ find_package(Freetype REQUIRED)
 add_executable(clekey_ovr
         src/main.cpp
         src/OVRController.cpp
-        src/Freetype.cpp
         src/graphics/MainGuiRenderer.cpp
         src/graphics/DesktopGuiRenderer.cpp
         src/graphics/bmp_export.cpp
@@ -41,5 +40,5 @@ target_link_libraries(
         ${OPENGL_LIBRARIES}
 )
 
-add_executable(freetype_test src/freetype_test.cpp src/Freetype.cpp)
+add_executable(freetype_test src/freetype_test.cpp)
 target_link_libraries(freetype_test Freetype::Freetype)
