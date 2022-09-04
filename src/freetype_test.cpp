@@ -123,13 +123,31 @@ void export_as_bmp(uint32_t width, uint32_t height, uint8_t data[]) {
   bmp_file.close();
 }
 
+class F26Dot6 {
+public:
+  FT_F26Dot6 value;
+  explicit F26Dot6(FT_F26Dot6 value) : value(value) {}
+};
+
+std::ostream& operator<<(std::ostream& os, const F26Dot6& value)
+{
+  os << (value.value >> 6) << '.';
+  int rest = (int)(value.value & 0x3F);
+  do {
+    rest *= 10;
+    os << (rest >> 6);
+    rest &= 0x3F;
+  } while (rest != 0);
+  return os;
+}
+
 int main(int argc, char **argv) {
   freetype::Freetype ft;
   auto face = ft.new_face("./fonts/NotoSansJP-Medium.otf", 0);
-  face.setPixelSizes(48, 0);
+  auto char_size = 64;
+  face.setPixelSizes(char_size, 0);
   face.loadChar(U'あ', FT_LOAD_RENDER);
   auto glyph = face->glyph;
-  auto metrics = glyph->metrics;
   std::vector<uint8_t> bmp(glyph->bitmap.width * glyph->bitmap.rows);
   const auto pitchAbs = abs(glyph->bitmap.pitch);
 
@@ -151,16 +169,23 @@ int main(int argc, char **argv) {
 
   export_as_bmp(glyph->bitmap.width, glyph->bitmap.rows, &bmp[0]);
 
-  std::cout << "width:        " << (glyph->metrics.width >> 6) << std::endl;
-  std::cout << "height:       " << (glyph->metrics.height >> 6) << std::endl;
+
+  std::cout << "units_per_EM: " << face->units_per_EM << std::endl;
+  std::cout << "ascender:     " << face->ascender * char_size / face->units_per_EM << std::endl;
+  std::cout << "underline_position: " << face->underline_position * char_size / face->units_per_EM << std::endl;
+  std::cout << "descender:    " << face->descender * char_size / face->units_per_EM << std::endl;
+  std::cout << "height:       " << face->height * char_size / face->units_per_EM << std::endl;
   std::cout << std::endl;
-  std::cout << "horiBearingX: " << (glyph->metrics.horiBearingX >> 6) << std::endl;
-  std::cout << "horiBearingY: " << (glyph->metrics.horiBearingY >> 6) << std::endl;
-  std::cout << "horiAdvance:  " << (glyph->metrics.horiAdvance >> 6) << std::endl;
+  std::cout << "width:        " << (F26Dot6(glyph->metrics.width)) << std::endl;
+  std::cout << "height:       " << (F26Dot6(glyph->metrics.height)) << std::endl;
   std::cout << std::endl;
-  std::cout << "vertBearingX: " << (glyph->metrics.vertBearingX >> 6) << std::endl;
-  std::cout << "vertBearingY: " << (glyph->metrics.vertBearingY >> 6) << std::endl;
-  std::cout << "vertAdvance:  " << (glyph->metrics.vertAdvance >> 6) << std::endl;
+  std::cout << "horiBearingX: " << (F26Dot6(glyph->metrics.horiBearingX)) << std::endl;
+  std::cout << "horiBearingY: " << (F26Dot6(glyph->metrics.horiBearingY)) << std::endl;
+  std::cout << "horiAdvance:  " << (F26Dot6(glyph->metrics.horiAdvance)) << std::endl;
+  std::cout << std::endl;
+  std::cout << "vertBearingX: " << (F26Dot6(glyph->metrics.vertBearingX)) << std::endl;
+  std::cout << "vertBearingY: " << (F26Dot6(glyph->metrics.vertBearingY)) << std::endl;
+  std::cout << "vertAdvance:  " << (F26Dot6(glyph->metrics.vertAdvance)) << std::endl;
 
   //glyph->advance;
   //metrics.horiBearingX
