@@ -47,6 +47,10 @@ DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
   gl::Bind(vertex_buffer);
   vertex_buffer.data(sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, gl::kStaticDraw);
 
+  vertexPositionAttrib.enable();
+  gl::Bind(vertex_buffer);
+  vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
+
   return {
       .width = width,
       .height = height,
@@ -61,21 +65,17 @@ DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
 void DesktopGuiRenderer::draw(const gl::Texture2D &texture) {
   // スクリーンに描画する。
   gl::Unbind(gl::kFramebuffer);
-  gl::Bind(vertex_array);
   gl::Disable(gl::kBlend);
 
   glViewport(0, 0, width, height);
   gl::Clear().Color().Depth();
   gl::Use(shader_program);
+  gl::Bind(vertex_array);
 
   gl::BindToTexUnit(texture, 0);
   texture_id.set(0);
 
-  vertexPositionAttrib.enable();
-  gl::Bind(vertex_buffer);
-  vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
   gl::DrawArrays(gl::kTriangles, 0, 6);
-  vertexPositionAttrib.disable();
 
   check_gl_err("drawing desktop gui");
 }

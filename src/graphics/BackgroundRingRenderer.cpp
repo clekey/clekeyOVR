@@ -76,6 +76,11 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
   gl::Uniform<glm::vec4> background(program, "background");
   gl::Uniform<glm::vec4> edge(program, "edge");
 
+  gl::Bind(vertexArray);
+  vertexPositionAttrib.enable();
+  gl::Bind(vertexBuffer);
+  vertexPositionAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
+
   return BackgroundRingRenderer{
       .program = std::move(program),
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
@@ -105,11 +110,7 @@ void BackgroundRingRenderer::draw(
   uBackground.set(background);
   uEdge.set(edge);
 
-  vertexPositionAttrib.enable();
-  gl::Bind(vertexBuffer);
-  vertexPositionAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
   gl::DrawArrays(gl::kTriangles, 0, 6);
-  vertexPositionAttrib.disable();
 
   check_gl_err("drawing background gui");
 }
