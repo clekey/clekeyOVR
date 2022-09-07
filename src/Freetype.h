@@ -27,18 +27,18 @@ inline void error_check(FT_Error err) {
     throw error(err);
 }
 
-#define ft(func) error_check(FT_##func)
+#define ftcall(func) error_check(FT_##func)
 
 class Face;
 
 class Freetype {
 public:
   Freetype() {
-    ft(Init_FreeType(&library));
+    ftcall(Init_FreeType(&library));
   }
 
   ~Freetype() {
-    ft(Done_FreeType(library));
+    ftcall(Done_FreeType(library));
   }
 
   Face new_face(const char *name, FT_Long face_index);
@@ -53,7 +53,7 @@ public:
   explicit Face(FT_Face face) : face(face) {}
 
   void setPixelSizes(FT_UInt pixel_width, FT_UInt pixel_height) {
-    ft(Set_Pixel_Sizes(face, pixel_width, pixel_height));
+    ftcall(Set_Pixel_Sizes(face, pixel_width, pixel_height));
   }
 
   FT_UInt getCharIndex(FT_ULong charcode) {
@@ -61,15 +61,15 @@ public:
   }
 
   void loadGlyph(FT_UInt index, FT_Int32 flags) {
-    ft(Load_Glyph(face, index, flags));
+    ftcall(Load_Glyph(face, index, flags));
   }
 
   void loadChar(FT_ULong charcode, FT_Int32 flags) {
-    ft(Load_Char(face, charcode, flags));
+    ftcall(Load_Char(face, charcode, flags));
   }
 
   void renderGlyph(FT_Render_Mode render_mode) {
-    ft(Render_Glyph(face->glyph, render_mode));
+    ftcall(Render_Glyph(face->glyph, render_mode));
   }
 
   FT_FaceRec_& operator *() const {
@@ -104,7 +104,7 @@ public:
 
 inline Face Freetype::new_face(const char *name, FT_Long face_index) {
   FT_Face face;
-  ft(New_Face(library, name, face_index, &face));
+  ftcall(New_Face(library, name, face_index, &face));
   return Face(face);
 }
 
