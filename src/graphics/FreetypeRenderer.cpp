@@ -335,6 +335,22 @@ void FreetypeRenderer::addString(std::u8string string, glm::vec2 pos, glm::vec3 
   }
 }
 
+void FreetypeRenderer::addCenteredString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size) {
+  std::vector<const GlyphInfo *> glyphList{};
+  float width = 0;
+  for (const auto c: make_u8u32range(string)) {
+    auto &glyph = tryLoadGlyphOf(c, nullptr);
+    glyphList.push_back(&glyph);
+    width += glyph.advance * size;
+  }
+  pos.x -= width / 2;
+  for (const auto glyph : glyphList) {
+    auto &tex = textures[glyph->texture];
+    tex.addQuad({size, color, *glyph, pos});
+    pos.x += glyph->advance * size;
+  }
+}
+
 void FreetypeRenderer::doDraw() {
   gl::Use(shaderProgram);
   gl::Bind(vertexArray);

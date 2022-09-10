@@ -58,6 +58,7 @@ public:
   bool loadGlyphOf(char32_t c);
 
   void addString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size);
+  void addCenteredString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size);
   void doDraw();
 
   FreetypeRenderer(FreetypeRenderer &&) noexcept;
