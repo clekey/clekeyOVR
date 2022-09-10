@@ -18,11 +18,13 @@ add_executable(clekey_ovr
         src/graphics/bmp_export.cpp
         src/graphics/BackgroundRingRenderer.cpp
         src/graphics/CursorCircleRenderer.cpp
+        src/graphics/FreetypeRenderer.cpp
 )
 
 configure_file(resources/actions.json actions.json COPYONLY)
 configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
 configure_file(resources/bindings_vive_controller.json bindings_vive_controller.json COPYONLY)
+configure_file(resources/fonts/NotoSansJP-Medium.otf fonts/NotoSansJP-Medium.otf COPYONLY)
 add_definitions(-DWITH_OPEN_VR)
 link_openvr(clekey_ovr)
 include_directories(
@@ -38,3 +40,6 @@ target_link_libraries(
         Freetype::Freetype
         ${OPENGL_LIBRARIES}
 )
+
+add_executable(freetype_test src/freetype_test.cpp)
+target_link_libraries(freetype_test Freetype::Freetype)

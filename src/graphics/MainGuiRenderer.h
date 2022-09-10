@@ -10,6 +10,7 @@
 #include "BackgroundRingRenderer.h"
 #include "CursorCircleRenderer.h"
 #include "../OVRController.h"
+#include "FreetypeRenderer.h"
 
 class MainGuiRenderer {
 public:
@@ -25,6 +26,7 @@ public:
 
   BackgroundRingRenderer backgroundRingRenderer;
   CursorCircleRenderer cursorCircleRenderer;
+  FreetypeRenderer ftRenderer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

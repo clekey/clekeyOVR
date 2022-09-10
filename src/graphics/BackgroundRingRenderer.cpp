@@ -9,19 +9,19 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
   gl::Program program = std::move(compile_shader_program(
       "#version 330 core\n"
       "layout(location = 0) in vec2 position;\n"
-      "uniform vec2 origin;"
-      "uniform vec2 size;"
+      "uniform vec2 uCenter;"
+      "uniform vec2 uSize;"
       "out vec2 xy;\n"
       "void main() {\n"
-      "    gl_Position.xy = position * size + origin;\n"
-      "    xy = position * 2 - vec2(1, 1);\n"
+      "    gl_Position.xy = position * uSize + uCenter;\n"
+      "    xy = position * 2;\n"
       "}\n",
       "#version 330 core\n"
       "in vec2 xy;\n"
       "// uniforms\n"
-      "uniform vec4 center;"
-      "uniform vec4 background;"
-      "uniform vec4 edge;"
+      "uniform vec4 uCenterColor;"
+      "uniform vec4 uBackgroundColor;"
+      "uniform vec4 uEdgeColor;"
       "// Ouput data\n"
       "out vec4 color;\n"
       "\n"
@@ -43,9 +43,9 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
       "void main() {\n"
       "    float len_sqrt = dot(xy, xy);\n"
       "    color = \n"
-      "        len_sqrt < pow2(128.0/256.0) ? center\n"
-      "      : len_sqrt < pow2(246.0/256.0) ? (is_background_edge() ? edge : background)\n"
-      "      : len_sqrt < pow2(256.0/256.0) ? edge\n"
+      "        len_sqrt < pow2(128.0/256.0) ? uCenterColor\n"
+      "      : len_sqrt < pow2(246.0/256.0) ? (is_background_edge() ? uEdgeColor : uBackgroundColor)\n"
+      "      : len_sqrt < pow2(256.0/256.0) ? uEdgeColor\n"
       "      : vec4(0, 0, 0, 0)\n"
       "      ;\n"
       "}\n"
@@ -56,60 +56,61 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
   gl::ArrayBuffer vertexBuffer;
 
   static const GLfloat g_vertex_buffer_data[] = {
-      0.0f, 0.0f,
-      1.0f, 0.0f,
-      1.0f, 1.0f,
+      -.5f, -.5f,
+      +.5f, -.5f,
+      +.5f, +.5f,
 
-      0.0f, 0.0f,
-      1.0f, 1.0f,
-      0.0f, 1.0f,
+      -.5f, -.5f,
+      +.5f, +.5f,
+      -.5f, +.5f,
   };
   gl::Bind(vertexBuffer);
   vertexBuffer.data(sizeof(g_vertex_buffer_data), g_vertex_buffer_data, gl::kStaticDraw);
 
   gl::Bind(program);
   // transform
-  gl::Uniform<glm::vec2> origin(program, "origin");
-  gl::Uniform<glm::vec2> size(program, "size");
+  gl::Uniform<glm::vec2> uCenter(program, "uCenter");
+  gl::Uniform<glm::vec2> uSize(program, "uSize");
   // colors
-  gl::Uniform<glm::vec4> center(program, "center");
-  gl::Uniform<glm::vec4> background(program, "background");
-  gl::Uniform<glm::vec4> edge(program, "edge");
+  gl::Uniform<glm::vec4> uCenterColor(program, "uCenterColor");
+  gl::Uniform<glm::vec4> uBackgroundColor(program, "uBackgroundColor");
+  gl::Uniform<glm::vec4> uEdgeColor(program, "uEdgeColor");
+
+  gl::Bind(vertexArray);
+  vertexPositionAttrib.enable();
+  gl::Bind(vertexBuffer);
+  vertexPositionAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
 
   return BackgroundRingRenderer{
       .program = std::move(program),
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
       .vertexArray = std::move(vertexArray),
       .vertexBuffer = std::move(vertexBuffer),
-      .uOrigin = std::move(origin),
-      .uSize = std::move(size),
-      .uCenter = std::move(center),
-      .uBackground = std::move(background),
-      .uEdge = std::move(edge),
+      .uCenter = std::move(uCenter),
+      .uSize = std::move(uSize),
+      .uCenterColor = std::move(uCenterColor),
+      .uBackgroundColor = std::move(uBackgroundColor),
+      .uEdgeColor = std::move(uEdgeColor),
   };
 }
 
 void BackgroundRingRenderer::draw(
-    glm::vec2 origin,
+    glm::vec2 center,
     glm::vec2 size,
-    glm::vec4 center,
-    glm::vec4 background,
-    glm::vec4 edge
+    glm::vec4 centerColor,
+    glm::vec4 backgroundColor,
+    glm::vec4 edgeColor
 ) {
   gl::Bind(vertexArray);
   gl::Use(program);
 
-  uOrigin.set(origin);
-  uSize.set(size);
   uCenter.set(center);
-  uBackground.set(background);
-  uEdge.set(edge);
+  uSize.set(size);
+  uCenterColor.set(centerColor);
+  uBackgroundColor.set(backgroundColor);
+  uEdgeColor.set(edgeColor);
 
-  vertexPositionAttrib.enable();
-  gl::Bind(vertexBuffer);
-  vertexPositionAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
   gl::DrawArrays(gl::kTriangles, 0, 6);
-  vertexPositionAttrib.disable();
 
-  check_gl_err("drawing background gui");
+  check_gl_err("drawing backgroundColor gui");
 }

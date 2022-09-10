@@ -9,25 +9,25 @@ CursorCircleRenderer CursorCircleRenderer::create() {
   gl::Program program = std::move(compile_shader_program(
       "#version 330 core\n"
       "layout(location = 0) in vec2 position;\n"
-      "uniform vec2 origin;"
-      "uniform vec2 size;"
+      "uniform vec2 uCenter;"
+      "uniform vec2 uSize;"
       "out vec2 xy;\n"
       "void main() {\n"
-      "    gl_Position.xy = position * size + origin;\n"
-      "    xy = position * 2 - vec2(1, 1);\n"
+      "    gl_Position.xy = position * uSize + uCenter;\n"
+      "    xy = position * 2;\n"
       "}\n",
       "#version 330 core\n"
       "in vec2 xy;\n"
       "// uniforms\n"
-      "uniform vec4 stick_color;\n"
-      "uniform vec2 stick_pos;\n"
+      "uniform vec4 uStickColor;\n"
+      "uniform vec2 uStickPos;\n"
       "// Ouput data\n"
       "out vec4 color;\n"
       "\n"
       "void main() {\n"
-      "    vec2 diff = xy - stick_pos / 3;\n"
+      "    vec2 diff = xy - uStickPos / 3;\n"
       "    float len_sqrt = dot(diff, diff);\n"
-      "    color = len_sqrt < (0.25 * 0.25) ? stick_color : vec4(0, 0, 0, 0);\n"
+      "    color = len_sqrt < (0.25 * 0.25) ? uStickColor : vec4(0, 0, 0, 0);\n"
       "}\n"
   ));
   gl::VertexAttrib vertexPositionAttrib(program, "position");
@@ -36,39 +36,39 @@ CursorCircleRenderer CursorCircleRenderer::create() {
   gl::ArrayBuffer vertexBuffer;
 
   static const GLfloat g_vertex_buffer_data[] = {
-      0.0f, 0.0f,
-      1.0f, 0.0f,
-      1.0f, 1.0f,
+      -.5f, -.5f,
+      +.5f, -.5f,
+      +.5f, +.5f,
 
-      0.0f, 0.0f,
-      1.0f, 1.0f,
-      0.0f, 1.0f,
+      -.5f, -.5f,
+      +.5f, +.5f,
+      -.5f, +.5f,
   };
   gl::Bind(vertexBuffer);
   vertexBuffer.data(sizeof(g_vertex_buffer_data), g_vertex_buffer_data, gl::kStaticDraw);
 
   gl::Bind(program);
   // transform
-  gl::Uniform<glm::vec2> origin(program, "origin");
-  gl::Uniform<glm::vec2> size(program, "size");
+  gl::Uniform<glm::vec2> uCenter(program, "uCenter");
+  gl::Uniform<glm::vec2> uSize(program, "uSize");
   // colors
-  gl::Uniform<glm::vec4> stick_color(program, "stick_color");
-  gl::Uniform<glm::vec2> stick_pos(program, "stick_pos");
+  gl::Uniform<glm::vec4> uStickColor(program, "uStickColor");
+  gl::Uniform<glm::vec2> uStickPos(program, "uStickPos");
 
   return CursorCircleRenderer{
       .program = std::move(program),
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
       .vertexArray = std::move(vertexArray),
       .vertexBuffer = std::move(vertexBuffer),
-      .uOrigin = std::move(origin),
-      .uSize = std::move(size),
-      .uStickColor = std::move(stick_color),
-      .uStickPos = std::move(stick_pos),
+      .uCenter = std::move(uCenter),
+      .uSize = std::move(uSize),
+      .uStickColor = std::move(uStickColor),
+      .uStickPos = std::move(uStickPos),
   };
 }
 
 void CursorCircleRenderer::draw(
-    glm::vec2 origin,
+    glm::vec2 center,
     glm::vec2 size,
     glm::vec2 stick,
     glm::vec4 color
@@ -76,7 +76,7 @@ void CursorCircleRenderer::draw(
   gl::Bind(vertexArray);
   gl::Use(program);
 
-  uOrigin.set(origin);
+  uCenter.set(center);
   uSize.set(size);
   uStickPos.set(stick);
   uStickColor.set(color);

@@ -101,7 +101,7 @@ int glmain(SDL_Window *window) {
 
     main_renderer.draw(ovr_controller);
 
-    //export_as_bmp(main_renderer.rendered_textures[0].texture, 0);
+    //export_as_bmp(main_renderer.dest_texture, 0);
 
     desktop_renderer.draw(main_renderer.dest_texture);
 
