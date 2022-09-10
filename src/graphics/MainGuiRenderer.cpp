@@ -62,8 +62,8 @@ void MainGuiRenderer::draw(const OVRController &controller) {
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
 
-  glm::vec2 left {-0.8, -.7};
-  glm::vec2 right {0.3, -.7};
+  glm::vec2 left {-0.65, -.45};
+  glm::vec2 right {0.65, -.45};
   glm::vec2 size {0.5, .5};
 
   backgroundRingRenderer.draw(left, size);

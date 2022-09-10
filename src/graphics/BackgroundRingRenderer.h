@@ -14,11 +14,11 @@ public:
   static BackgroundRingRenderer create();
 
   void draw(
-      glm::vec2 origin,
+      glm::vec2 center,
       glm::vec2 size,
-      glm::vec4 center = glm::vec4(0.83, 0.83, 0.83, 1.0),
-      glm::vec4 background = glm::vec4(0.686, 0.686, 0.686, 1.0),
-      glm::vec4 edge = glm::vec4(1.0, 1.0, 1.0, 1.0)
+      glm::vec4 centerColor = glm::vec4(0.83, 0.83, 0.83, 1.0),
+      glm::vec4 backgroundColor = glm::vec4(0.686, 0.686, 0.686, 1.0),
+      glm::vec4 edgeColor = glm::vec4(1.0, 1.0, 1.0, 1.0)
   );
 
   gl::Program program;
@@ -27,12 +27,12 @@ public:
   gl::ArrayBuffer vertexBuffer;
 
   // transform
-  gl::Uniform<glm::vec2> uOrigin;
+  gl::Uniform<glm::vec2> uCenter;
   gl::Uniform<glm::vec2> uSize;
   // colors
-  gl::Uniform<glm::vec4> uCenter;
-  gl::Uniform<glm::vec4> uBackground;
-  gl::Uniform<glm::vec4> uEdge;
+  gl::Uniform<glm::vec4> uCenterColor;
+  gl::Uniform<glm::vec4> uBackgroundColor;
+  gl::Uniform<glm::vec4> uEdgeColor;
 };
 
 
