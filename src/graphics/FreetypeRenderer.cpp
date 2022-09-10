@@ -6,6 +6,7 @@
 #include <utility>
 #include "glutil.h"
 #include "../utf8.h"
+#include <unordered_set>
 #include FT_BITMAP_H
 
 //currently horizontal rendering is only supported
@@ -26,6 +27,8 @@ public:
   float maxV;
   // texture index
   int texture;
+  // font index
+  int font;
 };
 
 struct FreetypeRendererVertex {
@@ -232,6 +235,7 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
 
   FT_Glyph_Metrics glyphMetrics;
   FT_Bitmap bitmap;
+  int font_index;
   FT_Bitmap_Init(&bitmap);
   bitmap.pitch = -1; // to make result image down to top
   if (c == UNDEFINED_CHAR) {
@@ -241,10 +245,12 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
     // convert to without alignment
     ft.bitmap_convert(font->glyph->bitmap, bitmap, 0);
     glyphMetrics = font->glyph->metrics;
+    font_index = 0;
   } else {
     auto iter = std::begin(fonts);
     auto end = std::end(fonts);
-    for (; iter != end; iter++) {
+    font_index = 0;
+    for (; iter != end; iter++, font_index++) {
       auto &font = *iter;
       auto charIndex = font.getCharIndex(c);
       if (charIndex != 0) {
@@ -312,6 +318,7 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
       .maxV = (float)maxY / (float)metrics.texSize,
       // texture index
       .texture = (int) texture_idx,
+      .font = font_index,
   };
 
   // make space between char
@@ -328,7 +335,7 @@ bool FreetypeRenderer::loadGlyphOf(char32_t c) {
   return success;
 }
 
-void FreetypeRenderer::addString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size) {
+void FreetypeRenderer::addString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, float size) {
   for (const auto c: make_u8u32range(string)) {
     auto &glyph = tryLoadGlyphOf(c, nullptr);
     auto &tex = textures[glyph.texture];
@@ -337,22 +344,26 @@ void FreetypeRenderer::addString(std::u8string string, glm::vec2 pos, glm::vec3 
   }
 }
 
-void FreetypeRenderer::addCenteredString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
+void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
   std::vector<const GlyphInfo *> glyphList{};
+  std::unordered_set<int> fontIndexList{};
   float width = 0;
-  float top = -INFINITY;
-  float bottom = INFINITY;
   for (const auto c: make_u8u32range(string)) {
     auto &glyph = tryLoadGlyphOf(c, nullptr);
     glyphList.push_back(&glyph);
     width += glyph.advance * size;
-    top = std::max(top, glyph.bearingY * size);
-    bottom = std::min(bottom, (glyph.bearingY - glyph.height) * size);
+    fontIndexList.insert(glyph.font);
   }
   if (mode & CenteredMode::Horizontal)
     pos.x -= width / 2;
-  if (mode & CenteredMode::Vertical)
-    pos.y -= (top + bottom) / 2;
+  if (mode & CenteredMode::Vertical) {
+    float height = 0;
+    for (const auto &index: fontIndexList) {
+      const auto &font = fonts[index];
+      height = std::max(height, float(font->descender) / float(font->units_per_EM) + 1);
+    }
+    pos.y -= height * size / 2;
+  }
   for (const auto glyph : glyphList) {
     auto &tex = textures[glyph->texture];
     tex.addQuad({size, color, *glyph, pos});

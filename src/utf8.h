@@ -131,7 +131,7 @@ inline u8u32range<It> make_u8u32range(It begin, It end){
   return {begin, end};
 }
 template<typename Container>
-inline u8u32range<typename Container::iterator> make_u8u32range(Container &c)
+inline u8u32range<typename Container::const_iterator> make_u8u32range(const Container &c)
 {
   return u8u32range(c.begin(), c.end());
 }
