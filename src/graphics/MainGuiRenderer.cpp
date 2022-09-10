@@ -37,6 +37,10 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
 
   gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
+  auto ftRenderer = FreetypeRenderer::create();
+
+  ftRenderer.addFontType("./fonts/NotoSansJP-Medium.otf");
+
   return {
       .width = width,
       .height = height,
@@ -46,6 +50,7 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
 
       .backgroundRingRenderer = BackgroundRingRenderer::create(),
       .cursorCircleRenderer = CursorCircleRenderer::create(),
+      .ftRenderer = std::move(ftRenderer),
   };
 }
 
@@ -65,6 +70,9 @@ void MainGuiRenderer::draw(const OVRController &controller) {
   cursorCircleRenderer.draw(left, size, controller.getStickPos(LeftRight::Left));
   backgroundRingRenderer.draw(right, size);
   cursorCircleRenderer.draw(right, size, controller.getStickPos(LeftRight::Right));
+
+  ftRenderer.addString(u8"\u3042\u3044\u3046ABC", {0.5, 0.5}, {1, 0, 0}, 0.1);
+  ftRenderer.doDraw();
 
   gl::Unbind(frame_buffer);
 

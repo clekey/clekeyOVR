@@ -18,6 +18,7 @@ add_executable(clekey_ovr
         src/graphics/bmp_export.cpp
         src/graphics/BackgroundRingRenderer.cpp
         src/graphics/CursorCircleRenderer.cpp
+        src/graphics/FreetypeRenderer.cpp
 )
 
 configure_file(resources/actions.json actions.json COPYONLY)
