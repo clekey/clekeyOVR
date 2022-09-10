@@ -367,7 +367,6 @@ void FreetypeRenderer::doDraw() {
 
   for (auto &item: textures) {
     if (!item.buffer.empty()) {
-      std::cerr << "test: tex: " << item.texture2D.expose().operator GLuint() << std::endl;
       gl::BindToTexUnit(item.texture2D, 0);
       gl::Bind(indexBuffer);
       indexBuffer.data(item.indices);
