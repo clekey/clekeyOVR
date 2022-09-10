@@ -26,6 +26,13 @@ struct TextureMetrics {
 struct FreetypeRendererTexture;
 class GlyphInfo;
 
+enum CenteredMode {
+  None = 0,
+  Horizontal = 1,
+  Vertical = 2,
+  Both = 3,
+};
+
 class FreetypeRenderer {
   freetype::Freetype ft;
   std::vector<freetype::Face> fonts;
@@ -58,7 +65,7 @@ public:
   bool loadGlyphOf(char32_t c);
 
   void addString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size);
-  void addCenteredString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size);
+  void addCenteredString(std::u8string string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode);
   void doDraw();
 
   FreetypeRenderer(FreetypeRenderer &&) noexcept;

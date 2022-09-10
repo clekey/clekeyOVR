@@ -72,7 +72,7 @@ void MainGuiRenderer::draw(const OVRController &controller) {
   cursorCircleRenderer.draw(right, size, controller.getStickPos(LeftRight::Right));
 
   //ftRenderer.addString(u8"\u3042\u3044\u3046ABC", {0, 0}, {1, 0, 0}, 0.1);
-  ftRenderer.addCenteredString(u8"\u3042\u3044\u3046ABC", {0, 0}, {1, 0, 0}, 0.1);
+  ftRenderer.addCenteredString(u8"\u3042\u3044\u3046ABC", {0, 0}, {1, 0, 0}, 0.1, CenteredMode::Horizontal);
   ftRenderer.doDraw();
 
   gl::Unbind(frame_buffer);
