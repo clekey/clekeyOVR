@@ -8,6 +8,7 @@
 #include <exception>
 #include "ft2build.h"
 #include FT_FREETYPE_H
+#include FT_BITMAP_H
 
 namespace freetype {
 
@@ -15,9 +16,9 @@ class error : public std::exception {
 public:
   FT_Error code;
 
-  explicit error(FT_Error error) noexcept : code(error) {}
+  explicit error(FT_Error error) noexcept: code(error) {}
 
-  [[nodiscard]] const char * what() const noexcept override {
+  [[nodiscard]] const char *what() const noexcept override {
     return FT_Error_String(code);
   }
 };
@@ -38,11 +39,29 @@ public:
   }
 
   ~Freetype() {
-    ftcall(Done_FreeType(library));
+    if (library) ftcall(Done_FreeType(library));
   }
 
   Face new_face(const char *name, FT_Long face_index);
 
+  void bitmap_convert(const FT_Bitmap &source, FT_Bitmap &bitmap, FT_Int alignment);
+
+  Freetype(Freetype &&src) noexcept {
+    library = src.library;
+    src.library = nullptr;
+  }
+
+  Freetype &operator=(Freetype &&src) noexcept {
+    if (this != &src) {
+      library = src.library;
+      src.library = nullptr;
+    }
+    return *this;
+  }
+
+  Freetype(const Freetype &) = delete;
+
+  Freetype &operator=(const Freetype &) = delete;
 private:
   FT_Library library;
 };
@@ -72,11 +91,11 @@ public:
     ftcall(Render_Glyph(face->glyph, render_mode));
   }
 
-  FT_FaceRec_& operator *() const {
+  FT_FaceRec_ &operator*() const {
     return *face;
   }
 
-  FT_Face operator ->() const {
+  FT_Face operator->() const {
     return face;
   }
 
@@ -106,6 +125,10 @@ inline Face Freetype::new_face(const char *name, FT_Long face_index) {
   FT_Face face;
   ftcall(New_Face(library, name, face_index, &face));
   return Face(face);
+}
+
+inline void Freetype::bitmap_convert(const FT_Bitmap &source, FT_Bitmap &bitmap, FT_Int alignment) {
+  ftcall(Bitmap_Convert(library, &source, &bitmap, alignment));
 }
 
 }
