@@ -267,7 +267,8 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
   if (maxX > metrics.texSize) {
     // x-axis overflow: continue in next row
     metrics.cursorX = 0;
-    metrics.cursorY = metrics.nextCursorY;
+    // make space between line
+    metrics.cursorY = metrics.nextCursorY + 1;
     maxX = bitmap.width;
   }
 
@@ -313,7 +314,8 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
       .texture = (int) texture_idx,
   };
 
-  metrics.cursorX = maxX;
+  // make space between char
+  metrics.cursorX = maxX + 1;
 
   if (successful) *successful = true;
 
