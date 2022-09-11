@@ -11,6 +11,7 @@
 #include "CursorCircleRenderer.h"
 #include "../OVRController.h"
 #include "FreetypeRenderer.h"
+#include "RingRenderer.h"
 
 class MainGuiRenderer {
 public:
@@ -27,6 +28,7 @@ public:
   std::unique_ptr<BackgroundRingRenderer> backgroundRingRenderer;
   std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
   std::unique_ptr<FreetypeRenderer> ftRenderer;
+  std::unique_ptr<RingRenderer> ringRenderer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

@@ -4,8 +4,7 @@
 
 #include "MainGuiRenderer.h"
 #include "glutil.h"
-#include "../OVRController.h"
-#include "glm/gtx/rotate_vector.hpp"
+#include "RingRenderer.h"
 
 std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) {
   gl::Texture2D dest_texture;
@@ -39,6 +38,15 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
   gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
   auto ftRenderer = FreetypeRenderer::create();
+  auto backgroundRingRenderer = BackgroundRingRenderer::create();
+  auto cursorCircleRenderer = CursorCircleRenderer::create();
+  std::unique_ptr<RingRenderer> ringRenderer (new RingRenderer(
+      *ftRenderer,
+      *cursorCircleRenderer,
+      *backgroundRingRenderer,
+      {1, 0, 0},
+      {1, 0, 0}
+  ));
 
   ftRenderer->addFontType("./fonts/NotoSansJP-Medium.otf");
 
@@ -49,9 +57,10 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
       .depth_buffer = std::move(depth_buffer),
       .frame_buffer = std::move(frame_buffer),
 
-      .backgroundRingRenderer = BackgroundRingRenderer::create(),
-      .cursorCircleRenderer = CursorCircleRenderer::create(),
+      .backgroundRingRenderer = std::move(backgroundRingRenderer),
+      .cursorCircleRenderer = std::move(cursorCircleRenderer),
       .ftRenderer = std::move(ftRenderer),
+      .ringRenderer = std::move(ringRenderer),
   };
   return std::unique_ptr<MainGuiRenderer>(res);
 }
@@ -66,27 +75,29 @@ void MainGuiRenderer::draw(const OVRController &controller) {
 
   glm::vec2 left {-0.65, -.45};
   glm::vec2 right {0.65, -.45};
-  glm::vec2 size {0.5, .5};
+  float size = .5;
 
-  backgroundRingRenderer->draw(left, size);
-  cursorCircleRenderer->draw(left, size, controller.getStickPos(LeftRight::Left));
-  backgroundRingRenderer->draw(right, size);
-  cursorCircleRenderer->draw(right, size, controller.getStickPos(LeftRight::Right));
+  ringRenderer->render(left, controller.getStickPos(LeftRight::Left), size, RingDirection::Horizontal, -1, -1, {
+      u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A",
+      u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
+      u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",
+      u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044",
+      u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C",
+      u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c",
+      u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D",
+      u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=",
+  });
 
-  //ftRenderer.addString(u8"\u3042\u3044\u3046ABC", {0, 0}, {1, 0, 0}, 0.1);
-  glm::vec3 color = {1, 0, 0};
-  glm::vec2 branch {0, 0.375 * 0.5};
-
-  ftRenderer->addCenteredString(u8"F", left, color, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"A", left + glm::rotate(branch, -glm::pi<float>() / 4 * 0), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"a", left + glm::rotate(branch, -glm::pi<float>() / 4 * 1), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"B", left + glm::rotate(branch, -glm::pi<float>() / 4 * 2), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"b", left + glm::rotate(branch, -glm::pi<float>() / 4 * 3), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"C", left + glm::rotate(branch, -glm::pi<float>() / 4 * 4), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"c", left + glm::rotate(branch, -glm::pi<float>() / 4 * 5), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"D", left + glm::rotate(branch, -glm::pi<float>() / 4 * 6), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->addCenteredStringWithMaxWidth(u8"#+=", left + glm::rotate(branch, -glm::pi<float>() / 4 * 7), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer->doDraw();
+  ringRenderer->render(right, controller.getStickPos(LeftRight::Right), size, RingDirection::Vertical, -1, 1, {
+      u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A",
+      u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
+      u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",
+      u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044",
+      u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C",
+      u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c",
+      u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D",
+      u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=",
+  });
 
   gl::Unbind(frame_buffer);
 

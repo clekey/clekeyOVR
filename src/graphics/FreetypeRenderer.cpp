@@ -96,6 +96,7 @@ struct FreetypeRendererTexture {
   std::vector<FreetypeRendererQuad> buffer;
   // index buffer
   std::vector<GLuint> indices;
+  bool modified;
 
   FreetypeRendererTexture();
   ~FreetypeRendererTexture();
@@ -201,7 +202,7 @@ std::unique_ptr<FreetypeRenderer> FreetypeRenderer::create() {
 void initTexture(TextureMetrics &metrics, gl::Texture2D &texture) {
   gl::Bind(texture);
   texture.upload(gl::kR8, metrics.texSize, metrics.texSize, gl::kRed, gl::kUnsignedByte, nullptr);
-  texture.minFilter(gl::kLinear);
+  //texture.minFilter(gl::kLinear);
 }
 
 FreetypeRenderer::FreetypeRenderer(
@@ -301,6 +302,8 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
       gl::kRed, gl::kUnsignedByte,
       bitmap.buffer);
 
+  texture.modified = true;
+
   const float f26dot6toFloat = 64;
   const float oneEmInPixel = 64;
 
@@ -386,6 +389,11 @@ void FreetypeRenderer::doDraw() {
   uniformFontTexture.set(0);
 
   for (auto &item: textures) {
+    if (item.modified) {
+      gl::Bind(item.texture2D);
+      item.texture2D.generateMipmap();
+      item.modified = false;
+    }
     if (!item.buffer.empty()) {
       gl::BindToTexUnit(item.texture2D, 0);
       gl::Bind(indexBuffer);
