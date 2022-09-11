@@ -369,6 +369,16 @@ void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 
   addString(string, pos, color, size);
 }
 
+void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, float maxWidth, CenteredMode mode) {
+  auto wh = calcStringSize(string);
+  size = std::min(size, maxWidth/wh.x);
+  if (mode & CenteredMode::Horizontal)
+    pos.x -= wh.x * size / 2;
+  if (mode & CenteredMode::Vertical)
+    pos.y -= wh.y * size / 2;
+  addString(string, pos, color, size);
+}
+
 void FreetypeRenderer::doDraw() {
   gl::Use(shaderProgram);
   gl::Bind(vertexArray);
