@@ -17,11 +17,11 @@ class MainGuiRenderer {
 public:
   static std::unique_ptr<MainGuiRenderer> create(int width, int height);
 
-  void draw(const OVRController &controller);
+  void draw(const OVRController &controller, LeftRight side);
 
   int width, height;
 
-  gl::Texture2D dest_texture;
+  gl::Texture2D dest_textures[2];
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
 

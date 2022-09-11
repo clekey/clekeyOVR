@@ -36,17 +36,7 @@ void shutdown_ovr() {
   vr::VR_Shutdown();
 }
 
-OVRController::OVRController() {
-  // pre init
-  action_left_stick = 0;
-  action_left_click = 0;
-  action_left_haptic = 0;
-  action_right_stick = 0;
-  action_right_click = 0;
-  action_right_haptic = 0;
-  action_set_input = 0;
-  overlay_handle = 0;
-
+OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-init)
   std::filesystem::path path = std::filesystem::current_path() / "actions.json";
 
   handle_input_err(vr::VRInput()->SetActionManifestPath(path.string().c_str()));
@@ -61,9 +51,12 @@ OVRController::OVRController() {
   handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/input", &action_set_input));
 #undef GetActionHandle
 
-  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr", "clekey-ovr", &overlay_handle));
-  vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, 2);
-  vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
+  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.left", "clekey-ovr left", &overlay_handles[0]));
+  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.right", "clekey-ovr right", &overlay_handles[1]));
+  for (auto &overlay_handle: overlay_handles) {
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, .5);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
+  }
 
   std::cout << "action_left_stick:   " << action_left_stick << std::endl;
   std::cout << "action_left_click:   " << action_left_click << std::endl;
@@ -84,12 +77,18 @@ OVRController::OVRController() {
     position.m[1][3] = 0;
     position.m[2][3] = -1.5;
 
+    // TODO: rotation of the overlay
+    position.m[0][3] = -0.65;
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
-        overlay_handle,
+        overlay_handles[0],
         vr::k_unTrackedDeviceIndex_Hmd,
         &position);
 
-    vr::VROverlay()->SetOverlayCurvature(overlay_handle, .2);
+    position.m[0][3] = +0.65;
+    vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
+        overlay_handles[1],
+        vr::k_unTrackedDeviceIndex_Hmd,
+        &position);
   }
 
   std::cout << "successfully launched" << std::endl;
@@ -102,7 +101,8 @@ void OVRController::input_tick() const {
   handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
 }
 
-void OVRController::tick(GLuint texture) const {
+void OVRController::set_texture(GLuint texture, LeftRight side) const {
+  auto overlay_handle = overlay_handles[side];
   vr::VROverlay()->ShowOverlay(overlay_handle);
 
   if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {

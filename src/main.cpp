@@ -77,14 +77,18 @@ int glmain(SDL_Window *window) {
     }
 
     ovr_controller.input_tick();
+    desktop_renderer->preDraw();
 
-    main_renderer->draw(ovr_controller);
+    main_renderer->draw(ovr_controller, LeftRight::Left);
+    ovr_controller.set_texture(main_renderer->dest_textures[LeftRight::Left].expose(), LeftRight::Left);
+
+    main_renderer->draw(ovr_controller, LeftRight::Right);
+    ovr_controller.set_texture(main_renderer->dest_textures[LeftRight::Right].expose(), LeftRight::Right);
 
     //export_as_bmp(main_renderer.dest_texture, 0);
 
-    desktop_renderer->draw(main_renderer->dest_texture);
-
-    ovr_controller.tick(main_renderer->dest_texture.expose());
+    desktop_renderer->drawTexture(main_renderer->dest_textures[LeftRight::Left], {-1, 0}, {1, 1});
+    desktop_renderer->drawTexture(main_renderer->dest_textures[LeftRight::Right], {0, 0}, {1, 1});
 
     SDL_GL_SwapWindow(window);
 

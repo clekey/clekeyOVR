@@ -32,13 +32,13 @@ class OVRController {
   vr::VRActionHandle_t action_right_click;
   vr::VRActionHandle_t action_right_haptic;
   vr::VRActionSetHandle_t action_set_input;
-  vr::VROverlayHandle_t overlay_handle;
+  vr::VROverlayHandle_t overlay_handles[2];
 #endif
 public:
   OVRController();
 
   void input_tick() const;
-  void tick(GLuint texture) const;
+  void set_texture(GLuint texture, LeftRight side) const;
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;
 

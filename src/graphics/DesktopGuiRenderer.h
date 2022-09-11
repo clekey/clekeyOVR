@@ -12,12 +12,15 @@ class DesktopGuiRenderer {
 public:
   static std::unique_ptr<DesktopGuiRenderer> create(int width, int height);
 
-  void draw(const gl::Texture2D &texture);
+  void preDraw();
+  void drawTexture(const gl::Texture2D &texture, glm::vec2 bottomLeft, glm::vec2 size);
 
   int width, height;
 
   gl::Program shader_program;
-  gl::VertexAttrib vertexPositionAttrib;
+  gl::VertexAttrib posAttrib;
+  gl::Uniform<glm::vec2> uBottomLeft;
+  gl::Uniform<glm::vec2> uSize;
   gl::UniformSampler texture_id;
   gl::VertexArray vertex_array;
   gl::ArrayBuffer vertex_buffer;
