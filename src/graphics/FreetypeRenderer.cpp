@@ -129,7 +129,7 @@ void FreetypeRenderer::addFontType(const char *path) {
   fonts.push_back(std::move(ft.new_face(path, 0)));
 }
 
-FreetypeRenderer FreetypeRenderer::create() {
+std::unique_ptr<FreetypeRenderer> FreetypeRenderer::create() {
   auto program = compile_shader_program(
       "#version 330 core\n"
       "in vec2 vPos;\n"
@@ -185,7 +185,7 @@ FreetypeRenderer FreetypeRenderer::create() {
   vertexColorAttrib.pointer(3, gl::DataType::kFloat, false, sizeof(FreetypeRendererVertex),
                             (void *) offsetof(FreetypeRendererVertex, color));
 
-  return {
+  auto res = new FreetypeRenderer{
       std::move(program),
       std::move(vertexPosAttrib),
       std::move(vertexUVAttrib),
@@ -195,6 +195,7 @@ FreetypeRenderer FreetypeRenderer::create() {
       std::move(vertexBuffer),
       std::move(indexBuffer),
   };
+  return std::unique_ptr<FreetypeRenderer>(res);
 }
 
 void initTexture(TextureMetrics &metrics, gl::Texture2D &texture) {

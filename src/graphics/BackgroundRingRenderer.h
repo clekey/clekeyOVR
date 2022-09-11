@@ -11,7 +11,7 @@
 
 class BackgroundRingRenderer {
 public:
-  static BackgroundRingRenderer create();
+  static std::unique_ptr<BackgroundRingRenderer> create();
 
   void draw(
       glm::vec2 center,

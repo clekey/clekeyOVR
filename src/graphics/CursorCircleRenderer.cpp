@@ -5,7 +5,7 @@
 #include "CursorCircleRenderer.h"
 #include "glutil.h"
 
-CursorCircleRenderer CursorCircleRenderer::create() {
+std::unique_ptr<CursorCircleRenderer> CursorCircleRenderer::create() {
   gl::Program program = std::move(compile_shader_program(
       "#version 330 core\n"
       "layout(location = 0) in vec2 position;\n"
@@ -55,7 +55,7 @@ CursorCircleRenderer CursorCircleRenderer::create() {
   gl::Uniform<glm::vec4> uStickColor(program, "uStickColor");
   gl::Uniform<glm::vec2> uStickPos(program, "uStickPos");
 
-  return CursorCircleRenderer{
+  auto res = new CursorCircleRenderer{
       .program = std::move(program),
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
       .vertexArray = std::move(vertexArray),
@@ -65,6 +65,7 @@ CursorCircleRenderer CursorCircleRenderer::create() {
       .uStickColor = std::move(uStickColor),
       .uStickPos = std::move(uStickPos),
   };
+  return std::unique_ptr<CursorCircleRenderer>(res);
 }
 
 void CursorCircleRenderer::draw(

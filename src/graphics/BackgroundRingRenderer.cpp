@@ -4,8 +4,9 @@
 
 #include "BackgroundRingRenderer.h"
 #include "glutil.h"
+#include <memory>
 
-BackgroundRingRenderer BackgroundRingRenderer::create() {
+std::unique_ptr<BackgroundRingRenderer> BackgroundRingRenderer::create() {
   gl::Program program = std::move(compile_shader_program(
       "#version 330 core\n"
       "layout(location = 0) in vec2 position;\n"
@@ -81,7 +82,7 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
   gl::Bind(vertexBuffer);
   vertexPositionAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
 
-  return BackgroundRingRenderer{
+  auto res = new BackgroundRingRenderer{
       .program = std::move(program),
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
       .vertexArray = std::move(vertexArray),
@@ -92,6 +93,7 @@ BackgroundRingRenderer BackgroundRingRenderer::create() {
       .uBackgroundColor = std::move(uBackgroundColor),
       .uEdgeColor = std::move(uEdgeColor),
   };
+  return std::unique_ptr<BackgroundRingRenderer>(res);
 }
 
 void BackgroundRingRenderer::draw(

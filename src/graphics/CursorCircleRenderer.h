@@ -11,7 +11,7 @@
 
 class CursorCircleRenderer {
 public:
-  static CursorCircleRenderer create();
+  static std::unique_ptr<CursorCircleRenderer> create();
 
   void draw(
       glm::vec2 center,

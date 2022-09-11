@@ -59,7 +59,7 @@ class FreetypeRenderer {
   const GlyphInfo &tryLoadGlyphOf(char32_t c, bool *successful);
 
 public:
-  static FreetypeRenderer create();
+  static std::unique_ptr<FreetypeRenderer> create();
 
   void addFontType(const char *path);
 

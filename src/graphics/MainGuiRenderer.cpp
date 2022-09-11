@@ -7,7 +7,7 @@
 #include "../OVRController.h"
 #include "glm/gtx/rotate_vector.hpp"
 
-MainGuiRenderer MainGuiRenderer::create(int width, int height) {
+std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) {
   gl::Texture2D dest_texture;
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
@@ -40,9 +40,9 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
 
   auto ftRenderer = FreetypeRenderer::create();
 
-  ftRenderer.addFontType("./fonts/NotoSansJP-Medium.otf");
+  ftRenderer->addFontType("./fonts/NotoSansJP-Medium.otf");
 
-  return {
+  auto res = new MainGuiRenderer{
       .width = width,
       .height = height,
       .dest_texture = std::move(dest_texture),
@@ -53,6 +53,7 @@ MainGuiRenderer MainGuiRenderer::create(int width, int height) {
       .cursorCircleRenderer = CursorCircleRenderer::create(),
       .ftRenderer = std::move(ftRenderer),
   };
+  return std::unique_ptr<MainGuiRenderer>(res);
 }
 
 void MainGuiRenderer::draw(const OVRController &controller) {
@@ -67,25 +68,25 @@ void MainGuiRenderer::draw(const OVRController &controller) {
   glm::vec2 right {0.65, -.45};
   glm::vec2 size {0.5, .5};
 
-  backgroundRingRenderer.draw(left, size);
-  cursorCircleRenderer.draw(left, size, controller.getStickPos(LeftRight::Left));
-  backgroundRingRenderer.draw(right, size);
-  cursorCircleRenderer.draw(right, size, controller.getStickPos(LeftRight::Right));
+  backgroundRingRenderer->draw(left, size);
+  cursorCircleRenderer->draw(left, size, controller.getStickPos(LeftRight::Left));
+  backgroundRingRenderer->draw(right, size);
+  cursorCircleRenderer->draw(right, size, controller.getStickPos(LeftRight::Right));
 
   //ftRenderer.addString(u8"\u3042\u3044\u3046ABC", {0, 0}, {1, 0, 0}, 0.1);
   glm::vec3 color = {1, 0, 0};
   glm::vec2 branch {0, 0.375 * 0.5};
 
-  ftRenderer.addCenteredString(u8"F", left, color, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"A", left + glm::rotate(branch, -glm::pi<float>() / 4 * 0), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"a", left + glm::rotate(branch, -glm::pi<float>() / 4 * 1), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"B", left + glm::rotate(branch, -glm::pi<float>() / 4 * 2), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"b", left + glm::rotate(branch, -glm::pi<float>() / 4 * 3), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"C", left + glm::rotate(branch, -glm::pi<float>() / 4 * 4), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"c", left + glm::rotate(branch, -glm::pi<float>() / 4 * 5), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"D", left + glm::rotate(branch, -glm::pi<float>() / 4 * 6), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.addCenteredStringWithMaxWidth(u8"#+=", left + glm::rotate(branch, -glm::pi<float>() / 4 * 7), color, 0.1, 0.1, CenteredMode::Both);
-  ftRenderer.doDraw();
+  ftRenderer->addCenteredString(u8"F", left, color, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"A", left + glm::rotate(branch, -glm::pi<float>() / 4 * 0), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"a", left + glm::rotate(branch, -glm::pi<float>() / 4 * 1), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"B", left + glm::rotate(branch, -glm::pi<float>() / 4 * 2), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"b", left + glm::rotate(branch, -glm::pi<float>() / 4 * 3), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"C", left + glm::rotate(branch, -glm::pi<float>() / 4 * 4), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"c", left + glm::rotate(branch, -glm::pi<float>() / 4 * 5), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"D", left + glm::rotate(branch, -glm::pi<float>() / 4 * 6), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->addCenteredStringWithMaxWidth(u8"#+=", left + glm::rotate(branch, -glm::pi<float>() / 4 * 7), color, 0.1, 0.1, CenteredMode::Both);
+  ftRenderer->doDraw();
 
   gl::Unbind(frame_buffer);
 

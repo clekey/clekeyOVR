@@ -14,7 +14,7 @@
 
 class MainGuiRenderer {
 public:
-  static MainGuiRenderer create(int width, int height);
+  static std::unique_ptr<MainGuiRenderer> create(int width, int height);
 
   void draw(const OVRController &controller);
 
@@ -24,9 +24,9 @@ public:
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
 
-  BackgroundRingRenderer backgroundRingRenderer;
-  CursorCircleRenderer cursorCircleRenderer;
-  FreetypeRenderer ftRenderer;
+  std::unique_ptr<BackgroundRingRenderer> backgroundRingRenderer;
+  std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
+  std::unique_ptr<FreetypeRenderer> ftRenderer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

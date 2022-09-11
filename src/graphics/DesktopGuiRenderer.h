@@ -10,7 +10,7 @@
 
 class DesktopGuiRenderer {
 public:
-  static DesktopGuiRenderer create(int width, int height);
+  static std::unique_ptr<DesktopGuiRenderer> create(int width, int height);
 
   void draw(const gl::Texture2D &texture);
 

@@ -54,8 +54,8 @@ bool init_gl(SDL_Window *window) {
 }
 
 int glmain(SDL_Window *window) {
-  MainGuiRenderer main_renderer = MainGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
-  DesktopGuiRenderer desktop_renderer = DesktopGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
+  auto main_renderer = MainGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
+  auto desktop_renderer = DesktopGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
   OVRController ovr_controller;
 
   static const Uint32 interval = 1000 / 90;
@@ -78,13 +78,13 @@ int glmain(SDL_Window *window) {
 
     ovr_controller.input_tick();
 
-    main_renderer.draw(ovr_controller);
+    main_renderer->draw(ovr_controller);
 
     //export_as_bmp(main_renderer.dest_texture, 0);
 
-    desktop_renderer.draw(main_renderer.dest_texture);
+    desktop_renderer->draw(main_renderer->dest_texture);
 
-    ovr_controller.tick(main_renderer.dest_texture.expose());
+    ovr_controller.tick(main_renderer->dest_texture.expose());
 
     SDL_GL_SwapWindow(window);
 

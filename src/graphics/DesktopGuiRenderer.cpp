@@ -5,7 +5,7 @@
 #include "DesktopGuiRenderer.h"
 #include "glutil.h"
 
-DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
+std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(int width, int height) {
   gl::Unbind(gl::kFramebuffer);
   gl::Program shader_program = std::move(compile_shader_program(
       "#version 330 core\n"
@@ -51,7 +51,7 @@ DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
   gl::Bind(vertex_buffer);
   vertexPositionAttrib.pointer(3, gl::kFloat, false, 0, nullptr);
 
-  return {
+  auto res = new DesktopGuiRenderer {
       .width = width,
       .height = height,
       .shader_program = std::move(shader_program),
@@ -60,6 +60,7 @@ DesktopGuiRenderer DesktopGuiRenderer::create(int width, int height) {
       .vertex_array = std::move(vertex_array),
       .vertex_buffer = std::move(vertex_buffer),
   };
+  return std::unique_ptr<DesktopGuiRenderer>(res);
 }
 
 void DesktopGuiRenderer::draw(const gl::Texture2D &texture) {
