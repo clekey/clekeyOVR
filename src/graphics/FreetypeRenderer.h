@@ -27,7 +27,7 @@ struct FreetypeRendererTexture;
 
 class GlyphInfo;
 
-enum CenteredMode {
+enum class CenteredMode {
   None = 0,
   Horizontal = 1,
   Vertical = 2,

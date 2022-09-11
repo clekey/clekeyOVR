@@ -363,9 +363,9 @@ glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
 
 void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
   auto wh = calcStringSize(string);
-  if (mode & CenteredMode::Horizontal)
+  if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
     pos.x -= wh.x * size / 2;
-  if (mode & CenteredMode::Vertical)
+  if (mode == CenteredMode::Vertical || mode == CenteredMode::Both)
     pos.y -= wh.y * size / 2;
   addString(string, pos, color, size);
 }
@@ -373,9 +373,9 @@ void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 
 void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, float maxWidth, CenteredMode mode) {
   auto wh = calcStringSize(string);
   size = std::min(size, maxWidth/wh.x);
-  if (mode & CenteredMode::Horizontal)
+  if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
     pos.x -= wh.x * size / 2;
-  if (mode & CenteredMode::Vertical)
+  if (mode == CenteredMode::Vertical || mode == CenteredMode::Both)
     pos.y -= wh.y * size / 2;
   addString(string, pos, color, size);
 }
