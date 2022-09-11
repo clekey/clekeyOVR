@@ -64,6 +64,7 @@ public:
   /// @returns true if found
   bool loadGlyphOf(char32_t c);
 
+  glm::vec2 calcStringSize(const std::u8string& string);
   void addString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size);
   void addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode);
   void doDraw();

@@ -344,31 +344,29 @@ void FreetypeRenderer::addString(const std::u8string &string, glm::vec2 pos, glm
   }
 }
 
-void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
-  std::vector<const GlyphInfo *> glyphList{};
+glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
   std::unordered_set<int> fontIndexList{};
   float width = 0;
   for (const auto c: make_u8u32range(string)) {
     auto &glyph = tryLoadGlyphOf(c, nullptr);
-    glyphList.push_back(&glyph);
-    width += glyph.advance * size;
+    width += glyph.advance;
     fontIndexList.insert(glyph.font);
   }
+  float height = 0;
+  for (const auto &index: fontIndexList) {
+    const auto &font = fonts[index];
+    height = std::max(height, float(font->descender) / float(font->units_per_EM) + 1);
+  }
+  return {width, height};
+}
+
+void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
+  auto wh = calcStringSize(string);
   if (mode & CenteredMode::Horizontal)
-    pos.x -= width / 2;
-  if (mode & CenteredMode::Vertical) {
-    float height = 0;
-    for (const auto &index: fontIndexList) {
-      const auto &font = fonts[index];
-      height = std::max(height, float(font->descender) / float(font->units_per_EM) + 1);
-    }
-    pos.y -= height * size / 2;
-  }
-  for (const auto glyph : glyphList) {
-    auto &tex = textures[glyph->texture];
-    tex.addQuad({size, color, *glyph, pos});
-    pos.x += glyph->advance * size;
-  }
+    pos.x -= wh.x * size / 2;
+  if (mode & CenteredMode::Vertical)
+    pos.y -= wh.y * size / 2;
+  addString(string, pos, color, size);
 }
 
 void FreetypeRenderer::doDraw() {
