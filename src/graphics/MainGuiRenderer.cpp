@@ -13,14 +13,15 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
 
   gl::Bind(frame_buffer);
 
+  // TODO: consider to have those texture on glmain instead of renderer?
   for (auto &dest_texture: dest_textures) {
     gl::Bind(dest_texture);
     dest_texture.upload(
         gl::kRgba8, width, height,
         gl::kRgb, gl::kUnsignedByte, nullptr
     );
-    dest_texture.magFilter(gl::kNearest);
-    dest_texture.minFilter(gl::kNearest);
+    dest_texture.magFilter(gl::kLinear);
+    dest_texture.minFilter(gl::kLinear);
   }
 
   gl::Bind(depth_buffer);
