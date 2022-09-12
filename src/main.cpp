@@ -58,6 +58,18 @@ int glmain(SDL_Window *window) {
   auto desktop_renderer = DesktopGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
   OVRController ovr_controller;
 
+  AppStatus status;
+  status.chars = {
+      u8"1", u8"2", u8"3", u8"4", u8"5", u8"6", u8"7", u8"8",
+      u8"2", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
+      u8"3", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",
+      u8"4", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044",
+      u8"5", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C",
+      u8"6", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c",
+      u8"7", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D",
+      u8"8", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=",
+  };
+
   static const Uint32 interval = 1000 / 90;
   static Uint32 nextTime = SDL_GetTicks() + interval;
 
@@ -76,13 +88,13 @@ int glmain(SDL_Window *window) {
       }
     }
 
-    ovr_controller.input_tick();
+    ovr_controller.update_status(status);
     desktop_renderer->preDraw();
 
-    main_renderer->draw(ovr_controller, LeftRight::Left);
+    main_renderer->draw(status, LeftRight::Left, true);
     ovr_controller.set_texture(main_renderer->dest_textures[LeftRight::Left].expose(), LeftRight::Left);
 
-    main_renderer->draw(ovr_controller, LeftRight::Right);
+    main_renderer->draw(status, LeftRight::Right, false);
     ovr_controller.set_texture(main_renderer->dest_textures[LeftRight::Right].expose(), LeftRight::Right);
 
     //export_as_bmp(main_renderer.dest_texture, 0);

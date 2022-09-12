@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <filesystem>
+#include "glm/gtc/constants.hpp"
 
 void handle_input_err(vr::EVRInputError error) {
   if (error != vr::VRInputError_None) {
@@ -94,11 +95,30 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "successfully launched" << std::endl;
 }
 
-void OVRController::input_tick() const {
+void updateStick(glm::vec2 &stick, int8_t &selection) {
+  float lenSqrt = glm::dot(stick, stick);
+  // todo: use 0.5 and 0.75 based on current status
+  if (lenSqrt >= 0.5 * 0.5) {
+    float angleF = -std::atan2(stick.y, stick.x) / (glm::pi<float>() / 4);
+    auto angle = int8_t(std::round(angleF));
+    angle += 2;
+    angle &= 7;
+    selection = angle;
+  } else {
+    selection = -1;
+  }
+}
+
+void OVRController::update_status(AppStatus& status) const {
   vr::VRActiveActionSet_t action = {};
   action.ulActionSet = action_set_input;
   action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
   handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
+
+  status.leftStickPos = getStickPos(LeftRight::Left);
+  status.rightStickPos = getStickPos(LeftRight::Right);
+  updateStick(status.leftStickPos, status.leftSelection);
+  updateStick(status.rightStickPos, status.rightSelection);
 }
 
 void OVRController::set_texture(GLuint texture, LeftRight side) const {

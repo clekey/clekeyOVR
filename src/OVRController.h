@@ -13,15 +13,11 @@
 
 #include "GL/glew.h"
 #include "glm/vec2.hpp"
+#include "AppStatus.h"
 
 bool init_ovr();
 
 void shutdown_ovr();
-
-enum LeftRight {
-  Left,
-  Right,
-};
 
 class OVRController {
 #ifdef WITH_OPEN_VR
@@ -37,7 +33,7 @@ class OVRController {
 public:
   OVRController();
 
-  void input_tick() const;
+  void update_status(AppStatus &) const;
   void set_texture(GLuint texture, LeftRight side) const;
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;

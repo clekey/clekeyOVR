@@ -11,12 +11,13 @@
 #include "CursorCircleRenderer.h"
 #include "../OVRController.h"
 #include "FreetypeRenderer.h"
+#include "../AppStatus.h"
 
 class MainGuiRenderer {
 public:
   static std::unique_ptr<MainGuiRenderer> create(int width, int height);
 
-  void draw(const OVRController &controller, LeftRight side);
+  void draw(const AppStatus &status, LeftRight side, bool alwaysShowInCircle);
 
   int width, height;
 

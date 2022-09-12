@@ -26,7 +26,7 @@ inline std::array<glm::vec2, 8> calcOffsets(float size) {
 }
 
 void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
-                     std::function<std::pair<std::u8string&, glm::vec3>(int)> getChar) {
+                     std::function<std::pair<const std::u8string &, glm::vec3>(int)> getChar) {
   float fontSize = size * 0.4f;
   auto offsets = calcOffsets(size);
 
@@ -92,13 +92,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
   return std::unique_ptr<MainGuiRenderer>(res);
 }
 
-// currently internal in this file but will be moved to header
-enum class RingDirection {
-  Horizontal,
-  Vertical,
-};
-
-void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
+void MainGuiRenderer::draw(const AppStatus &status, LeftRight side, bool alwaysShowInCircle) {
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, dest_textures[side], 0);
   gl::Viewport(0, 0, width, height);
@@ -107,49 +101,42 @@ void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
 
-  auto direction = side == LeftRight::Left ? RingDirection::Horizontal : RingDirection::Vertical;
-  int selectingCurrent = 1;
-  int selectingOther = -1;
-  if (side == LeftRight::Right) std::swap(selectingCurrent, selectingOther);
+  int8_t selectingCurrent = status.getSelectingOfCurrentSide(side);
+  int8_t selectingOpposite = status.getSelectingOfOppositeSide(side);
 
-  std::u8string chars[] = {
-      u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A",
-      u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
-      u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",
-      u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044",
-      u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C",
-      u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c",
-      u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D",
-      u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=",
-  };
-  auto stickPos = controller.getStickPos(side);
+  auto stickPos = status.getStickPos(side);
   glm::vec3 normalCharColor = {0.0, 0.0, 0.0};
   glm::vec3 unSelectingCharColor = {0.5, 0.5, 0.5};
   glm::vec3 selectingCharColor = {0.0, 0.0, 0.0};
 
   backgroundRingRenderer->draw();
 
-  int lineStep = direction == RingDirection::Horizontal ? 1 : 8;
-  int lineLen = direction == RingDirection::Horizontal ? 8 : 1;
+  int lineStep = side == LeftRight::Left ? 1 : 8;
+  int lineLen = side == LeftRight::Left ? 8 : 1;
 
   auto getColor = [=](int idx) {
-    return selectingCurrent == -1 ? normalCharColor: idx == selectingCurrent ? selectingCharColor : unSelectingCharColor;
+    return selectingCurrent == -1
+           ? normalCharColor
+           : idx == selectingCurrent
+             ? selectingCharColor
+             : unSelectingCharColor;
   };
 
-  if (selectingOther == -1) {
+  if (alwaysShowInCircle || selectingOpposite == -1) {
     auto offsets = calcOffsets(1);
     for (int pos = 0; pos < 8; ++pos) {
       int colOrigin = lineStep * pos;
       auto ringColor = getColor(pos);
-      renderRingChars(*ftRenderer, offsets[pos], 0.2f, [=, &chars](int idx) -> std::pair<std::u8string&, glm::vec3> {
-        return { chars[colOrigin + lineLen * idx], ringColor };
+      renderRingChars(*ftRenderer, offsets[pos], 0.2f, [=](int idx) -> std::pair<const std::u8string &, glm::vec3> {
+        return {status.chars[colOrigin + lineLen * idx], ringColor};
       });
     }
   } else {
-    int lineOrigin = lineLen * selectingOther;
-    renderRingChars(*ftRenderer, {0, 0}, 1, [=, &chars, &getColor](auto idx) -> std::pair<std::u8string&, glm::vec3> {
-      return {chars[lineOrigin + lineStep * idx], getColor(idx)};
-    });
+    int lineOrigin = lineLen * selectingOpposite;
+    renderRingChars(*ftRenderer, {0, 0}, 1,
+                    [=, &status, &getColor](auto idx) -> std::pair<const std::u8string &, glm::vec3> {
+                      return {status.chars[lineOrigin + lineStep * idx], getColor(idx)};
+                    });
   }
   ftRenderer->doDraw();
 
