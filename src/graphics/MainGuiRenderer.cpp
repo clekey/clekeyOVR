@@ -4,7 +4,40 @@
 
 #include "MainGuiRenderer.h"
 #include "glutil.h"
-#include "RingRenderer.h"
+#include <array>
+
+namespace {
+
+constexpr float sin45deg = 0.70710678118655;
+
+inline std::array<glm::vec2, 8> calcOffsets(float size) {
+  float axis = 0.75f * size;
+  float diagonal = axis * sin45deg;
+  return {
+      glm::vec2{.0f, +axis},
+      glm::vec2{+diagonal, +diagonal},
+      glm::vec2{+axis, .0f},
+      glm::vec2{+diagonal, -diagonal},
+      glm::vec2{.0f, -axis},
+      glm::vec2{-diagonal, -diagonal},
+      glm::vec2{-axis, .0f},
+      glm::vec2{-diagonal, +diagonal},
+  };
+}
+
+void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
+                     std::function<std::pair<std::u8string&, glm::vec3>(int)> getChar) {
+  float fontSize = size * 0.4f;
+  auto offsets = calcOffsets(size);
+
+  for (int i = 0; i < 8; ++i) {
+    auto pair = getChar(i);
+    renderer.addCenteredStringWithMaxWidth(pair.first, center + offsets[i], pair.second, fontSize, fontSize,
+                                           CenteredMode::Both);
+  }
+}
+
+}
 
 std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) {
   gl::Texture2D dest_textures[2];
@@ -42,14 +75,6 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
   auto ftRenderer = FreetypeRenderer::create();
   auto backgroundRingRenderer = BackgroundRingRenderer::create();
   auto cursorCircleRenderer = CursorCircleRenderer::create();
-  std::unique_ptr<RingRenderer> ringRenderer(new RingRenderer(
-      *ftRenderer,
-      *cursorCircleRenderer,
-      *backgroundRingRenderer,
-      {0.0, 0.0, 0.0},
-      {0.5, 0.5, 0.5},
-      {0.0, 0.0, 0.0}
-  ));
 
   ftRenderer->addFontType("./fonts/NotoSansJP-Medium.otf");
 
@@ -63,10 +88,15 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
       .backgroundRingRenderer = std::move(backgroundRingRenderer),
       .cursorCircleRenderer = std::move(cursorCircleRenderer),
       .ftRenderer = std::move(ftRenderer),
-      .ringRenderer = std::move(ringRenderer),
   };
   return std::unique_ptr<MainGuiRenderer>(res);
 }
+
+// currently internal in this file but will be moved to header
+enum class RingDirection {
+  Horizontal,
+  Vertical,
+};
 
 void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
   gl::Bind(frame_buffer);
@@ -77,12 +107,12 @@ void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
 
-  auto ringDir = side == LeftRight::Left ? RingDirection::Horizontal : RingDirection::Vertical;
+  auto direction = side == LeftRight::Left ? RingDirection::Horizontal : RingDirection::Vertical;
   int selectingCurrent = 1;
   int selectingOther = -1;
   if (side == LeftRight::Right) std::swap(selectingCurrent, selectingOther);
 
-  ringRenderer->render(controller.getStickPos(side), ringDir, selectingCurrent, selectingOther, {
+  std::u8string chars[] = {
       u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A",
       u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
       u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",
@@ -91,7 +121,39 @@ void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
       u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c",
       u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D",
       u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=",
-  });
+  };
+  auto stickPos = controller.getStickPos(side);
+  glm::vec3 normalCharColor = {0.0, 0.0, 0.0};
+  glm::vec3 unSelectingCharColor = {0.5, 0.5, 0.5};
+  glm::vec3 selectingCharColor = {0.0, 0.0, 0.0};
+
+  backgroundRingRenderer->draw();
+
+  int lineStep = direction == RingDirection::Horizontal ? 1 : 8;
+  int lineLen = direction == RingDirection::Horizontal ? 8 : 1;
+
+  auto getColor = [=](int idx) {
+    return selectingCurrent == -1 ? normalCharColor: idx == selectingCurrent ? selectingCharColor : unSelectingCharColor;
+  };
+
+  if (selectingOther == -1) {
+    auto offsets = calcOffsets(1);
+    for (int pos = 0; pos < 8; ++pos) {
+      int colOrigin = lineStep * pos;
+      auto ringColor = getColor(pos);
+      renderRingChars(*ftRenderer, offsets[pos], 0.2f, [=, &chars](int idx) -> std::pair<std::u8string&, glm::vec3> {
+        return { chars[colOrigin + lineLen * idx], ringColor };
+      });
+    }
+  } else {
+    int lineOrigin = lineLen * selectingOther;
+    renderRingChars(*ftRenderer, {0, 0}, 1, [=, &chars, &getColor](auto idx) -> std::pair<std::u8string&, glm::vec3> {
+      return {chars[lineOrigin + lineStep * idx], getColor(idx)};
+    });
+  }
+  ftRenderer->doDraw();
+
+  cursorCircleRenderer->draw(stickPos);
 
   gl::Unbind(frame_buffer);
 
