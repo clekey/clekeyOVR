@@ -77,7 +77,6 @@ void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
 
-  float size = 2;
   auto ringDir = side == LeftRight::Left ? RingDirection::Horizontal : RingDirection::Vertical;
   int selectingCurrent = 1;
   int selectingOther = -1;

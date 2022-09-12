@@ -53,13 +53,13 @@ RingRenderer::render(glm::vec2 stickPos, RingDirection direction, int selectingC
     for (int pos = 0; pos < 8; ++pos) {
       int colOrigin = lineStep * pos;
       auto ringColor = getColor(pos);
-      renderRingChars(ftRenderer, offsets[pos], 0.2f, [&chars, lineLen, colOrigin, ringColor](int idx) -> std::pair<std::u8string&, glm::vec3> {
+      renderRingChars(ftRenderer, offsets[pos], 0.2f, [=, &chars](int idx) -> std::pair<std::u8string&, glm::vec3> {
         return { chars[colOrigin + lineLen * idx], ringColor };
       });
     }
   } else {
     int lineOrigin = lineLen * selectingOther;
-    renderRingChars(ftRenderer, {0, 0}, 1, [&chars, lineStep, lineOrigin, &getColor](auto idx) -> std::pair<std::u8string&, glm::vec3> {
+    renderRingChars(ftRenderer, {0, 0}, 1, [=, &chars, &getColor](auto idx) -> std::pair<std::u8string&, glm::vec3> {
       return {chars[lineOrigin + lineStep * idx], getColor(idx)};
     });
   }
