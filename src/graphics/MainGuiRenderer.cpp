@@ -83,7 +83,7 @@ void MainGuiRenderer::draw(const OVRController &controller, LeftRight side) {
   int selectingOther = -1;
   if (side == LeftRight::Right) std::swap(selectingCurrent, selectingOther);
 
-  ringRenderer->render({0, 0}, controller.getStickPos(side), size, ringDir, selectingCurrent, selectingOther, {
+  ringRenderer->render(controller.getStickPos(side), ringDir, selectingCurrent, selectingOther, {
       u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A", u8"A",
       u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
       u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",

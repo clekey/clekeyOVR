@@ -10,12 +10,10 @@ std::unique_ptr<BackgroundRingRenderer> BackgroundRingRenderer::create() {
   gl::Program program = std::move(compile_shader_program(
       "#version 330 core\n"
       "layout(location = 0) in vec2 position;\n"
-      "uniform vec2 uCenter;"
-      "uniform vec2 uSize;"
       "out vec2 xy;\n"
       "void main() {\n"
-      "    gl_Position.xy = position * uSize + uCenter;\n"
-      "    xy = position * 2;\n"
+      "    gl_Position.xy = position;\n"
+      "    xy = position;\n"
       "}\n",
       "#version 330 core\n"
       "in vec2 xy;\n"
@@ -57,21 +55,18 @@ std::unique_ptr<BackgroundRingRenderer> BackgroundRingRenderer::create() {
   gl::ArrayBuffer vertexBuffer;
 
   static const GLfloat g_vertex_buffer_data[] = {
-      -.5f, -.5f,
-      +.5f, -.5f,
-      +.5f, +.5f,
+      -1.0f, -1.0f,
+      +1.0f, -1.0f,
+      +1.0f, +1.0f,
 
-      -.5f, -.5f,
-      +.5f, +.5f,
-      -.5f, +.5f,
+      -1.0f, -1.0f,
+      +1.0f, +1.0f,
+      -1.0f, +1.0f,
   };
   gl::Bind(vertexBuffer);
   vertexBuffer.data(sizeof(g_vertex_buffer_data), g_vertex_buffer_data, gl::kStaticDraw);
 
   gl::Bind(program);
-  // transform
-  gl::Uniform<glm::vec2> uCenter(program, "uCenter");
-  gl::Uniform<glm::vec2> uSize(program, "uSize");
   // colors
   gl::Uniform<glm::vec4> uCenterColor(program, "uCenterColor");
   gl::Uniform<glm::vec4> uBackgroundColor(program, "uBackgroundColor");
@@ -87,8 +82,6 @@ std::unique_ptr<BackgroundRingRenderer> BackgroundRingRenderer::create() {
       .vertexPositionAttrib = std::move(vertexPositionAttrib),
       .vertexArray = std::move(vertexArray),
       .vertexBuffer = std::move(vertexBuffer),
-      .uCenter = std::move(uCenter),
-      .uSize = std::move(uSize),
       .uCenterColor = std::move(uCenterColor),
       .uBackgroundColor = std::move(uBackgroundColor),
       .uEdgeColor = std::move(uEdgeColor),
@@ -97,8 +90,6 @@ std::unique_ptr<BackgroundRingRenderer> BackgroundRingRenderer::create() {
 }
 
 void BackgroundRingRenderer::draw(
-    glm::vec2 center,
-    glm::vec2 size,
     glm::vec4 centerColor,
     glm::vec4 backgroundColor,
     glm::vec4 edgeColor
@@ -106,8 +97,6 @@ void BackgroundRingRenderer::draw(
   gl::Bind(vertexArray);
   gl::Use(program);
 
-  uCenter.set(center);
-  uSize.set(size);
   uCenterColor.set(centerColor);
   uBackgroundColor.set(backgroundColor);
   uEdgeColor.set(edgeColor);

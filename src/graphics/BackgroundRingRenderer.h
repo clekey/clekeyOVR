@@ -14,8 +14,6 @@ public:
   static std::unique_ptr<BackgroundRingRenderer> create();
 
   void draw(
-      glm::vec2 center,
-      glm::vec2 size,
       glm::vec4 centerColor = glm::vec4(0.83, 0.83, 0.83, 1.0),
       glm::vec4 backgroundColor = glm::vec4(0.686, 0.686, 0.686, 1.0),
       glm::vec4 edgeColor = glm::vec4(1.0, 1.0, 1.0, 1.0)
@@ -26,9 +24,6 @@ public:
   gl::VertexArray vertexArray;
   gl::ArrayBuffer vertexBuffer;
 
-  // transform
-  gl::Uniform<glm::vec2> uCenter;
-  gl::Uniform<glm::vec2> uSize;
   // colors
   gl::Uniform<glm::vec4> uCenterColor;
   gl::Uniform<glm::vec4> uBackgroundColor;

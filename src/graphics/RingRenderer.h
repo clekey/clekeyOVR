@@ -40,15 +40,8 @@ public:
       const glm::vec4 &edgeColor = glm::vec4(1.0, 1.0, 1.0, 1.0)
   );
 
-  void render(
-      glm::vec2 center,
-      glm::vec2 stickPos,
-      float size,
-      RingDirection direction,
-      int selectingCurrent,
-      int selectingOther,
-      std::array<std::u8string, 64> chars
-  );
+  void render(glm::vec2 stickPos, RingDirection direction, int selectingCurrent, int selectingOther,
+              std::array<std::u8string, 64> chars);
 };
 
 #endif //CLEKEY_OVR_RINGRENDERER_H
