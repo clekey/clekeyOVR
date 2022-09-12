@@ -23,13 +23,14 @@ inline std::array<glm::vec2, 8> calcOffsets(float size) {
   };
 }
 
-void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, glm::vec3 color, float size,
-                     auto getChar) {
+void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
+                     std::function<std::pair<std::u8string&, glm::vec3>(int)> getChar) {
   float fontSize = size * 0.2f;
   auto offsets = calcOffsets(size);
 
   for (int i = 0; i < 8; ++i) {
-    renderer.addCenteredStringWithMaxWidth(getChar(i), center + offsets[i], color, fontSize, fontSize,
+    auto pair = getChar(i);
+    renderer.addCenteredStringWithMaxWidth(pair.first, center + offsets[i], pair.second, fontSize, fontSize,
                                            CenteredMode::Both);
   }
 }
@@ -49,19 +50,24 @@ void RingRenderer::render(
   int lineStep = direction == RingDirection::Horizontal ? 1 : 8;
   int lineLen = direction == RingDirection::Horizontal ? 8 : 1;
 
+  auto getColor = [=](int idx) {
+    return selectingCurrent == -1 ? normalCharColor: idx == selectingCurrent ? selectingCharColor : unSelectingCharColor;
+  };
+
   if (selectingOther == -1) {
     auto offsets = calcOffsets(size);
     float innerSize = size * 0.2f;
     for (int pos = 0; pos < 8; ++pos) {
       int colOrigin = lineStep * pos;
-      renderRingChars(ftRenderer, center + offsets[pos], charColor, innerSize, [&chars, lineLen, colOrigin](int idx) -> std::u8string& {
-        return chars[colOrigin + lineLen * idx];
+      auto ringColor = getColor(pos);
+      renderRingChars(ftRenderer, center + offsets[pos], innerSize, [&chars, lineLen, colOrigin, ringColor](int idx) -> std::pair<std::u8string&, glm::vec3> {
+        return { chars[colOrigin + lineLen * idx], ringColor };
       });
     }
   } else {
     int lineOrigin = lineLen * selectingOther;
-    renderRingChars(ftRenderer, center, charColor, size, [&chars, lineStep, lineOrigin](int idx) -> std::u8string& {
-      return chars[lineOrigin + lineStep * idx];
+    renderRingChars(ftRenderer, center, size, [&chars, lineStep, lineOrigin, &getColor](auto idx) -> std::pair<std::u8string&, glm::vec3> {
+      return {chars[lineOrigin + lineStep * idx], getColor(idx)};
     });
   }
   ftRenderer.doDraw();
@@ -73,7 +79,8 @@ RingRenderer::RingRenderer(
     FreetypeRenderer &ftRenderer,
     CursorCircleRenderer &ccRenderer,
     BackgroundRingRenderer &brRenderer,
-    const glm::vec3 &charColor,
+    const glm::vec3 &normalCharColor,
+    const glm::vec3 &unSelectingCharColor,
     const glm::vec3 &selectingCharColor,
     const glm::vec4 &centerColor,
     const glm::vec4 &backgroundColor,
@@ -84,5 +91,6 @@ RingRenderer::RingRenderer(
     centerColor(centerColor),
     backgroundColor(backgroundColor),
     edgeColor(edgeColor),
-    charColor(charColor),
+    normalCharColor(normalCharColor),
+    unSelectingCharColor(unSelectingCharColor),
     selectingCharColor(selectingCharColor) {}

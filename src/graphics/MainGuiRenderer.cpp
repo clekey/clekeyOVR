@@ -46,8 +46,9 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
       *ftRenderer,
       *cursorCircleRenderer,
       *backgroundRingRenderer,
-      {1, 0, 0},
-      {1, 0, 0}
+      {0.0, 0.0, 0.0},
+      {0.5, 0.5, 0.5},
+      {0.0, 0.0, 0.0}
   ));
 
   ftRenderer->addFontType("./fonts/NotoSansJP-Medium.otf");

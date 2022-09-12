@@ -23,7 +23,8 @@ class RingRenderer {
   glm::vec4 centerColor;
   glm::vec4 backgroundColor;
   glm::vec4 edgeColor;
-  glm::vec3 charColor;
+  glm::vec3 normalCharColor;
+  glm::vec3 unSelectingCharColor;
   glm::vec3 selectingCharColor;
 
 public:
@@ -31,7 +32,8 @@ public:
       FreetypeRenderer &ftRenderer,
       CursorCircleRenderer &ccRenderer,
       BackgroundRingRenderer &brRenderer,
-      const glm::vec3 &charColor,
+      const glm::vec3 &normalCharColor,
+      const glm::vec3 &unSelectingCharColor,
       const glm::vec3 &selectingCharColor,
       const glm::vec4 &centerColor = glm::vec4(0.83, 0.83, 0.83, 1.0),
       const glm::vec4 &backgroundColor = glm::vec4(0.686, 0.686, 0.686, 1.0),
