@@ -37,11 +37,13 @@ public:
   void set_texture(GLuint texture, LeftRight side) const;
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;
+  [[nodiscard]] bool getTriggerStatus(LeftRight right) const;
 
   OVRController(const OVRController&) = delete;
   OVRController& operator=(const OVRController&) = delete;
   OVRController(OVRController&&) = delete;
   OVRController& operator=(OVRController&&) = delete;
+
 };
 
 

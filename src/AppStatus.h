@@ -14,24 +14,37 @@ enum LeftRight {
   Right,
 };
 
+struct HandInfo {
+  glm::vec2 stick;
+  int8_t selection;
+
+  bool clocking: 1;
+};
+
 struct AppStatus {
-  glm::vec2 leftStickPos;
-  glm::vec2 rightStickPos;
-  int8_t leftSelection;
-  int8_t rightSelection;
+  HandInfo left;
+  HandInfo right;
 
   std::array<std::u8string, 8 * 8> chars;
 
+  [[nodiscard]] const HandInfo& getControllerInfo(LeftRight side) const {
+    return side == LeftRight::Left ? left : right;
+  }
+
+  [[nodiscard]] HandInfo& getControllerInfo(LeftRight side) {
+    return side == LeftRight::Left ? left : right;
+  }
+
   [[nodiscard]] glm::vec2 getStickPos(LeftRight side) const {
-    return side == LeftRight::Left ? leftStickPos : rightStickPos;
+    return side == LeftRight::Left ? left.stick : right.stick;
   }
 
   [[nodiscard]] int8_t getSelectingOfCurrentSide(LeftRight side) const {
-    return side == LeftRight::Left ? leftSelection : rightSelection;
+    return side == LeftRight::Left ? left.selection : right.selection;
   }
 
   [[nodiscard]] int8_t getSelectingOfOppositeSide(LeftRight side) const {
-    return side == LeftRight::Left ? rightSelection : leftSelection;
+    return side == LeftRight::Left ? right.selection : left.selection;
   }
 };
 

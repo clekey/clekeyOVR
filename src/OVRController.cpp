@@ -103,29 +103,35 @@ int8_t computeAngle(const glm::vec2 &stick) {
   return angle;
 }
 
-void updateStick(glm::vec2 &stick, int8_t &selection) {
-  float lenSqrt = glm::dot(stick, stick);
+void updateHand(const OVRController &controller, AppStatus &status, LeftRight hand) {
+  HandInfo& handInfo = status.getControllerInfo(hand);
+
+  // first, set stick
+  handInfo.stick = controller.getStickPos(hand);
+
+  // then, set selection
+  float lenSqrt = glm::dot(handInfo.stick, handInfo.stick);
   if (lenSqrt >= 0.8 * 0.8) {
-    selection = computeAngle(stick);
+    handInfo.selection = computeAngle(handInfo.stick);
   } else if (lenSqrt >= 0.75 * 0.75) {
-    if (selection != -1) {
-      selection = computeAngle(stick);
+    if (handInfo.selection != -1) {
+      handInfo.selection = computeAngle(handInfo.stick);
     }
   } else {
-    selection = -1;
+    handInfo.selection = -1;
   }
+
+  handInfo.clocking = controller.getTriggerStatus(hand);
 }
 
-void OVRController::update_status(AppStatus& status) const {
+void OVRController::update_status(AppStatus &status) const {
   vr::VRActiveActionSet_t action = {};
   action.ulActionSet = action_set_input;
   action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
   handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
 
-  status.leftStickPos = getStickPos(LeftRight::Left);
-  status.rightStickPos = getStickPos(LeftRight::Right);
-  updateStick(status.leftStickPos, status.leftSelection);
-  updateStick(status.rightStickPos, status.rightSelection);
+  updateHand(*this, status, LeftRight::Left);
+  updateHand(*this, status, LeftRight::Right);
 }
 
 void OVRController::set_texture(GLuint texture, LeftRight side) const {
@@ -153,6 +159,15 @@ glm::vec2 OVRController::getStickPos(LeftRight hand) const {
       &analog_data, sizeof(analog_data),
       vr::k_ulInvalidInputValueHandle));
   return {analog_data.x, analog_data.y};
+}
+
+bool OVRController::getTriggerStatus(LeftRight hand) const {
+  vr::InputDigitalActionData_t digital_data = {};
+  handle_input_err(vr::VRInput()->GetDigitalActionData(
+      hand == LeftRight::Left ? action_left_stick : action_right_stick,
+      &digital_data, sizeof(digital_data),
+      vr::k_ulInvalidInputValueHandle));
+  return digital_data.bState;
 }
 
 #else
