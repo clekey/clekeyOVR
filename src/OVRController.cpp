@@ -95,15 +95,22 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "successfully launched" << std::endl;
 }
 
+int8_t computeAngle(const glm::vec2 &stick) {
+  float angleF = -std::atan2(stick.y, stick.x) / (glm::pi<float>() / 4);
+  auto angle = int8_t(std::round(angleF));
+  angle += 2;
+  angle &= 7;
+  return angle;
+}
+
 void updateStick(glm::vec2 &stick, int8_t &selection) {
   float lenSqrt = glm::dot(stick, stick);
-  // todo: use 0.5 and 0.75 based on current status
-  if (lenSqrt >= 0.5 * 0.5) {
-    float angleF = -std::atan2(stick.y, stick.x) / (glm::pi<float>() / 4);
-    auto angle = int8_t(std::round(angleF));
-    angle += 2;
-    angle &= 7;
-    selection = angle;
+  if (lenSqrt >= 0.8 * 0.8) {
+    selection = computeAngle(stick);
+  } else if (lenSqrt >= 0.75 * 0.75) {
+    if (selection != -1) {
+      selection = computeAngle(stick);
+    }
   } else {
     selection = -1;
   }
