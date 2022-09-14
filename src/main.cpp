@@ -12,6 +12,11 @@
 #define WINDOW_HEIGHT 1024
 #define WINDOW_WIDTH 1024
 
+#ifdef WIN32
+#include <Windows.h>
+#include <stdio.h>
+#endif
+
 // error handling
 
 SDL_Window *init_SDL() {
@@ -126,6 +131,10 @@ int glmain(SDL_Window *window) {
 }
 
 int main(int argc, char **argv) {
+#ifdef WIN32
+  SetConsoleOutputCP(CP_UTF8);
+  setvbuf(stdout, nullptr, _IOFBF, 1024);
+#endif
   SDL_Window *window = init_SDL();
   if (!window) return 1;
   if (!init_gl(window)) return 2;
