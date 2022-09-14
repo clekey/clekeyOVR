@@ -165,7 +165,7 @@ glm::vec2 OVRController::getStickPos(LeftRight hand) const {
 bool OVRController::getTriggerStatus(LeftRight hand) const {
   vr::InputDigitalActionData_t digital_data = {};
   handle_input_err(vr::VRInput()->GetDigitalActionData(
-      hand == LeftRight::Left ? action_left_stick : action_right_stick,
+      hand == LeftRight::Left ? action_left_click : action_right_click,
       &digital_data, sizeof(digital_data),
       vr::k_ulInvalidInputValueHandle));
   return digital_data.bState;
