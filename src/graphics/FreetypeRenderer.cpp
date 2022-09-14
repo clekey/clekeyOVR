@@ -340,6 +340,7 @@ bool FreetypeRenderer::loadGlyphOf(char32_t c) {
 }
 
 void FreetypeRenderer::addString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, float size) {
+  if (string.length() == 0) return;
   for (const auto c: make_u8u32range(string)) {
     auto &glyph = tryLoadGlyphOf(c, nullptr);
     auto &tex = textures[glyph.texture];
@@ -349,6 +350,7 @@ void FreetypeRenderer::addString(const std::u8string &string, glm::vec2 pos, glm
 }
 
 glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
+  if (string.length() == 0) return {0, 0};
   std::unordered_set<int> fontIndexList{};
   float width = 0;
   for (const auto c: make_u8u32range(string)) {
@@ -365,6 +367,7 @@ glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
 }
 
 void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
+  if (string.length() == 0) return;
   auto wh = calcStringSize(string);
   if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
     pos.x -= wh.x * size / 2;
@@ -374,6 +377,7 @@ void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 
 }
 
 void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, float maxWidth, CenteredMode mode) {
+  if (string.length() == 0) return;
   auto wh = calcStringSize(string);
   size = std::min(size, maxWidth/wh.x);
   if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
