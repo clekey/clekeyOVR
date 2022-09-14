@@ -28,6 +28,8 @@ configure_file(resources/actions.json actions.json COPYONLY)
 configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
 configure_file(resources/bindings_vive_controller.json bindings_vive_controller.json COPYONLY)
 configure_file(resources/fonts/NotoSansJP-Medium.otf fonts/NotoSansJP-Medium.otf COPYONLY)
+configure_file(resources/fonts/NotoEmoji-VariableFont_wght.ttf fonts/NotoEmoji-VariableFont_wght.ttf COPYONLY)
+configure_file(resources/fonts/NotoSansSymbols2-Regular.ttf fonts/NotoSansSymbols2-Regular.ttf COPYONLY)
 add_definitions(-DWITH_OPEN_VR)
 link_openvr(clekey_ovr)
 include_directories(

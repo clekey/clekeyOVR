@@ -5,6 +5,7 @@
 #include "MainGuiRenderer.h"
 #include "glutil.h"
 #include <array>
+#include <filesystem>
 
 namespace {
 
@@ -64,7 +65,13 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   auto backgroundRingRenderer = BackgroundRingRenderer::create();
   auto cursorCircleRenderer = CursorCircleRenderer::create();
 
-  ftRenderer->addFontType("./fonts/NotoSansJP-Medium.otf");
+  std::cout << "loading fonts" << std::endl;
+  for (const auto &entry : std::filesystem::directory_iterator("./fonts")) {
+    if (entry.path().extension() == ".otf" || entry.path().extension() == ".ttf") {
+      ftRenderer->addFontType(entry.path().string().c_str());
+      std::cout << "loaded font:" << entry.path() << std::endl;
+    }
+  }
 
   auto res = new MainGuiRenderer{
       .size = size,
