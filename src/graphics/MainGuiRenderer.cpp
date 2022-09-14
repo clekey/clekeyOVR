@@ -40,22 +40,10 @@ void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
 }
 
 std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
-  gl::Texture2D dest_textures[2];
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
 
   gl::Bind(frame_buffer);
-
-  // TODO: consider to have those texture on glmain instead of renderer?
-  for (auto &dest_texture: dest_textures) {
-    gl::Bind(dest_texture);
-    dest_texture.upload(
-        gl::kRgba8, size.x, size.y,
-        gl::kRgb, gl::kUnsignedByte, nullptr
-    );
-    dest_texture.magFilter(gl::kLinear);
-    dest_texture.minFilter(gl::kLinear);
-  }
 
   gl::Bind(depth_buffer);
   depth_buffer.storage(gl::kDepthComponent, size.x, size.y);
@@ -80,7 +68,6 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
 
   auto res = new MainGuiRenderer{
       .size = size,
-      .dest_textures = {std::move(dest_textures[0]), std::move(dest_textures[1])},
       .depth_buffer = std::move(depth_buffer),
       .frame_buffer = std::move(frame_buffer),
 
@@ -91,9 +78,14 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   return std::unique_ptr<MainGuiRenderer>(res);
 }
 
-void MainGuiRenderer::draw(const AppStatus &status, LeftRight side, bool alwaysShowInCircle) {
+void MainGuiRenderer::drawRing(
+    const AppStatus &status,
+    LeftRight side,
+    bool alwaysShowInCircle,
+    gl::Texture2D& texture
+) {
   gl::Bind(frame_buffer);
-  frame_buffer.attachTexture(gl::kColorAttachment0, dest_textures[side], 0);
+  frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
   gl::Viewport(0, 0, size.x, size.y);
   gl::Clear().Color().Depth();
   gl::Enable(gl::kBlend);

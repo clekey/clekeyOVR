@@ -59,6 +59,17 @@ int glmain(SDL_Window *window) {
   auto desktop_renderer = DesktopGuiRenderer::create(circleSize);
   OVRController ovr_controller;
 
+  gl::Texture2D circleTextures[2];
+  for (auto &dest_texture: circleTextures) {
+    gl::Bind(dest_texture);
+    dest_texture.upload(
+        gl::kRgba8, WINDOW_WIDTH, WINDOW_HEIGHT,
+        gl::kRgb, gl::kUnsignedByte, nullptr
+    );
+    dest_texture.magFilter(gl::kLinear);
+    dest_texture.minFilter(gl::kLinear);
+  }
+
   AppStatus status;
   status.chars = {
       u8"1", u8"2", u8"3", u8"4", u8"5", u8"6", u8"7", u8"8",
@@ -90,18 +101,18 @@ int glmain(SDL_Window *window) {
     }
 
     ovr_controller.update_status(status);
-    desktop_renderer->preDraw();
 
-    main_renderer->draw(status, LeftRight::Left, true);
-    ovr_controller.set_texture(main_renderer->dest_textures[LeftRight::Left].expose(), LeftRight::Left);
+    main_renderer->drawRing(status, LeftRight::Left, true, circleTextures[LeftRight::Left]);
+    ovr_controller.set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
 
-    main_renderer->draw(status, LeftRight::Right, false);
-    ovr_controller.set_texture(main_renderer->dest_textures[LeftRight::Right].expose(), LeftRight::Right);
+    main_renderer->drawRing(status, LeftRight::Right, false, circleTextures[LeftRight::Right]);
+    ovr_controller.set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
 
     //export_as_bmp(main_renderer.dest_texture, 0);
 
-    desktop_renderer->drawTexture(main_renderer->dest_textures[LeftRight::Left], {-1, 0}, {1, 1});
-    desktop_renderer->drawTexture(main_renderer->dest_textures[LeftRight::Right], {0, 0}, {1, 1});
+    desktop_renderer->preDraw();
+    desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
+    desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
 
     SDL_GL_SwapWindow(window);
 

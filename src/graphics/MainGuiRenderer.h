@@ -17,11 +17,15 @@ class MainGuiRenderer {
 public:
   static std::unique_ptr<MainGuiRenderer> create(glm::ivec2 size);
 
-  void draw(const AppStatus &status, LeftRight side, bool alwaysShowInCircle);
+  void drawRing(
+      const AppStatus &status,
+      LeftRight side,
+      bool alwaysShowInCircle,
+      gl::Texture2D& texture
+  );
 
   glm::ivec2 size;
 
-  gl::Texture2D dest_textures[2];
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
 
