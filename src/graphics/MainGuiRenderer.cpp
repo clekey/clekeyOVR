@@ -109,8 +109,8 @@ void MainGuiRenderer::drawRing(
 
   backgroundRingRenderer->draw();
 
-  int lineStep = side == LeftRight::Left ? 1 : 8;
-  int lineLen = side == LeftRight::Left ? 8 : 1;
+  int lineStep = side == LeftRight::Left ? 8 : 1;
+  int lineLen = side == LeftRight::Left ? 1 : 8;
 
   auto getColor = [=](int idx) {
     return selectingCurrent == -1
