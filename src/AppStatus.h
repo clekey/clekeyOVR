@@ -18,7 +18,12 @@ struct HandInfo {
   glm::vec2 stick;
   int8_t selection;
 
-  bool clocking: 1;
+  bool clicking: 1;
+  bool clickingOld: 1;
+
+  bool startClick() const {
+    return clicking && !clickingOld;
+  }
 };
 
 struct AppStatus {

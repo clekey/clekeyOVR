@@ -121,7 +121,8 @@ void updateHand(const OVRController &controller, AppStatus &status, LeftRight ha
     handInfo.selection = -1;
   }
 
-  handInfo.clocking = controller.getTriggerStatus(hand);
+  handInfo.clickingOld = handInfo.clicking;
+  handInfo.clicking = controller.getTriggerStatus(hand);
 }
 
 void OVRController::update_status(AppStatus &status) const {
