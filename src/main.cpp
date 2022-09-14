@@ -54,8 +54,9 @@ bool init_gl(SDL_Window *window) {
 }
 
 int glmain(SDL_Window *window) {
-  auto main_renderer = MainGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
-  auto desktop_renderer = DesktopGuiRenderer::create(WINDOW_WIDTH, WINDOW_HEIGHT);
+  glm::ivec2 circleSize = {WINDOW_WIDTH, WINDOW_HEIGHT};
+  auto main_renderer = MainGuiRenderer::create(circleSize);
+  auto desktop_renderer = DesktopGuiRenderer::create(circleSize);
   OVRController ovr_controller;
 
   AppStatus status;

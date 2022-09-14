@@ -15,11 +15,11 @@
 
 class MainGuiRenderer {
 public:
-  static std::unique_ptr<MainGuiRenderer> create(int width, int height);
+  static std::unique_ptr<MainGuiRenderer> create(glm::ivec2 size);
 
   void draw(const AppStatus &status, LeftRight side, bool alwaysShowInCircle);
 
-  int width, height;
+  glm::ivec2 size;
 
   gl::Texture2D dest_textures[2];
   gl::Renderbuffer depth_buffer;

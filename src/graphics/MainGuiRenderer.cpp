@@ -39,7 +39,7 @@ void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
 
 }
 
-std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) {
+std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   gl::Texture2D dest_textures[2];
   gl::Renderbuffer depth_buffer;
   gl::Framebuffer frame_buffer;
@@ -50,7 +50,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
   for (auto &dest_texture: dest_textures) {
     gl::Bind(dest_texture);
     dest_texture.upload(
-        gl::kRgba8, width, height,
+        gl::kRgba8, size.x, size.y,
         gl::kRgb, gl::kUnsignedByte, nullptr
     );
     dest_texture.magFilter(gl::kLinear);
@@ -58,7 +58,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
   }
 
   gl::Bind(depth_buffer);
-  depth_buffer.storage(gl::kDepthComponent, width, height);
+  depth_buffer.storage(gl::kDepthComponent, size.x, size.y);
   frame_buffer.attachBuffer(gl::kDepthAttachment, depth_buffer);
   //frame_buffer.attachTexture(gl::kColorAttachment0, dest_texture, 0);
 
@@ -79,8 +79,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
   ftRenderer->addFontType("./fonts/NotoSansJP-Medium.otf");
 
   auto res = new MainGuiRenderer{
-      .width = width,
-      .height = height,
+      .size = size,
       .dest_textures = {std::move(dest_textures[0]), std::move(dest_textures[1])},
       .depth_buffer = std::move(depth_buffer),
       .frame_buffer = std::move(frame_buffer),
@@ -95,7 +94,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(int width, int height) 
 void MainGuiRenderer::draw(const AppStatus &status, LeftRight side, bool alwaysShowInCircle) {
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, dest_textures[side], 0);
-  gl::Viewport(0, 0, width, height);
+  gl::Viewport(0, 0, size.x, size.y);
   gl::Clear().Color().Depth();
   gl::Enable(gl::kBlend);
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);

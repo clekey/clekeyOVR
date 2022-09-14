@@ -5,7 +5,7 @@
 #include "DesktopGuiRenderer.h"
 #include "glutil.h"
 
-std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(int width, int height) {
+std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(glm::ivec2 size) {
   gl::Unbind(gl::kFramebuffer);
   gl::Program shader_program = std::move(compile_shader_program(
       "#version 330 core\n"
@@ -31,8 +31,8 @@ std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(int width, int he
   gl::VertexAttrib posAttrib(shader_program, "pos");
 
   gl::Bind(shader_program);
-  gl::Uniform<glm::vec2> bottomLeft(shader_program, "uBottomLeft");
-  gl::Uniform<glm::vec2> size(shader_program, "size");
+  gl::Uniform<glm::vec2> uBottomLeft(shader_program, "uBottomLeft");
+  gl::Uniform<glm::vec2> uSize(shader_program, "size");
   gl::UniformSampler texture_id(shader_program, "rendered_texture");
 
   gl::VertexArray vertex_array;
@@ -56,12 +56,11 @@ std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(int width, int he
   posAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
 
   auto res = new DesktopGuiRenderer {
-      .width = width,
-      .height = height,
+      .size = size,
       .shader_program = std::move(shader_program),
       .posAttrib = std::move(posAttrib),
-      .uBottomLeft = std::move(bottomLeft),
-      .uSize = std::move(size),
+      .uBottomLeft = std::move(uBottomLeft),
+      .uSize = std::move(uSize),
       .texture_id = std::move(texture_id),
       .vertex_array = std::move(vertex_array),
       .vertex_buffer = std::move(vertex_buffer),
@@ -74,7 +73,7 @@ void DesktopGuiRenderer::preDraw() {
   gl::Unbind(gl::kFramebuffer);
   gl::Disable(gl::kBlend);
 
-  glViewport(0, 0, width, height);
+  glViewport(0, 0, size.x, size.y);
   gl::Clear().Color().Depth();
 }
 
