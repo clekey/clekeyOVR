@@ -5,6 +5,9 @@
 #ifndef CLEKEY_OVR_UTF8_H
 #define CLEKEY_OVR_UTF8_H
 
+#include <stdexcept>
+#include <string>
+
 inline char8_t check2ndByte(char8_t c) {
   if (0x80 <= c && c <= 0xBF) return c;
   throw std::runtime_error("invalid utf8 code");
@@ -47,7 +50,6 @@ inline char32_t parse_u8(const Iterator &it) {
 
 template<std::input_iterator Iterator>
 inline int increment_u8(const Iterator &it) {
-  char32_t c;
   char8_t b1 = *it;
   if (b1 <= 0x7F) {
     return 1;
@@ -69,7 +71,15 @@ inline int increment_u8(const Iterator &it) {
   }
 }
 
-template<std::input_iterator Iterator, std::enable_if_t<std::is_same<char8_t, typename std::iterator_traits<Iterator>::value_type>::value, std::nullptr_t> = nullptr>
+template<std::input_iterator Iterator>
+inline int decrement_u8(const Iterator &it) {
+  int decrement = 1;
+  while ((*(it - decrement) & 0xC0) == 0x80)
+    decrement++;
+  return decrement;
+}
+
+template<std::random_access_iterator Iterator, std::enable_if_t<std::is_same<char8_t, typename std::iterator_traits<Iterator>::value_type>::value, std::nullptr_t> = nullptr>
 class u8u32iterator {
 private:
   using ref_iterator_type = Iterator;
@@ -91,7 +101,7 @@ public:
 
   [[nodiscard]] ref_iterator_type get_raw_iterator() const { return it_; }
 
-  using iterator_category = std::input_iterator_tag;
+  using iterator_category = typename std::iterator_traits<Iterator>::iterator_category;
   using value_type = char32_t;
   using difference_type = std::ptrdiff_t;
   using pointer = char32_t *;
@@ -106,6 +116,10 @@ public:
     return *this;
   }
 
+  u8u32iterator& operator--() noexcept{
+    it_ -= decrement_u8(it_);
+    return *this;
+  }
 };
 
 template<typename It>
@@ -139,4 +153,30 @@ template<std::size_t N>
 inline u8u32range<char8_t *> make_u8u32range(char8_t (&arr)[N]){
   return u8u32range(std::begin(arr), std::end(arr));
 }
+
+// utf32 -> utf8
+
+inline std::u8string toUTF8(char32_t utf32) {
+  if (utf32 < 0x80) {
+    return {(char8_t) utf32};
+  } else if (utf32 < 0x800) {
+    char8_t first = 0xC0 | ((utf32 >> 6) & 0x1F);
+    char8_t second = 0x80 | ((utf32 >> 0) & 0x3F);
+    return {first, second};
+  } else if (utf32 < 0x10000) {
+    char8_t first = 0xE0 | ((utf32 >> 12) & 0x0F);
+    char8_t second = 0x80 | ((utf32 >> 6) & 0x3F);
+    char8_t third = 0x80 | ((utf32 >> 0) & 0x3F);
+    return {first, second, third};
+  } else if (utf32 < 0x10FFFF) {
+    char8_t first = 0xF0 | ((utf32 >> 18) & 0x07);
+    char8_t second = 0x80 | ((utf32 >> 12) & 0x3F);
+    char8_t third = 0x80 | ((utf32 >> 6) & 0x3F);
+    char8_t fourth = 0x80 | ((utf32 >> 0) & 0x3F);
+    return {first, second, third, fourth};
+  } else {
+    throw std::runtime_error("invalid utf32 code");
+  }
+}
+
 #endif //CLEKEY_OVR_UTF8_H
