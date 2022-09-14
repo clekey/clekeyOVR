@@ -126,14 +126,14 @@ void MainGuiRenderer::drawRing(
       int colOrigin = lineStep * pos;
       auto ringColor = getColor(pos);
       renderRingChars(*ftRenderer, offsets[pos], 0.2f, [=](int idx) -> std::pair<const std::u8string &, glm::vec3> {
-        return {status.chars[colOrigin + lineLen * idx], ringColor};
+        return {status.method->getTable()[colOrigin + lineLen * idx], ringColor};
       });
     }
   } else {
     int lineOrigin = lineLen * selectingOpposite;
     renderRingChars(*ftRenderer, {0, 0}, 1,
                     [=, &status, &getColor](auto idx) -> std::pair<const std::u8string &, glm::vec3> {
-                      return {status.chars[lineOrigin + lineStep * idx], getColor(idx)};
+                      return {status.method->getTable()[lineOrigin + lineStep * idx], getColor(idx)};
                     });
   }
   ftRenderer->doDraw();

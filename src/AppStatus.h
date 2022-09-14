@@ -6,6 +6,7 @@
 #define CLEKEY_OVR_APPSTATUS_H
 
 #include "glm/glm.hpp"
+#include "input_method/IInputMethod.h"
 #include <string>
 #include <array>
 
@@ -21,7 +22,7 @@ struct HandInfo {
   bool clicking: 1;
   bool clickingOld: 1;
 
-  bool startClick() const {
+  [[nodiscard]] bool clickStarted() const {
     return clicking && !clickingOld;
   }
 };
@@ -29,8 +30,7 @@ struct HandInfo {
 struct AppStatus {
   HandInfo left;
   HandInfo right;
-
-  std::array<std::u8string, 8 * 8> chars;
+  IInputMethod *method;
 
   [[nodiscard]] const HandInfo& getControllerInfo(LeftRight side) const {
     return side == LeftRight::Left ? left : right;

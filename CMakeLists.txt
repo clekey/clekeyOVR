@@ -22,6 +22,10 @@ add_executable(clekey_ovr
         src/graphics/BackgroundRingRenderer.cpp
         src/graphics/CursorCircleRenderer.cpp
         src/graphics/FreetypeRenderer.cpp
+        src/input_method/IInputMethod.cpp
+        src/input_method/JapaneseInput.cpp
+        src/input_method/SignsInput.cpp
+        src/input_method/EnglishInput.cpp
         )
 
 configure_file(resources/actions.json actions.json COPYONLY)

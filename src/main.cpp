@@ -7,6 +7,9 @@
 #include "graphics/MainGuiRenderer.h"
 #include "graphics/DesktopGuiRenderer.h"
 #include "graphics/bmp_export.h"
+#include "input_method/JapaneseInput.h"
+#include "input_method/SignsInput.h"
+#include "input_method/EnglishInput.h"
 
 #define WINDOW_CAPTION "clekeyOVR"
 #define WINDOW_HEIGHT 1024
@@ -75,17 +78,15 @@ int glmain(SDL_Window *window) {
     dest_texture.minFilter(gl::kLinear);
   }
 
-  AppStatus status;
-  status.chars = {
-      u8"1", u8"2", u8"3", u8"4", u8"5", u8"6", u8"7", u8"8",
-      u8"2", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a", u8"a",
-      u8"3", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042", u8"\u3042",
-      u8"4", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044", u8"\u3044",
-      u8"5", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C", u8"C",
-      u8"6", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c", u8"c",
-      u8"7", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D", u8"D",
-      u8"8", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=", u8"#+=",
-  };
+  auto signInput = std::make_unique<SignsInput>();
+  size_t index = 0;
+  std::vector<std::unique_ptr<IInputMethod>> methods {};
+  methods.emplace_back(std::move(std::make_unique<JapaneseInput>()));
+  methods.emplace_back(std::move(std::make_unique<EnglishInput>()));
+  IInputMethod *signInputPtr = signInput.get();
+
+  AppStatus status {};
+  status.method = methods[0].get();
 
   static const Uint32 interval = 1000 / 90;
   static Uint32 nextTime = SDL_GetTicks() + interval;
@@ -118,6 +119,32 @@ int glmain(SDL_Window *window) {
     desktop_renderer->preDraw();
     desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
     desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
+
+    if ((status.left.clickStarted() || status.right.clickStarted())
+        && status.left.selection != -1 && status.right.selection != -1) {
+      auto action = status.method->onInput({status.left.selection, status.right.selection});
+      switch (action) {
+        case InputNextAction::Nop:
+          // nop
+          break;
+        case InputNextAction::MoveToNextPlane:
+          std::cout << "flush: " << (char *)status.method->getAndClearBuffer().c_str() << std::endl;
+          if (++index == methods.size()) index = 0;
+          status.method = methods[index].get();
+          signInputPtr = signInput.get();
+          break;
+        case InputNextAction::MoveToSignPlane:
+          std::cout << "flush: " << (char *)status.method->getAndClearBuffer().c_str() << std::endl;
+          std::swap(signInputPtr, status.method);
+          break;
+        case InputNextAction::FlushBuffer:
+          std::cout << "flush: " << (char *)status.method->getAndClearBuffer().c_str() << std::endl;
+          break;
+        case InputNextAction::RemoveLastChar:
+          std::cout << "RemoveLastChar" << std::endl;
+          break;
+      }
+    }
 
     SDL_GL_SwapWindow(window);
 
