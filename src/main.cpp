@@ -20,6 +20,8 @@
 #include <stdio.h>
 #endif
 
+void copyClipboard(const std::u8string &);
+
 // error handling
 
 SDL_Window *init_SDL() {
@@ -161,7 +163,29 @@ int glmain(SDL_Window *window) {
           flush();
           break;
         case InputNextAction::RemoveLastChar:
-          removeLastChar(status.buffer);
+          if (!removeLastChar(status.buffer)) {
+#ifdef WIN32
+            std::cout << "simulate backspace" << std::endl;
+            keybd_event(VK_BACK, 0, 0, 0);
+            keybd_event(VK_BACK, 0, KEYEVENTF_KEYUP, 0);
+#endif
+          }
+          std::cout << "RemoveLastChar" << std::endl;
+          break;
+        case InputNextAction::CloseKeyboard:
+          flush();
+          copyClipboard(status.buffer);
+          status.buffer = u8"";
+          return 0; // TODO: just close overlay and wait for request to open
+        case InputNextAction::NewLine:
+          flush();
+          copyClipboard(status.buffer);
+          status.buffer = u8"";
+#ifdef WIN32
+          std::cout << "simulate return" << std::endl;
+          keybd_event(VK_RETURN, 0, 0, 0);
+          keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
+#endif
           std::cout << "RemoveLastChar" << std::endl;
           break;
       }
@@ -176,6 +200,54 @@ int glmain(SDL_Window *window) {
 
     nextTime += interval;
   }
+}
+
+void copyClipboard(const std::u8string &buffer) {
+#ifdef WIN32
+//#if 1
+  if (!OpenClipboard(NULL)) {
+    std::cout << "Cannot open the Clipboard" << std::endl;
+    return;
+  }
+  // Remove the current Clipboard contents
+  if (!EmptyClipboard()) {
+    std::cout << "Cannot empty the Clipboard" << std::endl;
+    return;
+  }
+  // create in utf16 string
+  std::u16string u16buffer;
+  u16buffer.reserve(buffer.length());
+
+  for (char32_t u32char: make_u8u32range(buffer)) {
+    if (u32char <= 0xFFFF) {
+      u16buffer.push_back(char16_t(u32char));
+    } else {
+      uint32_t index = u32char - 0x10000;
+      char16_t hsg = (index >> 10) + 0xD800;
+      char16_t lsg = (index & 0x3FF) + 0xDC00;
+      u16buffer.push_back(hsg);
+      u16buffer.push_back(lsg);
+    }
+  }
+
+  // Get the currently selected data
+  size_t u16Size((u16buffer.length() + 1) * 2);
+  HGLOBAL hGlob = GlobalAlloc(GMEM_FIXED, u16Size);
+  memcpy((void *) hGlob, (void *) u16buffer.c_str(), u16Size);
+  // For the appropriate data formats...
+  if (SetClipboardData(CF_UNICODETEXT, hGlob) == NULL) {
+    std::cout << "Unable to set Clipboard data, error: " << GetLastError() << std::endl;
+    CloseClipboard();
+    GlobalFree(hGlob);
+    return;
+  }
+  CloseClipboard();
+
+  keybd_event(VK_LCONTROL, 0, 0, 0);
+  keybd_event('V', 0, 0, 0);
+  keybd_event('V', 0, KEYEVENTF_KEYUP, 0);
+  keybd_event(VK_LCONTROL, 0, KEYEVENTF_KEYUP, 0);
+#endif
 }
 
 int main(int argc, char **argv) {

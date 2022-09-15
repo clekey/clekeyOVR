@@ -60,6 +60,11 @@ InputNextAction JapaneseInput::onInput(glm::i8vec2 chars) {
         }
       });
     case to64(6, 5):
+      if (buffer.empty()) {
+        result = InputNextAction::CloseKeyboard;
+      } else {
+        // Henkan
+      }
       break;
     case to64(6, 6):
       if (!removeLastChar(buffer)) {
@@ -70,7 +75,12 @@ InputNextAction JapaneseInput::onInput(glm::i8vec2 chars) {
       buffer += ' ';
       break;
     case to64(7, 5):
-      result = InputNextAction::FlushBuffer;
+      if (buffer.empty()) {
+        result = InputNextAction::NewLine;
+      } else {
+        // Kakutei
+        result = InputNextAction::FlushBuffer;
+      }
       break;
     case to64(7, 6):
       result = InputNextAction::MoveToSignPlane;
@@ -80,6 +90,13 @@ InputNextAction JapaneseInput::onInput(glm::i8vec2 chars) {
       break;
     default:
       buffer += table[chars.x * 8 + chars.y];
+  }
+  if (buffer.empty()) {
+    table[to64(6, 5)] = u8"閉じる";
+    table[to64(7, 5)] = ReturnSign;
+  } else {
+    table[to64(6, 5)] = u8"変換";
+    table[to64(7, 5)] = u8"確定";
   }
   return result;
 }
@@ -95,7 +112,14 @@ JapaneseInput::JapaneseInput() {
       u8"た", u8"ち", u8"つ", u8"て", u8"と", u8"」", u8"、", u8"!",
       u8"な", u8"に", u8"ぬ", u8"ね", u8"の", u8"〜", DAKUTEN_ICON, u8"",
       u8"は", u8"ひ", u8"ふ", u8"へ", u8"ほ", u8"ー", HANDAKUTEN_ICON, u8"小",
-      u8"ま", u8"み", u8"む", u8"め", u8"も", u8"変換", BackspaceIcon, SpaceIcon,
-      u8"ら", u8"り", u8"る", u8"れ", u8"ろ", u8"確定", SignsIcon, NextPlaneIcon,
+      u8"ま", u8"み", u8"む", u8"め", u8"も", u8"閉じる", BackspaceIcon, SpaceIcon,
+      u8"ら", u8"り", u8"る", u8"れ", u8"ろ", ReturnSign, SignsIcon, NextPlaneIcon,
   };
+}
+
+std::u8string JapaneseInput::getAndClearBuffer() {
+  auto result = AbstractInputMethod::getAndClearBuffer();
+  table[to64(6, 5)] = u8"閉じる";
+  table[to64(7, 5)] = ReturnSign;
+  return std::move(result);
 }

@@ -44,6 +44,7 @@ const std::u8string BackspaceIcon = u8"⌫";
 const std::u8string SpaceIcon = u8"␣";
 const std::u8string NextPlaneIcon = u8"\U0001F310"; // 🌐
 const std::u8string SignsIcon = u8"#+=";
+const std::u8string ReturnSign = u8"⏎";
 
 enum class InputNextAction {
   Nop,
@@ -52,6 +53,8 @@ enum class InputNextAction {
   MoveToSignPlane,
   FlushBuffer,
   RemoveLastChar,
+  CloseKeyboard,
+  NewLine,
 };
 
 class IInputMethod {

@@ -8,11 +8,15 @@ using namespace std::string_literals;
 
 InputNextAction SignsInput::onInput(glm::i8vec2 chars) {
   switch (to64(chars.x, chars.y)) {
+    case to64(6, 5):
+      return InputNextAction::CloseKeyboard;
     case to64(6, 6):
       return InputNextAction::RemoveLastChar;
     case to64(6, 7):
       buffer = ' ';
       return InputNextAction::FlushBuffer;
+    case to64(7, 5):
+      return InputNextAction::NewLine;
     case to64(7, 6):
       return InputNextAction::MoveToSignPlane;
     case to64(7, 7):
@@ -38,7 +42,7 @@ SignsInput::SignsInput() {
       u8"‘", u8",", u8"!", u8"6", u8"7", u8"8", u8"9", u8"0",
       u8"&", u8"*", u8"¥", u8"^", u8"%", u8"", u8"", u8"",
       u8"~", u8"`", u8"@", u8"$", u8"|", u8"", u8"", u8"",
-      u8"", u8"", u8"", u8"", u8"", u8"", BackspaceIcon, SpaceIcon,
-      u8"", u8"", u8"", u8"", u8"", u8"", SignsIcon, NextPlaneIcon,
+      u8"", u8"", u8"", u8"", u8"", u8"Close", BackspaceIcon, SpaceIcon,
+      u8"", u8"", u8"", u8"", u8"", ReturnSign, SignsIcon, NextPlaneIcon,
   };
 }
