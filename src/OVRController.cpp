@@ -9,6 +9,8 @@
 #include <iostream>
 #include <filesystem>
 #include "glm/gtc/constants.hpp"
+#include "glm/gtx/transform.hpp"
+#include "glm/gtx/vector_angle.hpp"
 
 void handle_input_err(vr::EVRInputError error) {
   if (error != vr::VRInputError_None) {
@@ -35,6 +37,30 @@ bool init_ovr() {
 
 void shutdown_ovr() {
   vr::VR_Shutdown();
+}
+
+template<typename T>
+const T* asPtr(const T& value) {
+  return &value;
+}
+
+glm::mat4x3 overlayPositionMatrix(glm::vec3 position) {
+  auto axis = glm::normalize(glm::cross(position, {0.0f, 0.0f, -1.0f}));
+  auto angle = -glm::orientedAngle(glm::normalize(position), {0.0f, 0.0f, -1.0f}, axis);
+
+  glm::mat4x4 matrix = glm::mat4x4(1);
+  matrix = angle == 0 ? matrix : glm::rotate(matrix, angle, axis);;
+  matrix = glm::translate(matrix, {0.0f, 0.0f, -1.5f});
+
+  return matrix;
+}
+
+inline vr::HmdMatrix34_t toVR(const glm::mat4x3& mat) {
+  return {{
+              {mat[0][0], mat[1][0], mat[2][0], mat[3][0]},
+              {mat[0][1], mat[1][1], mat[2][1], mat[3][1]},
+              {mat[0][2], mat[1][2], mat[2][2], mat[3][2]},
+  }};
 }
 
 OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-init)
@@ -68,28 +94,15 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "action_set_input:    " << action_set_input << std::endl;
 
   {
-    vr::HmdMatrix34_t position = {};
-
-    position.m[0][0] = 1;
-    position.m[1][1] = 1;
-    position.m[2][2] = 1;
-
-    position.m[0][3] = 0;
-    position.m[1][3] = 0;
-    position.m[2][3] = -1.5;
-
-    // TODO: rotation of the overlay
-    position.m[0][3] = -0.65;
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[0],
         vr::k_unTrackedDeviceIndex_Hmd,
-        &position);
+        asPtr(toVR(overlayPositionMatrix({-0.65f, -0.5f, -1.5f}))));
 
-    position.m[0][3] = +0.65;
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[1],
         vr::k_unTrackedDeviceIndex_Hmd,
-        &position);
+        asPtr(toVR(overlayPositionMatrix({+0.65f, -0.5f, -1.5f}))));
   }
 
   std::cout << "successfully launched" << std::endl;
