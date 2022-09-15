@@ -33,8 +33,10 @@ void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
 
   for (int i = 0; i < 8; ++i) {
     auto pair = getChar(i);
-    renderer.addCenteredStringWithMaxWidth(pair.first, center + offsets[i], pair.second, fontSize, fontSize,
-                                           CenteredMode::Both);
+    renderer.addCenteredStringWithMaxWidth(
+        pair.first, center + offsets[i], pair.second,
+        {fontSize, fontSize}, fontSize,
+        CenteredMode::Both);
   }
 }
 

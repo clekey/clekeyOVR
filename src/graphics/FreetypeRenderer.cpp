@@ -44,17 +44,17 @@ struct FreetypeRendererQuad {
   // (min,min), (max,min), (max,max), (min,max)
   FreetypeRendererVertex vertex[4];
 
-  FreetypeRendererQuad(float size, glm::vec3 color, const GlyphInfo &glyph, glm::vec2 origin);
+  FreetypeRendererQuad(glm::vec2 size, glm::vec3 color, const GlyphInfo &glyph, glm::vec2 origin);
 };
 
 static_assert(sizeof(FreetypeRendererQuad) == sizeof(FreetypeRendererVertex) * 4);
 static_assert(alignof(FreetypeRendererQuad) == alignof(FreetypeRendererVertex));
 
-inline FreetypeRendererQuad::FreetypeRendererQuad(float size, glm::vec3 color, const GlyphInfo &glyph, glm::vec2 origin) : vertex{} {
-  float bearingXScaled = glyph.bearingX * size;
-  float bearingYScaled = glyph.bearingY * size;
-  float widthScaled = glyph.width * size;
-  float heightScaled = glyph.height * size;
+inline FreetypeRendererQuad::FreetypeRendererQuad(glm::vec2 size, glm::vec3 color, const GlyphInfo &glyph, glm::vec2 origin) : vertex{} {
+  float bearingXScaled = glyph.bearingX * size.x;
+  float bearingYScaled = glyph.bearingY * size.y;
+  float widthScaled = glyph.width * size.x;
+  float heightScaled = glyph.height * size.y;
 
   float minX = origin.x + bearingXScaled;
   float minY = origin.y + bearingYScaled - heightScaled;
@@ -339,14 +339,15 @@ bool FreetypeRenderer::loadGlyphOf(char32_t c) {
   return success;
 }
 
-void FreetypeRenderer::addString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, float size) {
-  if (string.length() == 0) return;
+float FreetypeRenderer::addString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size) {
+  if (string.length() == 0) return pos.x;
   for (const auto c: make_u8u32range(string)) {
     auto &glyph = tryLoadGlyphOf(c, nullptr);
     auto &tex = textures[glyph.texture];
     tex.addQuad({size, color, glyph, pos});
-    pos.x += glyph.advance * size;
+    pos.x += glyph.advance * size.x;
   }
+  return pos.x;
 }
 
 glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
@@ -366,24 +367,24 @@ glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
   return {width, height};
 }
 
-void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, CenteredMode mode) {
+void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, CenteredMode mode) {
   if (string.length() == 0) return;
   auto wh = calcStringSize(string);
   if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
-    pos.x -= wh.x * size / 2;
+    pos.x -= wh.x * size.x / 2;
   if (mode == CenteredMode::Vertical || mode == CenteredMode::Both)
-    pos.y -= wh.y * size / 2;
+    pos.y -= wh.y * size.y / 2;
   addString(string, pos, color, size);
 }
 
-void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string& string, glm::vec2 pos, glm::vec3 color, float size, float maxWidth, CenteredMode mode) {
+void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string& string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, float maxWidth, CenteredMode mode) {
   if (string.length() == 0) return;
   auto wh = calcStringSize(string);
-  size = std::min(size, maxWidth/wh.x);
+  size *= (std::min(size.x, maxWidth/wh.x) / size.x);
   if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
-    pos.x -= wh.x * size / 2;
+    pos.x -= wh.x * size.x / 2;
   if (mode == CenteredMode::Vertical || mode == CenteredMode::Both)
-    pos.y -= wh.y * size / 2;
+    pos.y -= wh.y * size.y / 2;
   addString(string, pos, color, size);
 }
 
