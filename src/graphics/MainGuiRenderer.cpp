@@ -61,8 +61,6 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   }
   check_gl_err("rendered_texture generation");
 
-  gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
   auto ftRenderer = FreetypeRenderer::create();
   auto backgroundRingRenderer = BackgroundRingRenderer::create();
   auto cursorCircleRenderer = CursorCircleRenderer::create();
@@ -96,6 +94,7 @@ void MainGuiRenderer::drawRing(
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
   gl::Viewport(0, 0, size.x, size.y);
+  gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   gl::Clear().Color().Depth();
   gl::Enable(gl::kBlend);
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);

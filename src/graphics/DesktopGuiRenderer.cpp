@@ -74,6 +74,7 @@ void DesktopGuiRenderer::preDraw() {
   gl::Disable(gl::kBlend);
 
   glViewport(0, 0, size.x, size.y);
+  gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   gl::Clear().Color().Depth();
 }
 
