@@ -126,7 +126,8 @@ void MainGuiRenderer::drawRing(
     for (int pos = 0; pos < 8; ++pos) {
       int colOrigin = lineStep * pos;
       auto ringColor = getColor(pos);
-      renderRingChars(*ftRenderer, offsets[pos], 0.2f, [=](int idx) -> std::pair<const std::u8string &, glm::vec3> {
+      auto ringSize = pos == selectingCurrent ? 0.22f : 0.2f;
+      renderRingChars(*ftRenderer, offsets[pos], ringSize, [=](int idx) -> std::pair<const std::u8string &, glm::vec3> {
         return {status.method->getTable()[colOrigin + lineLen * idx], ringColor};
       });
     }
