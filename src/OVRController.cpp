@@ -68,13 +68,13 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
 
   handle_input_err(vr::VRInput()->SetActionManifestPath(path.string().c_str()));
 
-#define GetActionHandle(name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/input/in/" #name, &action_##name))
-  GetActionHandle(left_stick);
-  GetActionHandle(left_click);
-  GetActionHandle(left_haptic);
-  GetActionHandle(right_stick);
-  GetActionHandle(right_click);
-  GetActionHandle(right_haptic);
+#define GetActionHandle(inout, name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/input/" #inout "/" #name, &action_##name))
+  GetActionHandle(in, left_stick);
+  GetActionHandle(in, left_click);
+  GetActionHandle(out, left_haptic);
+  GetActionHandle(in, right_stick);
+  GetActionHandle(in, right_click);
+  GetActionHandle(out, right_haptic);
   handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/input", &action_set_input));
 #undef GetActionHandle
 
@@ -132,6 +132,7 @@ void updateHand(const OVRController &controller, AppStatus &status, LeftRight ha
 
   // then, set selection
   float lenSqrt = glm::dot(handInfo.stick, handInfo.stick);
+  handInfo.selectionOld = handInfo.selection;
   if (lenSqrt >= 0.8 * 0.8) {
     handInfo.selection = computeAngle(handInfo.stick);
   } else if (lenSqrt >= 0.75 * 0.75) {
@@ -140,6 +141,10 @@ void updateHand(const OVRController &controller, AppStatus &status, LeftRight ha
     }
   } else {
     handInfo.selection = -1;
+  }
+
+  if (handInfo.selectionOld != handInfo.selection) {
+    controller.playHaptics(hand, 0, 0.05f, 1, .5f);
   }
 
   handInfo.clickingOld = handInfo.clicking;
@@ -208,6 +213,19 @@ bool OVRController::getTriggerStatus(LeftRight hand) const {
       &digital_data, sizeof(digital_data),
       vr::k_ulInvalidInputValueHandle));
   return digital_data.bState;
+}
+
+void OVRController::playHaptics(
+    LeftRight hand,
+    float fStartSecondsFromNow,
+    float fDurationSeconds,
+    float fFrequency,
+    float fAmplitude
+) const {
+  handle_input_err(vr::VRInput()->TriggerHapticVibrationAction(
+      hand == LeftRight::Left ? action_left_haptic : action_right_haptic,
+      fStartSecondsFromNow, fDurationSeconds, fFrequency, fAmplitude,
+      vr::k_ulInvalidInputValueHandle));
 }
 
 #else

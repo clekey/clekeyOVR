@@ -18,6 +18,7 @@ enum LeftRight {
 struct HandInfo {
   glm::vec2 stick;
   int8_t selection;
+  int8_t selectionOld;
 
   bool clicking: 1;
   bool clickingOld: 1;

@@ -39,6 +39,13 @@ public:
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;
   [[nodiscard]] bool getTriggerStatus(LeftRight right) const;
+  void playHaptics(
+      LeftRight hand,
+      float fStartSecondsFromNow,
+      float fDurationSeconds,
+      float fFrequency,
+      float fAmplitude
+  ) const;
 
   OVRController(const OVRController&) = delete;
   OVRController& operator=(const OVRController&) = delete;
