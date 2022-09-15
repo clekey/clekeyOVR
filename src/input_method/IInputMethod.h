@@ -31,7 +31,7 @@ inline void processLastChar(std::u8string& buffer, CharReplacer charReplacer) {
   buffer += toUTF8(c);
 }
 
-[[nodiscard]] inline bool removeLastChar(std::u8string& buffer) {
+inline bool removeLastChar(std::u8string& buffer) {
   if (buffer.length() == 0) return false;
 
   char32_t c = lastChar(buffer);

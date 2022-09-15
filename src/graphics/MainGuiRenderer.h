@@ -24,6 +24,8 @@ public:
       gl::Texture2D& texture
   );
 
+  void drawCenter(const AppStatus &status, gl::Texture2D& texture);
+
   glm::ivec2 size;
 
   gl::Renderbuffer depth_buffer;

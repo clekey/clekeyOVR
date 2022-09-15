@@ -80,10 +80,13 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
 
   handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.left", "clekey-ovr left", &overlay_handles[0]));
   handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.right", "clekey-ovr right", &overlay_handles[1]));
+  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.center", "clekey-ovr center", &overlay_handles[2]));
   for (auto &overlay_handle: overlay_handles) {
     vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, .5);
     vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
   }
+  vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], .5);
+  vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
 
   std::cout << "action_left_stick:   " << action_left_stick << std::endl;
   std::cout << "action_left_click:   " << action_left_click << std::endl;
@@ -103,6 +106,11 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
         overlay_handles[1],
         vr::k_unTrackedDeviceIndex_Hmd,
         asPtr(toVR(overlayPositionMatrix({+0.65f, -0.5f, -1.5f}))));
+
+    vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
+        overlay_handles[2],
+        vr::k_unTrackedDeviceIndex_Hmd,
+        asPtr(toVR(overlayPositionMatrix({0.0f, -0.5f, -1.5f}))));
   }
 
   std::cout << "successfully launched" << std::endl;
@@ -150,6 +158,24 @@ void OVRController::update_status(AppStatus &status) const {
 
 void OVRController::set_texture(GLuint texture, LeftRight side) const {
   auto overlay_handle = overlay_handles[side];
+  vr::VROverlay()->ShowOverlay(overlay_handle);
+
+  if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {
+
+    vr::Texture_t vr_texture = {};
+
+    vr_texture.handle = (void *) (uintptr_t) texture;
+    vr_texture.eType = vr::TextureType_OpenGL;
+    vr_texture.eColorSpace = vr::ColorSpace_Auto;
+
+    handle_overlay_err(vr::VROverlay()->SetOverlayTexture(
+        overlay_handle,
+        &vr_texture));
+  }
+}
+
+void OVRController::setCenterTexture(GLuint texture) const {
+  auto overlay_handle = overlay_handles[2];
   vr::VROverlay()->ShowOverlay(overlay_handle);
 
   if (vr::VROverlay()->IsOverlayVisible(overlay_handle)) {

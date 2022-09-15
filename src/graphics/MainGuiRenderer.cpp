@@ -145,3 +145,29 @@ void MainGuiRenderer::drawRing(
 
   check_gl_err("main gui rendering");
 }
+
+void MainGuiRenderer::drawCenter(
+    const AppStatus &status,
+    gl::Texture2D& texture
+) {
+  gl::Bind(frame_buffer);
+  frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
+  gl::Viewport(0, 0, size.x, size.y / 8);
+  gl::ClearColor(.188f, .345f, .749f, 1.0f);
+  gl::Clear().Color().Depth();
+  gl::Enable(gl::kBlend);
+  gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
+
+  glm::vec2 fontSize {1.0f / 8, 1};
+
+  glm::vec2 cursor { -1 + 1.0f / 8 / 2, -0.4f };
+
+  cursor.x = ftRenderer->addString(status.buffer, cursor, {0, 0, 0}, fontSize);
+  cursor.x = ftRenderer->addString(status.method->getBuffer(), cursor, {1, 0, 0}, fontSize);
+
+  ftRenderer->doDraw();
+
+  gl::Unbind(frame_buffer);
+
+  check_gl_err("main gui rendering");
+}

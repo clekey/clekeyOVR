@@ -78,6 +78,17 @@ int glmain(SDL_Window *window) {
     dest_texture.minFilter(gl::kLinear);
   }
 
+  gl::Texture2D centerTexture;
+  {
+    gl::Bind(centerTexture);
+    centerTexture.upload(
+        gl::kRgba8, WINDOW_WIDTH, WINDOW_HEIGHT / 8,
+        gl::kRgb, gl::kUnsignedByte, nullptr
+    );
+    centerTexture.magFilter(gl::kLinear);
+    centerTexture.minFilter(gl::kLinear);
+  }
+
   auto signInput = std::make_unique<SignsInput>();
   size_t index = 0;
   std::vector<std::unique_ptr<IInputMethod>> methods {};
@@ -114,33 +125,43 @@ int glmain(SDL_Window *window) {
     main_renderer->drawRing(status, LeftRight::Right, false, circleTextures[LeftRight::Right]);
     ovr_controller.set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
 
+    main_renderer->drawCenter(status, centerTexture);
+    ovr_controller.setCenterTexture(centerTexture.expose());
+
     //export_as_bmp(main_renderer.dest_texture, 0);
 
     desktop_renderer->preDraw();
     desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
     desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
+    desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
 
     if ((status.left.clickStarted() || status.right.clickStarted())
         && status.left.selection != -1 && status.right.selection != -1) {
       auto action = status.method->onInput({status.left.selection, status.right.selection});
+      auto flush = [&status]() {
+        auto buffer = status.method->getAndClearBuffer();
+        status.buffer += buffer;
+        std::cout << "flush: " << (char *)buffer.c_str() << std::endl;
+      };
       switch (action) {
         case InputNextAction::Nop:
           // nop
           break;
         case InputNextAction::MoveToNextPlane:
-          std::cout << "flush: " << (char *)status.method->getAndClearBuffer().c_str() << std::endl;
+          flush();
           if (++index == methods.size()) index = 0;
           status.method = methods[index].get();
           signInputPtr = signInput.get();
           break;
         case InputNextAction::MoveToSignPlane:
-          std::cout << "flush: " << (char *)status.method->getAndClearBuffer().c_str() << std::endl;
+          flush();
           std::swap(signInputPtr, status.method);
           break;
         case InputNextAction::FlushBuffer:
-          std::cout << "flush: " << (char *)status.method->getAndClearBuffer().c_str() << std::endl;
+          flush();
           break;
         case InputNextAction::RemoveLastChar:
+          removeLastChar(status.buffer);
           std::cout << "RemoveLastChar" << std::endl;
           break;
       }
