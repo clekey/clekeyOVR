@@ -218,6 +218,7 @@ void Application::suspendingTick() {
 
 void KeyboardManager::flush() const {
   auto buffer = status.method->getAndClearBuffer();
+  if (buffer.empty()) return;
   std::cout << "flush: " << (char *) buffer.c_str() << std::endl;
   copyClipboard(buffer);
 }
