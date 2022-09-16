@@ -1,0 +1,10 @@
+1. copy README.md, third-party-licenses.txt, README-SDL.txt
+2. copy following files
+ - clekey_ovr.exe
+ - openvr_api.dll
+ - SDL2.dll
+ - freetype.dll
+ - glew32.dll
+3. copy resources
+4. zip them
+5. it's time to distribute
