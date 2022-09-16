@@ -19,7 +19,7 @@ void export_as_bmp(gl::Texture2D &texture, GLint level) {
 
   std::vector<uint8_t> bmp_data(w * h * 4 + header_size);
 
-  glGetTexImage(GL_TEXTURE_2D, level,
+  texture.getTexImage(level,
                 GL_RGBA, GL_UNSIGNED_BYTE,
                 &bmp_data[header_size]);
   check_gl_err(__func__);
