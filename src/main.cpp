@@ -31,11 +31,15 @@ SDL_Window *init_SDL() {
   }
 
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+  Uint32 windowFlags = SDL_WINDOW_OPENGL;
+#ifdef NDEBUG
+  windowFlags |= SDL_WINDOW_HIDDEN;
+#endif
   SDL_Window *window = SDL_CreateWindow(
       WINDOW_CAPTION,
       0, 0,
       WINDOW_WIDTH, WINDOW_HEIGHT,
-      SDL_WINDOW_OPENGL);
+      windowFlags);
   if (!window) {
     std::cerr << "sdl error: " << SDL_GetError() << std::endl;
     return nullptr;
