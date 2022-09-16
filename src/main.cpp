@@ -168,7 +168,9 @@ bool Application::tick() {
   desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
   desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
 
-  keyboard.tick();
+  if (keyboard.tick()) {
+    return true;
+  }
 
   return false;
 }
