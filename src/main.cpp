@@ -244,19 +244,26 @@ int glmain(SDL_Window *window) {
   }
 }
 
-bool isDirectKeyboardSimulatable(char8_t c) {
-  return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z';
-}
-
 void copyClipboard(const std::u8string &buffer) {
 #if defined(WIN32)
-  if (buffer.length() == 1 && isDirectKeyboardSimulatable(buffer[0])) {
+  if (buffer.length() == 1) {
     char c = char(buffer[0]);
-    if ('A' <= c) keybd_event(VK_LSHIFT, 0, 0, 0);
-    keybd_event(c, 0, 0, 0);
-    keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
-    if ('A' <= c) keybd_event(VK_LSHIFT, 0, KEYEVENTF_KEYUP, 0);
-    return;
+    if ('0' <= c && c <= '9') {
+      keybd_event(c, 0, 0, 0);
+      keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
+      return;
+    } else if ('A' <= c && c <= 'Z') {
+      keybd_event(VK_LSHIFT, 0, 0, 0);
+      keybd_event(c, 0, 0, 0);
+      keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
+      keybd_event(VK_LSHIFT, 0, KEYEVENTF_KEYUP, 0);
+      return;
+    } else if ('a' <= c && c <= 'z') {
+      c += ('A' - 'a');
+      keybd_event(c, 0, 0, 0);
+      keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
+      return;
+    }
   }
   if (!OpenClipboard(NULL)) {
     std::cout << "Cannot open the Clipboard" << std::endl;
