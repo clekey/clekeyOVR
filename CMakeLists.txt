@@ -35,6 +35,7 @@ configure_file(resources/fonts/NotoSansJP-Medium.otf fonts/NotoSansJP-Medium.otf
 configure_file(resources/fonts/NotoEmoji-VariableFont_wght.ttf fonts/NotoEmoji-VariableFont_wght.ttf COPYONLY)
 configure_file(resources/fonts/NotoSansSymbols2-Regular.ttf fonts/NotoSansSymbols2-Regular.ttf COPYONLY)
 add_definitions(-DWITH_OPEN_VR)
+add_definitions(-DGL_SILENCE_DEPRECATION)
 link_openvr(clekey_ovr)
 include_directories(
         ${SDL2_INCLUDE_DIRS}
