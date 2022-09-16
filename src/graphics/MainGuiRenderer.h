@@ -18,13 +18,13 @@ public:
   static std::unique_ptr<MainGuiRenderer> create(glm::ivec2 size);
 
   void drawRing(
-      const AppStatus &status,
+      const KeyboardStatus &status,
       LeftRight side,
       bool alwaysShowInCircle,
       gl::Texture2D& texture
   );
 
-  void drawCenter(const AppStatus &status, gl::Texture2D& texture);
+  void drawCenter(const KeyboardStatus &status, gl::Texture2D& texture);
 
   glm::ivec2 size;
 

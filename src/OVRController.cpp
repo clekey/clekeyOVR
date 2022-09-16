@@ -124,7 +124,7 @@ int8_t computeAngle(const glm::vec2 &stick) {
   return angle;
 }
 
-void updateHand(const OVRController &controller, AppStatus &status, LeftRight hand) {
+void updateHand(const OVRController &controller, KeyboardStatus &status, LeftRight hand) {
   HandInfo& handInfo = status.getControllerInfo(hand);
 
   // first, set stick
@@ -151,7 +151,7 @@ void updateHand(const OVRController &controller, AppStatus &status, LeftRight ha
   handInfo.clicking = controller.getTriggerStatus(hand);
 }
 
-void OVRController::update_status(AppStatus &status) const {
+void OVRController::update_status(KeyboardStatus &status) const {
   vr::VRActiveActionSet_t action = {};
   action.ulActionSet = action_set_input;
   action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
@@ -195,6 +195,11 @@ void OVRController::setCenterTexture(GLuint texture) const {
         overlay_handle,
         &vr_texture));
   }
+}
+
+void OVRController::closeCenterOverlay() const {
+  auto overlay_handle = overlay_handles[2];
+  vr::VROverlay()->HideOverlay(overlay_handle);
 }
 
 glm::vec2 OVRController::getStickPos(LeftRight hand) const {

@@ -33,9 +33,10 @@ class OVRController {
 public:
   OVRController();
 
-  void update_status(AppStatus &) const;
+  void update_status(KeyboardStatus &) const;
   void set_texture(GLuint texture, LeftRight side) const;
   void setCenterTexture(GLuint texture) const;
+  void closeCenterOverlay() const;
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;
   [[nodiscard]] bool getTriggerStatus(LeftRight right) const;

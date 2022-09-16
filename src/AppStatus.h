@@ -28,11 +28,10 @@ struct HandInfo {
   }
 };
 
-struct AppStatus {
+struct KeyboardStatus {
   HandInfo left;
   HandInfo right;
   IInputMethod *method;
-  std::u8string buffer;
 
   [[nodiscard]] const HandInfo& getControllerInfo(LeftRight side) const {
     return side == LeftRight::Left ? left : right;

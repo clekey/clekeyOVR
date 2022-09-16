@@ -63,133 +63,175 @@ bool init_gl(SDL_Window *window) {
   return true;
 }
 
-int glmain(SDL_Window *window) {
-  glm::ivec2 circleSize = {WINDOW_WIDTH, WINDOW_HEIGHT};
-  auto main_renderer = MainGuiRenderer::create(circleSize);
-  auto desktop_renderer = DesktopGuiRenderer::create(circleSize);
+class KeyboardManager {
+  std::unique_ptr<IInputMethod> signInput;
+  size_t index;
+  std::vector<std::unique_ptr<IInputMethod>> methods;
+  IInputMethod *signInputPtr;
+public:
+  KeyboardStatus status;
+
+  KeyboardManager();
+
+  void flush() const;
+
+  bool tick();
+
+  void swapSignInput() {
+    std::swap(signInputPtr, status.method);
+  }
+
+  void moveToNextKeyboard() {
+    if (++index == methods.size()) index = 0;
+    signInputPtr = signInput.get();
+    status.method = methods[index].get();
+  }
+};
+
+KeyboardManager::KeyboardManager() :
+    signInput(std::make_unique<SignsInput>()),
+    index(0),
+    methods{},
+    signInputPtr(signInput.get()) {
+  methods.emplace_back(std::make_unique<JapaneseInput>());
+  methods.emplace_back(std::make_unique<EnglishInput>());
+  status.method = methods[index].get();
+}
+
+class Application {
+  std::unique_ptr<MainGuiRenderer> main_renderer;
+  std::unique_ptr<DesktopGuiRenderer> desktop_renderer;
   OVRController ovr_controller;
-
   gl::Texture2D circleTextures[2];
-  for (auto &dest_texture: circleTextures) {
-    gl::Bind(dest_texture);
-    dest_texture.upload(
-        gl::kRgba8, WINDOW_WIDTH, WINDOW_HEIGHT,
-        gl::kRgb, gl::kUnsignedByte, nullptr
-    );
-    dest_texture.magFilter(gl::kLinear);
-    dest_texture.minFilter(gl::kLinear);
-  }
-
   gl::Texture2D centerTexture;
-  {
-    gl::Bind(centerTexture);
-    centerTexture.upload(
-        gl::kRgba8, WINDOW_WIDTH, WINDOW_HEIGHT / 8,
-        gl::kRgb, gl::kUnsignedByte, nullptr
-    );
-    centerTexture.magFilter(gl::kLinear);
-    centerTexture.minFilter(gl::kLinear);
+  KeyboardManager keyboard;
+
+public:
+  Application();
+
+  bool tick();
+};
+
+gl::Texture2D makeTexture(GLsizei width, GLsizei height) {
+  gl::Texture2D centerTexture;
+  gl::Bind(centerTexture);
+  centerTexture.upload(
+      gl::kRgba8, width, height,
+      gl::kRgb, gl::kUnsignedByte, nullptr
+  );
+  centerTexture.magFilter(gl::kLinear);
+  centerTexture.minFilter(gl::kLinear);
+  return std::move(centerTexture);
+}
+
+Application::Application() :
+    main_renderer(MainGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
+    desktop_renderer(DesktopGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
+    ovr_controller(),
+    circleTextures{makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT), makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT)},
+    centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)) {}
+
+bool Application::tick() {
+  SDL_Event ev;
+  SDL_Keycode key;
+  while (SDL_PollEvent(&ev)) {
+    switch (ev.type) {
+      case SDL_QUIT:
+        return true;
+      case SDL_KEYDOWN:
+        key = ev.key.keysym.sym;
+        if (key == SDLK_ESCAPE)
+          return true;
+        break;
+    }
   }
 
-  auto signInput = std::make_unique<SignsInput>();
-  size_t index = 0;
-  std::vector<std::unique_ptr<IInputMethod>> methods {};
-  methods.emplace_back(std::move(std::make_unique<JapaneseInput>()));
-  methods.emplace_back(std::move(std::make_unique<EnglishInput>()));
-  IInputMethod *signInputPtr = signInput.get();
+  ovr_controller.update_status(keyboard.status);
 
-  AppStatus status {};
-  status.method = methods[0].get();
+  main_renderer->drawRing(keyboard.status, LeftRight::Left, true, circleTextures[LeftRight::Left]);
+  ovr_controller.set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
+
+  main_renderer->drawRing(keyboard.status, LeftRight::Right, false, circleTextures[LeftRight::Right]);
+  ovr_controller.set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
+
+  if (keyboard.status.method->getBuffer().length()) {
+    main_renderer->drawCenter(keyboard.status, centerTexture);
+    ovr_controller.setCenterTexture(centerTexture.expose());
+  } else {
+    ovr_controller.closeCenterOverlay();
+  }
+
+  //export_as_bmp(main_renderer.dest_texture, 0);
+
+  desktop_renderer->preDraw();
+  desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
+  desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
+  desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
+
+  keyboard.tick();
+
+  return false;
+}
+
+void KeyboardManager::flush() const {
+  auto buffer = status.method->getAndClearBuffer();
+  std::cout << "flush: " << (char *) buffer.c_str() << std::endl;
+  copyClipboard(buffer);
+}
+
+bool KeyboardManager::tick() {
+  if ((status.left.clickStarted() || status.right.clickStarted())
+      && status.left.selection != -1 && status.right.selection != -1) {
+    auto action = status.method->onInput({status.left.selection, status.right.selection});
+    switch (action) {
+      case InputNextAction::Nop:
+        // nop
+        break;
+      case InputNextAction::MoveToNextPlane:
+        flush();
+        moveToNextKeyboard();
+        break;
+      case InputNextAction::MoveToSignPlane:
+        flush();
+        swapSignInput();
+        break;
+      case InputNextAction::FlushBuffer:
+        flush();
+        break;
+      case InputNextAction::RemoveLastChar:
+#ifdef WIN32
+        std::cout << "simulate backspace" << std::endl;
+        keybd_event(VK_BACK, 0, 0, 0);
+        keybd_event(VK_BACK, 0, KEYEVENTF_KEYUP, 0);
+#endif
+        std::cout << "RemoveLastChar" << std::endl;
+        break;
+      case InputNextAction::CloseKeyboard:
+        flush();
+        return true; // TODO: just close overlay and wait for request to open
+      case InputNextAction::NewLine:
+        flush();
+#ifdef WIN32
+        std::cout << "simulate return" << std::endl;
+        keybd_event(VK_RETURN, 0, 0, 0);
+        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
+#endif
+        std::cout << "RemoveLastChar" << std::endl;
+        break;
+    }
+  }
+  return false;
+}
+
+int glmain(SDL_Window *window) {
+  Application application;
 
   static const Uint32 interval = 1000 / 90;
   static Uint32 nextTime = SDL_GetTicks() + interval;
 
   for (;;) {
-    SDL_Event ev;
-    SDL_Keycode key;
-    while (SDL_PollEvent(&ev)) {
-      switch (ev.type) {
-        case SDL_QUIT:
-          return 0;
-        case SDL_KEYDOWN:
-          key = ev.key.keysym.sym;
-          if (key == SDLK_ESCAPE)
-            return 0;
-          break;
-      }
-    }
-
-    ovr_controller.update_status(status);
-
-    main_renderer->drawRing(status, LeftRight::Left, true, circleTextures[LeftRight::Left]);
-    ovr_controller.set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
-
-    main_renderer->drawRing(status, LeftRight::Right, false, circleTextures[LeftRight::Right]);
-    ovr_controller.set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
-
-    main_renderer->drawCenter(status, centerTexture);
-    ovr_controller.setCenterTexture(centerTexture.expose());
-
-    //export_as_bmp(main_renderer.dest_texture, 0);
-
-    desktop_renderer->preDraw();
-    desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
-    desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
-    desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
-
-    if ((status.left.clickStarted() || status.right.clickStarted())
-        && status.left.selection != -1 && status.right.selection != -1) {
-      auto action = status.method->onInput({status.left.selection, status.right.selection});
-      auto flush = [&status]() {
-        auto buffer = status.method->getAndClearBuffer();
-        status.buffer += buffer;
-        std::cout << "flush: " << (char *)buffer.c_str() << std::endl;
-      };
-      switch (action) {
-        case InputNextAction::Nop:
-          // nop
-          break;
-        case InputNextAction::MoveToNextPlane:
-          flush();
-          if (++index == methods.size()) index = 0;
-          status.method = methods[index].get();
-          signInputPtr = signInput.get();
-          break;
-        case InputNextAction::MoveToSignPlane:
-          flush();
-          std::swap(signInputPtr, status.method);
-          break;
-        case InputNextAction::FlushBuffer:
-          flush();
-          break;
-        case InputNextAction::RemoveLastChar:
-          if (!removeLastChar(status.buffer)) {
-#ifdef WIN32
-            std::cout << "simulate backspace" << std::endl;
-            keybd_event(VK_BACK, 0, 0, 0);
-            keybd_event(VK_BACK, 0, KEYEVENTF_KEYUP, 0);
-#endif
-          }
-          std::cout << "RemoveLastChar" << std::endl;
-          break;
-        case InputNextAction::CloseKeyboard:
-          flush();
-          copyClipboard(status.buffer);
-          status.buffer = u8"";
-          return 0; // TODO: just close overlay and wait for request to open
-        case InputNextAction::NewLine:
-          flush();
-          copyClipboard(status.buffer);
-          status.buffer = u8"";
-#ifdef WIN32
-          std::cout << "simulate return" << std::endl;
-          keybd_event(VK_RETURN, 0, 0, 0);
-          keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
-#endif
-          std::cout << "RemoveLastChar" << std::endl;
-          break;
-      }
-    }
+    if (application.tick())
+      return 0;
 
     SDL_GL_SwapWindow(window);
 
@@ -202,9 +244,20 @@ int glmain(SDL_Window *window) {
   }
 }
 
+bool isDirectKeyboardSimulatable(char8_t c) {
+  return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z';
+}
+
 void copyClipboard(const std::u8string &buffer) {
-#ifdef WIN32
-//#if 1
+#if defined(WIN32)
+  if (buffer.length() == 1 && isDirectKeyboardSimulatable(buffer[0])) {
+    char c = char(buffer[0]);
+    if ('A' <= c) keybd_event(VK_LSHIFT, 0, 0, 0);
+    keybd_event(c, 0, 0, 0);
+    keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
+    if ('A' <= c) keybd_event(VK_LSHIFT, 0, KEYEVENTF_KEYUP, 0);
+    return;
+  }
   if (!OpenClipboard(NULL)) {
     std::cout << "Cannot open the Clipboard" << std::endl;
     return;

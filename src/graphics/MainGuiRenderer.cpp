@@ -86,7 +86,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
 }
 
 void MainGuiRenderer::drawRing(
-    const AppStatus &status,
+    const KeyboardStatus &status,
     LeftRight side,
     bool alwaysShowInCircle,
     gl::Texture2D& texture
@@ -148,7 +148,7 @@ void MainGuiRenderer::drawRing(
 }
 
 void MainGuiRenderer::drawCenter(
-    const AppStatus &status,
+    const KeyboardStatus &status,
     gl::Texture2D& texture
 ) {
   gl::Bind(frame_buffer);
@@ -163,7 +163,6 @@ void MainGuiRenderer::drawCenter(
 
   glm::vec2 cursor { -1 + 1.0f / 8 / 2, -0.4f };
 
-  cursor.x = ftRenderer->addString(status.buffer, cursor, {0, 0, 0}, fontSize);
   cursor.x = ftRenderer->addString(status.method->getBuffer(), cursor, {1, 0, 0}, fontSize);
 
   ftRenderer->doDraw();
