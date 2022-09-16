@@ -13,6 +13,7 @@ public:
   static std::unique_ptr<DesktopGuiRenderer> create(glm::ivec2 size);
 
   void preDraw();
+
   void drawTexture(const gl::Texture2D &texture, glm::vec2 bottomLeft, glm::vec2 size);
 
   glm::ivec2 size;

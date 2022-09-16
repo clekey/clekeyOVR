@@ -91,8 +91,11 @@ public:
   explicit u8u32iterator(Iterator it) noexcept: it_(it) {}
 
   u8u32iterator(const u8u32iterator &) noexcept = default;
+
   u8u32iterator(u8u32iterator &&) noexcept = default;
+
   u8u32iterator &operator=(const u8u32iterator &) noexcept = default;
+
   u8u32iterator &operator=(u8u32iterator &&) noexcept = default;
 
   bool operator==(u8u32iterator &other) noexcept {
@@ -111,46 +114,58 @@ public:
     return parse_u8(it_);
   }
 
-  u8u32iterator& operator++() noexcept{
+  u8u32iterator &operator++() noexcept {
     it_ += increment_u8(it_);
     return *this;
   }
 
-  u8u32iterator& operator--() noexcept{
+  u8u32iterator &operator--() noexcept {
     it_ -= decrement_u8(it_);
     return *this;
   }
 };
 
 template<typename It>
-class u8u32range{
+class u8u32range {
 public:
   using iterator = u8u32iterator<It>;
 private:
-  iterator begin_; iterator end_;
+  iterator begin_;
+  iterator end_;
 public:
   u8u32range() = delete;
+
   u8u32range(It begin, It end) : begin_(begin), end_(end) {}
-  u8u32range(const u8u32range&) = default;
-  u8u32range(u8u32range&&) noexcept = default;
-  u8u32range& operator=(const u8u32range&) = default;
-  u8u32range& operator=(u8u32range&&) noexcept = default;
-  iterator& begin() noexcept { return this->begin_; }
-  [[nodiscard]] const iterator& begin() const noexcept { return this->begin_; }
-  iterator& end() noexcept { return this->end_; }
-  [[nodiscard]] const iterator& end() const noexcept { return this->end_; }
+
+  u8u32range(const u8u32range &) = default;
+
+  u8u32range(u8u32range &&) noexcept = default;
+
+  u8u32range &operator=(const u8u32range &) = default;
+
+  u8u32range &operator=(u8u32range &&) noexcept = default;
+
+  iterator &begin() noexcept { return this->begin_; }
+
+  [[nodiscard]] const iterator &begin() const noexcept { return this->begin_; }
+
+  iterator &end() noexcept { return this->end_; }
+
+  [[nodiscard]] const iterator &end() const noexcept { return this->end_; }
 };
+
 template<typename It, std::enable_if_t<std::is_same<char8_t, typename std::iterator_traits<It>::value_type>::value, std::nullptr_t> = nullptr>
-inline u8u32range<It> make_u8u32range(It begin, It end){
+inline u8u32range<It> make_u8u32range(It begin, It end) {
   return {begin, end};
 }
+
 template<typename Container>
-inline u8u32range<typename Container::const_iterator> make_u8u32range(const Container &c)
-{
+inline u8u32range<typename Container::const_iterator> make_u8u32range(const Container &c) {
   return u8u32range(c.begin(), c.end());
 }
+
 template<std::size_t N>
-inline u8u32range<char8_t *> make_u8u32range(char8_t (&arr)[N]){
+inline u8u32range<char8_t *> make_u8u32range(char8_t (&arr)[N]) {
   return u8u32range(std::begin(arr), std::end(arr));
 }
 

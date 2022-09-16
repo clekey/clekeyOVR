@@ -15,13 +15,13 @@
 
 #define to64(x, y) ((x) * 8 + (y))
 
-inline char32_t lastChar(const std::u8string& str) {
+inline char32_t lastChar(const std::u8string &str) {
   auto iter = make_u8u32range(str).end();
   return *(--iter);
 }
 
-template <std::regular_invocable<char32_t> CharReplacer>
-inline void processLastChar(std::u8string& buffer, CharReplacer charReplacer) {
+template<std::regular_invocable<char32_t> CharReplacer>
+inline void processLastChar(std::u8string &buffer, CharReplacer charReplacer) {
   if (buffer.length() == 0) return;
 
   char32_t c = lastChar(buffer);
@@ -31,7 +31,7 @@ inline void processLastChar(std::u8string& buffer, CharReplacer charReplacer) {
   buffer += toUTF8(c);
 }
 
-inline bool removeLastChar(std::u8string& buffer) {
+inline bool removeLastChar(std::u8string &buffer) {
   if (buffer.length() == 0) return false;
 
   char32_t c = lastChar(buffer);
@@ -59,23 +59,30 @@ enum class InputNextAction {
 
 class IInputMethod {
 public:
-  [[nodiscard]] virtual const std::array<std::u8string, 8*8>& getTable() const = 0;
+  [[nodiscard]] virtual const std::array<std::u8string, 8 * 8> &getTable() const = 0;
+
   [[nodiscard]] virtual const std::u8string &getBuffer() const = 0;
+
   [[nodiscard]] virtual std::u8string getAndClearBuffer() = 0;
+
   virtual InputNextAction onInput(glm::i8vec2) = 0;
+
   virtual ~IInputMethod() = default;
 };
 
-class AbstractInputMethod : public IInputMethod{
+class AbstractInputMethod : public IInputMethod {
 protected:
   std::array<std::u8string, 8 * 8> table;
   std::u8string buffer;
 public:
-  AbstractInputMethod(): table{} {}
+  AbstractInputMethod() : table{} {}
 
-  [[nodiscard]] const std::array<std::u8string, 8*8>& getTable() const override;
-  [[nodiscard]] const std::u8string & getBuffer() const override;
+  [[nodiscard]] const std::array<std::u8string, 8 * 8> &getTable() const override;
+
+  [[nodiscard]] const std::u8string &getBuffer() const override;
+
   [[nodiscard]] std::u8string getAndClearBuffer() override;
+
   ~AbstractInputMethod() override;
 };
 

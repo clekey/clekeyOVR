@@ -56,13 +56,19 @@ public:
   OVRController();
 
   void setActiveActionSet(std::vector<ActionSetKind> kinds) const;
+
   void update_status(KeyboardStatus &) const;
+
   void set_texture(GLuint texture, LeftRight side) const;
+
   void setCenterTexture(GLuint texture) const;
+
   void closeCenterOverlay() const;
 
   [[nodiscard]] glm::vec2 getStickPos(LeftRight hand) const;
+
   [[nodiscard]] bool getTriggerStatus(LeftRight right) const;
+
   void playHaptics(
       LeftRight hand,
       float fStartSecondsFromNow,
@@ -70,12 +76,16 @@ public:
       float fFrequency,
       float fAmplitude
   ) const;
+
   [[nodiscard]] bool getButtonStatus(ButtonKind kind) const;
 
-  OVRController(const OVRController&) = delete;
-  OVRController& operator=(const OVRController&) = delete;
-  OVRController(OVRController&&) = delete;
-  OVRController& operator=(OVRController&&) = delete;
+  OVRController(const OVRController &) = delete;
+
+  OVRController &operator=(const OVRController &) = delete;
+
+  OVRController(OVRController &&) = delete;
+
+  OVRController &operator=(OVRController &&) = delete;
 
   void hideOverlays();
 };

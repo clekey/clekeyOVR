@@ -62,6 +62,7 @@ public:
   Freetype(const Freetype &) = delete;
 
   Freetype &operator=(const Freetype &) = delete;
+
 private:
   FT_Library library;
 };

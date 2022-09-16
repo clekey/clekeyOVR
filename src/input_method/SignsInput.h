@@ -10,6 +10,7 @@
 class SignsInput : public AbstractInputMethod {
 public:
   SignsInput();
+
   InputNextAction onInput(glm::i8vec2) override;
 };
 

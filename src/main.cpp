@@ -108,8 +108,11 @@ class Application {
   AppStatus status;
 
   bool SDLTick();
+
   void waitingTick();
+
   void inputtingTick();
+
   void suspendingTick();
 
 public:

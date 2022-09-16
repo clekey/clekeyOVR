@@ -1,59 +1,59 @@
 {
-  "bindings" : {
-    "/actions/input" : {
-      "chords" : [],
-      "haptics" : [
+  "bindings": {
+    "/actions/input": {
+      "chords": [],
+      "haptics": [
         {
-          "output" : "/actions/input/out/left_haptic",
-          "path" : "/user/hand/left/output/haptic"
+          "output": "/actions/input/out/left_haptic",
+          "path": "/user/hand/left/output/haptic"
         },
         {
-          "output" : "/actions/input/out/right_haptic",
-          "path" : "/user/hand/right/output/haptic"
+          "output": "/actions/input/out/right_haptic",
+          "path": "/user/hand/right/output/haptic"
         }
       ],
-      "poses" : [],
-      "skeleton" : [],
-      "sources" : [
+      "poses": [],
+      "skeleton": [],
+      "sources": [
         {
-          "inputs" : {
-            "position" : {
-              "output" : "/actions/input/in/left_stick"
+          "inputs": {
+            "position": {
+              "output": "/actions/input/in/left_stick"
             }
           },
-          "mode" : "joystick",
-          "path" : "/user/hand/left/input/joystick"
+          "mode": "joystick",
+          "path": "/user/hand/left/input/joystick"
         },
         {
-          "inputs" : {
-            "click" : {
-              "output" : "/actions/input/in/left_click"
+          "inputs": {
+            "click": {
+              "output": "/actions/input/in/left_click"
             }
           },
-          "mode" : "button",
-          "path" : "/user/hand/left/input/trigger"
+          "mode": "button",
+          "path": "/user/hand/left/input/trigger"
         },
         {
-          "inputs" : {
-            "position" : {
-              "output" : "/actions/input/in/right_stick"
+          "inputs": {
+            "position": {
+              "output": "/actions/input/in/right_stick"
             }
           },
-          "mode" : "joystick",
-          "path" : "/user/hand/right/input/joystick"
+          "mode": "joystick",
+          "path": "/user/hand/right/input/joystick"
         },
         {
-          "inputs" : {
-            "click" : {
-              "output" : "/actions/input/in/right_click"
+          "inputs": {
+            "click": {
+              "output": "/actions/input/in/right_click"
             }
           },
-          "mode" : "button",
-          "path" : "/user/hand/right/input/trigger"
+          "mode": "button",
+          "path": "/user/hand/right/input/trigger"
         }
       ]
     },
-    "/actions/waiting" : {
+    "/actions/waiting": {
       "chords": [],
       "haptics": [],
       "poses": [],
@@ -79,7 +79,7 @@
         }
       ]
     },
-    "/actions/suspender" : {
+    "/actions/suspender": {
       "chords": [],
       "haptics": [],
       "poses": [],
@@ -106,10 +106,10 @@
       ]
     }
   },
-  "controller_type" : "oculus_touch",
-  "description" : "Bindings for the clekey OVR for Oculus Touch",
-  "name" : "clekey OVR bindings for Oculus Touch",
-  "options" : {},
-  "simulated_actions" : []
+  "controller_type": "oculus_touch",
+  "description": "Bindings for the clekey OVR for Oculus Touch",
+  "name": "clekey OVR bindings for Oculus Touch",
+  "options": {},
+  "simulated_actions": []
 }
 

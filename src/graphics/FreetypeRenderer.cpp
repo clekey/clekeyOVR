@@ -50,7 +50,8 @@ struct FreetypeRendererQuad {
 static_assert(sizeof(FreetypeRendererQuad) == sizeof(FreetypeRendererVertex) * 4);
 static_assert(alignof(FreetypeRendererQuad) == alignof(FreetypeRendererVertex));
 
-inline FreetypeRendererQuad::FreetypeRendererQuad(glm::vec2 size, glm::vec3 color, const GlyphInfo &glyph, glm::vec2 origin) : vertex{} {
+inline FreetypeRendererQuad::FreetypeRendererQuad(glm::vec2 size, glm::vec3 color, const GlyphInfo &glyph,
+                                                  glm::vec2 origin) : vertex{} {
   float bearingXScaled = glyph.bearingX * size.x;
   float bearingYScaled = glyph.bearingY * size.y;
   float widthScaled = glyph.width * size.x;
@@ -99,9 +100,12 @@ struct FreetypeRendererTexture {
   bool modified;
 
   FreetypeRendererTexture();
+
   ~FreetypeRendererTexture();
-  FreetypeRendererTexture(FreetypeRendererTexture&& other) = default;
-  FreetypeRendererTexture& operator=(FreetypeRendererTexture&& other) = default;
+
+  FreetypeRendererTexture(FreetypeRendererTexture &&other) = default;
+
+  FreetypeRendererTexture &operator=(FreetypeRendererTexture &&other) = default;
 
   void addQuad(FreetypeRendererQuad quad);
 };
@@ -310,16 +314,16 @@ const GlyphInfo &FreetypeRenderer::tryLoadGlyphOf(char32_t c, bool *successful) 
   auto &glyphInfo = glyphs[c];
   glyphInfo = {
       //
-      .bearingX = (float)glyphMetrics.horiBearingX / f26dot6toFloat / oneEmInPixel,
-      .bearingY = (float)glyphMetrics.horiBearingY / f26dot6toFloat / oneEmInPixel,
-      .width = (float)bitmap.width / oneEmInPixel,
-      .height = (float)bitmap.rows / oneEmInPixel,
-      .advance = (float)glyphMetrics.horiAdvance / f26dot6toFloat / oneEmInPixel,
+      .bearingX = (float) glyphMetrics.horiBearingX / f26dot6toFloat / oneEmInPixel,
+      .bearingY = (float) glyphMetrics.horiBearingY / f26dot6toFloat / oneEmInPixel,
+      .width = (float) bitmap.width / oneEmInPixel,
+      .height = (float) bitmap.rows / oneEmInPixel,
+      .advance = (float) glyphMetrics.horiAdvance / f26dot6toFloat / oneEmInPixel,
       // in UV space unit
-      .minU = (float)metrics.cursorX / (float)metrics.texSize,
-      .minV = (float)metrics.cursorY / (float)metrics.texSize,
-      .maxU = (float)maxX / (float)metrics.texSize,
-      .maxV = (float)maxY / (float)metrics.texSize,
+      .minU = (float) metrics.cursorX / (float) metrics.texSize,
+      .minV = (float) metrics.cursorY / (float) metrics.texSize,
+      .maxU = (float) maxX / (float) metrics.texSize,
+      .maxV = (float) maxY / (float) metrics.texSize,
       // texture index
       .texture = (int) texture_idx,
       .font = font_index,
@@ -367,7 +371,8 @@ glm::vec2 FreetypeRenderer::calcStringSize(const std::u8string &string) {
   return {width, height};
 }
 
-void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, CenteredMode mode) {
+void FreetypeRenderer::addCenteredString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size,
+                                         CenteredMode mode) {
   if (string.length() == 0) return;
   auto wh = calcStringSize(string);
   if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
@@ -377,10 +382,11 @@ void FreetypeRenderer::addCenteredString(const std::u8string& string, glm::vec2 
   addString(string, pos, color, size);
 }
 
-void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string& string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, float maxWidth, CenteredMode mode) {
+void FreetypeRenderer::addCenteredStringWithMaxWidth(const std::u8string &string, glm::vec2 pos, glm::vec3 color,
+                                                     glm::vec2 size, float maxWidth, CenteredMode mode) {
   if (string.length() == 0) return;
   auto wh = calcStringSize(string);
-  size *= (std::min(size.x, maxWidth/wh.x) / size.x);
+  size *= (std::min(size.x, maxWidth / wh.x) / size.x);
   if (mode == CenteredMode::Horizontal || mode == CenteredMode::Both)
     pos.x -= wh.x * size.x / 2;
   if (mode == CenteredMode::Vertical || mode == CenteredMode::Both)
@@ -414,4 +420,5 @@ void FreetypeRenderer::doDraw() {
 }
 
 FreetypeRenderer::~FreetypeRenderer() = default;
+
 FreetypeRenderer::FreetypeRenderer(FreetypeRenderer &&) noexcept = default;

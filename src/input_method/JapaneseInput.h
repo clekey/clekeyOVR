@@ -10,7 +10,9 @@
 class JapaneseInput : public AbstractInputMethod {
 public:
   JapaneseInput();
+
   [[nodiscard]] std::u8string getAndClearBuffer() override;
+
   InputNextAction onInput(glm::i8vec2) override;
 };
 

@@ -2,11 +2,11 @@
   "default_bindings": [
     {
       "controller_type": "oculus_touch",
-      "binding_url" : "bindings_oculus_touch.json"
+      "binding_url": "bindings_oculus_touch.json"
     },
     {
       "controller_type": "vive_controller",
-      "binding_url" : "bindings_vive_controller.json"
+      "binding_url": "bindings_vive_controller.json"
     }
   ],
   "actions": [
@@ -62,18 +62,14 @@
       "usage": "in inputting -> suspending"
     }
   ],
-  "localization" : [
+  "localization": [
     {
       "language_tag": "en_us",
-
       "/actions/input/in/left_stick": "Left stick",
       "/actions/input/in/left_click": "Left click",
-
       "/actions/input/in/right_stick": "Right stick",
       "/actions/input/in/right_click": "Right click",
-
       "/actions/waiting/in/begin_input": "Begin input",
-
       "/actions/suspender/in/suspender": "suspend input"
     }
   ]

@@ -33,11 +33,11 @@ struct KeyboardStatus {
   HandInfo right;
   IInputMethod *method;
 
-  [[nodiscard]] const HandInfo& getControllerInfo(LeftRight side) const {
+  [[nodiscard]] const HandInfo &getControllerInfo(LeftRight side) const {
     return side == LeftRight::Left ? left : right;
   }
 
-  [[nodiscard]] HandInfo& getControllerInfo(LeftRight side) {
+  [[nodiscard]] HandInfo &getControllerInfo(LeftRight side) {
     return side == LeftRight::Left ? left : right;
   }
 

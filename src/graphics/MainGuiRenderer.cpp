@@ -66,7 +66,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   auto cursorCircleRenderer = CursorCircleRenderer::create();
 
   std::cout << "loading fonts" << std::endl;
-  for (const auto &entry : std::filesystem::directory_iterator("./fonts")) {
+  for (const auto &entry: std::filesystem::directory_iterator("./fonts")) {
     if (entry.path().extension() == ".otf" || entry.path().extension() == ".ttf") {
       ftRenderer->addFontType(entry.path().string().c_str());
       std::cout << "loaded font:" << entry.path() << std::endl;
@@ -89,7 +89,7 @@ void MainGuiRenderer::drawRing(
     const KeyboardStatus &status,
     LeftRight side,
     bool alwaysShowInCircle,
-    gl::Texture2D& texture
+    gl::Texture2D &texture
 ) {
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
@@ -149,7 +149,7 @@ void MainGuiRenderer::drawRing(
 
 void MainGuiRenderer::drawCenter(
     const KeyboardStatus &status,
-    gl::Texture2D& texture
+    gl::Texture2D &texture
 ) {
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
@@ -159,9 +159,9 @@ void MainGuiRenderer::drawCenter(
   gl::Enable(gl::kBlend);
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
 
-  glm::vec2 fontSize {1.0f / 8, 1};
+  glm::vec2 fontSize{1.0f / 8, 1};
 
-  glm::vec2 cursor { -1 + 1.0f / 8 / 2, -0.4f };
+  glm::vec2 cursor{-1 + 1.0f / 8 / 2, -0.4f};
 
   cursor.x = ftRenderer->addString(status.method->getBuffer(), cursor, {1, 0, 0}, fontSize);
 

@@ -55,7 +55,7 @@ std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(glm::ivec2 size) 
   gl::Bind(vertex_buffer);
   posAttrib.pointer(2, gl::kFloat, false, 0, nullptr);
 
-  auto res = new DesktopGuiRenderer {
+  auto res = new DesktopGuiRenderer{
       .size = size,
       .shader_program = std::move(shader_program),
       .posAttrib = std::move(posAttrib),

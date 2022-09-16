@@ -10,6 +10,7 @@
 class EnglishInput : public AbstractInputMethod {
 public:
   EnglishInput();
+
   InputNextAction onInput(glm::i8vec2) override;
 };
 

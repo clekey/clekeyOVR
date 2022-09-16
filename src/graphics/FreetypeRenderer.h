@@ -70,10 +70,12 @@ public:
 
   float addString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size);
 
-  void addCenteredString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, CenteredMode mode);
+  void
+  addCenteredString(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, CenteredMode mode);
 
   void
-  addCenteredStringWithMaxWidth(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size, float maxWidth,
+  addCenteredStringWithMaxWidth(const std::u8string &string, glm::vec2 pos, glm::vec3 color, glm::vec2 size,
+                                float maxWidth,
                                 CenteredMode mode);
 
   void doDraw();

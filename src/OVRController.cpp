@@ -40,7 +40,7 @@ void shutdown_ovr() {
 }
 
 template<typename T>
-const T* asPtr(const T& value) {
+const T *asPtr(const T &value) {
   return &value;
 }
 
@@ -55,12 +55,12 @@ glm::mat4x3 overlayPositionMatrix(glm::vec3 position) {
   return matrix;
 }
 
-inline vr::HmdMatrix34_t toVR(const glm::mat4x3& mat) {
+inline vr::HmdMatrix34_t toVR(const glm::mat4x3 &mat) {
   return {{
               {mat[0][0], mat[1][0], mat[2][0], mat[3][0]},
               {mat[0][1], mat[1][1], mat[2][1], mat[3][1]},
               {mat[0][2], mat[1][2], mat[2][2], mat[3][2]},
-  }};
+          }};
 }
 
 OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-init)
@@ -85,9 +85,12 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
 
 #undef GetActionHandle
 
-  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.left", "clekey-ovr left", &overlay_handles[0]));
-  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.right", "clekey-ovr right", &overlay_handles[1]));
-  handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.center", "clekey-ovr center", &overlay_handles[2]));
+  handle_overlay_err(
+      vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.left", "clekey-ovr left", &overlay_handles[0]));
+  handle_overlay_err(
+      vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.right", "clekey-ovr right", &overlay_handles[1]));
+  handle_overlay_err(
+      vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.center", "clekey-ovr center", &overlay_handles[2]));
   for (auto &overlay_handle: overlay_handles) {
     vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, .3);
     vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
@@ -157,12 +160,13 @@ void OVRController::setActiveActionSet(std::vector<ActionSetKind> kinds) const {
     actionSets.push_back(action);
   }
 
-  handle_input_err(vr::VRInput()->UpdateActionState(&actionSets[0], sizeof(vr::VRActiveActionSet_t), actionSets.size()));
+  handle_input_err(
+      vr::VRInput()->UpdateActionState(&actionSets[0], sizeof(vr::VRActiveActionSet_t), actionSets.size()));
 
 }
 
 void updateHand(const OVRController &controller, KeyboardStatus &status, LeftRight hand) {
-  HandInfo& handInfo = status.getControllerInfo(hand);
+  HandInfo &handInfo = status.getControllerInfo(hand);
 
   // first, set stick
   handInfo.stick = controller.getStickPos(hand);
