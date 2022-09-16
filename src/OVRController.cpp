@@ -68,14 +68,21 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
 
   handle_input_err(vr::VRInput()->SetActionManifestPath(path.string().c_str()));
 
-#define GetActionHandle(inout, name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/input/" #inout "/" #name, &action_##name))
-  GetActionHandle(in, left_stick);
-  GetActionHandle(in, left_click);
-  GetActionHandle(out, left_haptic);
-  GetActionHandle(in, right_stick);
-  GetActionHandle(in, right_click);
-  GetActionHandle(out, right_haptic);
+#define GetActionHandle(set, inout, name) handle_input_err(vr::VRInput()->GetActionHandle("/actions/" #set "/" #inout "/" #name, &action_##set##_##name))
+  GetActionHandle(input, in, left_stick);
+  GetActionHandle(input, in, left_click);
+  GetActionHandle(input, out, left_haptic);
+  GetActionHandle(input, in, right_stick);
+  GetActionHandle(input, in, right_click);
+  GetActionHandle(input, out, right_haptic);
   handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/input", &action_set_input));
+
+  GetActionHandle(waiting, in, begin_input);
+  handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/waiting", &action_set_waiting));
+
+  GetActionHandle(suspender, in, suspender);
+  handle_input_err(vr::VRInput()->GetActionSetHandle("/actions/suspender", &action_set_suspender));
+
 #undef GetActionHandle
 
   handle_overlay_err(vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.left", "clekey-ovr left", &overlay_handles[0]));
@@ -88,13 +95,17 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], .5);
   vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
 
-  std::cout << "action_left_stick:   " << action_left_stick << std::endl;
-  std::cout << "action_left_click:   " << action_left_click << std::endl;
-  std::cout << "action_left_haptic:  " << action_left_haptic << std::endl;
-  std::cout << "action_right_stick:  " << action_right_stick << std::endl;
-  std::cout << "action_right_click:  " << action_right_click << std::endl;
-  std::cout << "action_right_haptic: " << action_right_haptic << std::endl;
-  std::cout << "action_set_input:    " << action_set_input << std::endl;
+  std::cout << "action_left_stick:          " << action_input_left_stick << std::endl;
+  std::cout << "action_left_click:          " << action_input_left_click << std::endl;
+  std::cout << "action_left_haptic:         " << action_input_left_haptic << std::endl;
+  std::cout << "action_right_stick:         " << action_input_right_stick << std::endl;
+  std::cout << "action_right_click:         " << action_input_right_click << std::endl;
+  std::cout << "action_right_haptic:        " << action_input_right_haptic << std::endl;
+  std::cout << "action_set_input:           " << action_set_input << std::endl;
+  std::cout << "action_waiting_begin_input: " << action_waiting_begin_input << std::endl;
+  std::cout << "action_set_waiting:         " << action_set_waiting << std::endl;
+  std::cout << "action_suspender_suspender: " << action_suspender_suspender << std::endl;
+  std::cout << "action_set_suspender:       " << action_set_suspender << std::endl;
 
   {
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
@@ -122,6 +133,32 @@ int8_t computeAngle(const glm::vec2 &stick) {
   angle += 2;
   angle &= 7;
   return angle;
+}
+
+void OVRController::setActiveActionSet(std::vector<ActionSetKind> kinds) const {
+  std::vector<vr::VRActiveActionSet_t> actionSets{};
+  actionSets.reserve(kinds.size());
+  for (const auto &kind: kinds) {
+    vr::VRActiveActionSet_t action = {};
+    switch (kind) {
+      case ActionSetKind::Input:
+        action.ulActionSet = action_set_input;
+        action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
+        break;
+      case ActionSetKind::Waiting:
+        action.ulActionSet = action_set_waiting;
+        //action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
+        break;
+      case ActionSetKind::Suspender:
+        action.ulActionSet = action_set_suspender;
+        action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
+        break;
+    }
+    actionSets.push_back(action);
+  }
+
+  handle_input_err(vr::VRInput()->UpdateActionState(&actionSets[0], sizeof(vr::VRActiveActionSet_t), actionSets.size()));
+
 }
 
 void updateHand(const OVRController &controller, KeyboardStatus &status, LeftRight hand) {
@@ -152,11 +189,6 @@ void updateHand(const OVRController &controller, KeyboardStatus &status, LeftRig
 }
 
 void OVRController::update_status(KeyboardStatus &status) const {
-  vr::VRActiveActionSet_t action = {};
-  action.ulActionSet = action_set_input;
-  action.nPriority = vr::k_nActionSetOverlayGlobalPriorityMax;
-  handle_input_err(vr::VRInput()->UpdateActionState(&action, sizeof(vr::VRActiveActionSet_t), 1));
-
   updateHand(*this, status, LeftRight::Left);
   updateHand(*this, status, LeftRight::Right);
 }
@@ -197,6 +229,11 @@ void OVRController::setCenterTexture(GLuint texture) const {
   }
 }
 
+void OVRController::hideOverlays() {
+  for (const auto &overlay_handle: overlay_handles)
+    vr::VROverlay()->HideOverlay(overlay_handle);
+}
+
 void OVRController::closeCenterOverlay() const {
   auto overlay_handle = overlay_handles[2];
   vr::VROverlay()->HideOverlay(overlay_handle);
@@ -205,7 +242,7 @@ void OVRController::closeCenterOverlay() const {
 glm::vec2 OVRController::getStickPos(LeftRight hand) const {
   vr::InputAnalogActionData_t analog_data = {};
   handle_input_err(vr::VRInput()->GetAnalogActionData(
-      hand == LeftRight::Left ? action_left_stick : action_right_stick,
+      hand == LeftRight::Left ? action_input_left_stick : action_input_right_stick,
       &analog_data, sizeof(analog_data),
       vr::k_ulInvalidInputValueHandle));
   return {analog_data.x, analog_data.y};
@@ -214,7 +251,7 @@ glm::vec2 OVRController::getStickPos(LeftRight hand) const {
 bool OVRController::getTriggerStatus(LeftRight hand) const {
   vr::InputDigitalActionData_t digital_data = {};
   handle_input_err(vr::VRInput()->GetDigitalActionData(
-      hand == LeftRight::Left ? action_left_click : action_right_click,
+      hand == LeftRight::Left ? action_input_left_click : action_input_right_click,
       &digital_data, sizeof(digital_data),
       vr::k_ulInvalidInputValueHandle));
   return digital_data.bState;
@@ -228,9 +265,29 @@ void OVRController::playHaptics(
     float fAmplitude
 ) const {
   handle_input_err(vr::VRInput()->TriggerHapticVibrationAction(
-      hand == LeftRight::Left ? action_left_haptic : action_right_haptic,
+      hand == LeftRight::Left ? action_input_left_haptic : action_input_right_haptic,
       fStartSecondsFromNow, fDurationSeconds, fFrequency, fAmplitude,
       vr::k_ulInvalidInputValueHandle));
+}
+
+bool OVRController::getButtonStatus(ButtonKind kind) const {
+  vr::VRActionHandle_t handle;
+
+  switch (kind) {
+    case ButtonKind::BeginInput:
+      handle = action_waiting_begin_input;
+      break;
+    case ButtonKind::SuspendInput:
+      handle = action_suspender_suspender;
+      break;
+  }
+
+  vr::InputDigitalActionData_t digital_data = {};
+  handle_input_err(vr::VRInput()->GetDigitalActionData(
+      handle,
+      &digital_data, sizeof(digital_data),
+      vr::k_ulInvalidInputValueHandle));
+  return digital_data.bState;
 }
 
 #else

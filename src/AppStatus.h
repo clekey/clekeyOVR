@@ -54,4 +54,11 @@ struct KeyboardStatus {
   }
 };
 
+// global application status
+enum class AppStatus {
+  Waiting,
+  Inputting,
+  Suspending,
+};
+
 #endif //CLEKEY_OVR_APPSTATUS_H

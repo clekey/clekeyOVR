@@ -105,6 +105,12 @@ class Application {
   gl::Texture2D circleTextures[2];
   gl::Texture2D centerTexture;
   KeyboardManager keyboard;
+  AppStatus status;
+
+  bool SDLTick();
+  void waitingTick();
+  void inputtingTick();
+  void suspendingTick();
 
 public:
   Application();
@@ -129,9 +135,26 @@ Application::Application() :
     desktop_renderer(DesktopGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
     ovr_controller(),
     circleTextures{makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT), makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT)},
-    centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)) {}
+    centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
+    status(AppStatus::Waiting) {}
 
 bool Application::tick() {
+  if (SDLTick()) return true;
+  switch (status) {
+    case AppStatus::Waiting:
+      waitingTick();
+      break;
+    case AppStatus::Inputting:
+      inputtingTick();
+      break;
+    case AppStatus::Suspending:
+      suspendingTick();
+      break;
+  }
+  return false;
+}
+
+bool Application::SDLTick() {
   SDL_Event ev;
   SDL_Keycode key;
   while (SDL_PollEvent(&ev)) {
@@ -145,7 +168,18 @@ bool Application::tick() {
         break;
     }
   }
+  return false;
+}
 
+void Application::waitingTick() {
+  ovr_controller.setActiveActionSet({ActionSetKind::Waiting});
+  ovr_controller.hideOverlays();
+  if (ovr_controller.getButtonStatus(ButtonKind::BeginInput))
+    status = AppStatus::Inputting;
+}
+
+void Application::inputtingTick() {
+  ovr_controller.setActiveActionSet({ActionSetKind::Suspender, ActionSetKind::Input});
   ovr_controller.update_status(keyboard.status);
 
   main_renderer->drawRing(keyboard.status, LeftRight::Left, true, circleTextures[LeftRight::Left]);
@@ -169,10 +203,17 @@ bool Application::tick() {
   desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
 
   if (keyboard.tick()) {
-    return true;
+    status = AppStatus::Waiting;
+  } else if (ovr_controller.getButtonStatus(ButtonKind::SuspendInput)) {
+    status = AppStatus::Suspending;
   }
+}
 
-  return false;
+void Application::suspendingTick() {
+  ovr_controller.setActiveActionSet({ActionSetKind::Suspender});
+  ovr_controller.hideOverlays();
+  if (!ovr_controller.getButtonStatus(ButtonKind::SuspendInput))
+    status = AppStatus::Inputting;
 }
 
 void KeyboardManager::flush() const {
