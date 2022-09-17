@@ -22,7 +22,7 @@ InputNextAction SignsInput::onInput(glm::i8vec2 chars) {
     case to64(7, 7):
       return InputNextAction::MoveToNextPlane;
     default:
-      if (chars.x < 4 || (chars.x < 6 && chars.y < 5)) {
+      if (chars.x < 4 || (chars.x < 6 && chars.y < 6)) {
         buffer = table[chars.x * 8 + chars.y];
         return InputNextAction::FlushBuffer;
       } else {
@@ -40,8 +40,8 @@ SignsInput::SignsInput() {
       u8")", u8"]", u8"}", u8">", u8"\\", u8":", u8"+", u8"=",
       u8"“", u8".", u8"?", u8"1", u8"2", u8"3", u8"4", u8"5",
       u8"‘", u8",", u8"!", u8"6", u8"7", u8"8", u8"9", u8"0",
-      u8"&", u8"*", u8"¥", u8"^", u8"%", u8"", u8"", u8"",
-      u8"~", u8"`", u8"@", u8"$", u8"|", u8"", u8"", u8"",
+      u8"&", u8"*", u8"¥", u8"^", u8"%", u8"#", u8"", u8"",
+      u8"~", u8"`", u8"@", u8"$", u8"|", u8"€", u8"", u8"",
       u8"", u8"", u8"", u8"", u8"", u8"Close", BackspaceIcon, SpaceIcon,
       u8"", u8"", u8"", u8"", u8"", ReturnSign, SignsIcon, NextPlaneIcon,
   };
