@@ -20,7 +20,6 @@ inline char32_t checkRange(char32_t c, char32_t min, char32_t max) {
 
 template<std::input_iterator Iterator>
 inline char32_t parse_u8(const Iterator &it) {
-  char32_t c;
   char8_t b1 = *it;
   if (b1 <= 0x7F) {
     return b1;
