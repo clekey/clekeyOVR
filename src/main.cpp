@@ -104,7 +104,9 @@ KeyboardManager::KeyboardManager() :
 
 class Application {
   std::unique_ptr<MainGuiRenderer> main_renderer;
+#ifndef NDEBUG
   std::unique_ptr<DesktopGuiRenderer> desktop_renderer;
+#endif
   OVRController ovr_controller;
   gl::Texture2D circleTextures[2];
   gl::Texture2D centerTexture;
@@ -139,7 +141,9 @@ gl::Texture2D makeTexture(GLsizei width, GLsizei height) {
 
 Application::Application() :
     main_renderer(MainGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
+#ifndef NDEBUG
     desktop_renderer(DesktopGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
+#endif
     ovr_controller(),
     circleTextures{makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT), makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT)},
     centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
@@ -204,10 +208,12 @@ void Application::inputtingTick() {
 
   //export_as_bmp(main_renderer.dest_texture, 0);
 
+#ifndef NDEBUG
   desktop_renderer->preDraw();
   desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
   desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
   desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
+#endif
 
   if (keyboard.tick()) {
     status = AppStatus::Waiting;
@@ -284,7 +290,9 @@ int glmain(SDL_Window *window) {
     if (application.tick())
       return 0;
 
+#ifndef NDEBUG
     SDL_GL_SwapWindow(window);
+#endif
 
     int delayTime = (int) (nextTime - SDL_GetTicks());
     if (delayTime > 0) {
