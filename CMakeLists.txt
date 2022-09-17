@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 include(cmake/openvr.cmake)
 find_package(SDL2 REQUIRED)
+set(GLEW_USE_STATIC_LIBS "TRUE")
 find_package(GLEW REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
@@ -28,13 +29,12 @@ add_executable(clekey_ovr
         src/input_method/EnglishInput.cpp
         )
 
-configure_file(resources/actions.json actions.json COPYONLY)
-configure_file(resources/bindings_oculus_touch.json bindings_oculus_touch.json COPYONLY)
-configure_file(resources/bindings_vive_controller.json bindings_vive_controller.json COPYONLY)
-configure_file(resources/fonts/NotoSansJP-Medium.otf fonts/NotoSansJP-Medium.otf COPYONLY)
-configure_file(resources/fonts/NotoEmoji-VariableFont_wght.ttf fonts/NotoEmoji-VariableFont_wght.ttf COPYONLY)
-configure_file(resources/fonts/NotoSansSymbols2-Regular.ttf fonts/NotoSansSymbols2-Regular.ttf COPYONLY)
+add_custom_command(TARGET clekey_ovr
+        POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/resources
+            $<TARGET_FILE_DIR:clekey_ovr>/resources)
 add_definitions(-DWITH_OPEN_VR)
+add_definitions(-DGLEW_STATIC)
 add_definitions(-DGL_SILENCE_DEPRECATION)
 link_openvr(clekey_ovr)
 include_directories(
@@ -46,10 +46,23 @@ include_directories(
 target_link_libraries(
         clekey_ovr
         ${SDL2_LIBRARIES}
-        GLEW::GLEW
+        GLEW::glew_s
         Freetype::Freetype
         ${OPENGL_LIBRARIES}
 )
+
+install(TARGETS clekey_ovr RUNTIME DESTINATION .)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources DESTINATION resources)
+# freetype
+list(GET FREETYPE_LIBRARIES 0 FREETYPE_LIBRARY)
+get_filename_component(FREETYPE_DIRNAME ${FREETYPE_LIBRARY} DIRECTORY)
+install(FILES ${FREETYPE_DIRNAME}/freetype.dll DESTINATION .)
+# openvr
+install(FILES ${OPENVR_SHARED_LIBRARIES} DESTINATION .)
+# SDL2
+list(GET SDL2_LIBRARIES 0 SDL2_LIBRARY)
+get_filename_component(SDL2_DIRNAME "${SDL2_LIBRARY}" DIRECTORY)
+install(FILES ${SDL2_DIRNAME}/SDL2.dll DESTINATION .)
 
 add_executable(freetype_test src/freetype_test.cpp)
 target_link_libraries(freetype_test Freetype::Freetype)

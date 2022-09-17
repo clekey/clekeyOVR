@@ -4,7 +4,6 @@
  - openvr_api.dll
  - SDL2.dll
  - freetype.dll
- - glew32.dll
 3. copy resources
 4. zip them
 5. it's time to distribute

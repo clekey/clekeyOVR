@@ -1,5 +1,5 @@
 
-function(link_openvr target)
+macro(link_openvr target)
     set(SIZEOF_VOIDP ${CMAKE_SIZEOF_VOID_P})
     if((NOT APPLE) AND (CMAKE_SIZEOF_VOID_P EQUAL 8))
         #64-bit not available in Mac.
@@ -28,6 +28,7 @@ function(link_openvr target)
     endif()
 
     set(OPENVR_LIBRARY_DIR "openvr/lib/${OPENVR_PLATFORM_NAME}${OPENVR_ARCH_NAME}${OPENVR_PROCESSOR_ARCH}")
+    set(OPENVR_SHARED_LIBRARIES "openvr/bin/${OPENVR_PLATFORM_NAME}${OPENVR_ARCH_NAME}${OPENVR_PROCESSOR_ARCH}/${CMAKE_SHARED_LIBRARY_PREFIX}openvr_api${CMAKE_SHARED_LIBRARY_SUFFIX}")
     target_link_directories(${target} PUBLIC ${OPENVR_LIBRARY_DIR})
 
     if(${OPENVR_PLATFORM_NAME} STREQUAL "win")
@@ -37,4 +38,4 @@ function(link_openvr target)
     endif()
 
     target_include_directories(${target} PRIVATE "openvr/headers")
-endfunction()
+endmacro()
