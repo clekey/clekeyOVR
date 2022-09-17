@@ -82,6 +82,7 @@ set(CPACK_PACKAGE_VERSION_MINOR 1)
 set(CPACK_PACKAGE_VERSION_PATCH 0)
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "clekey_ovr")
 set(CPACK_PACKAGE_DESCRIPTION "clekey, an experimental VR keyboard, implementation for OpenVR.")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/for-releasing/LICENSE.txt")
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
     ExecWait '$INSTDIR\\\\vc_redist.x64.exe'
 ")
