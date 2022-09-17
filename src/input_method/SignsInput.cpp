@@ -8,21 +8,21 @@ using namespace std::string_literals;
 
 InputNextAction SignsInput::onInput(glm::i8vec2 chars) {
   switch (to64(chars.x, chars.y)) {
-    case to64(6, 5):
+    case to64(5, 6):
       return InputNextAction::CloseKeyboard;
+    case to64(5, 7):
+      return InputNextAction::NewLine;
     case to64(6, 6):
       return InputNextAction::RemoveLastChar;
     case to64(6, 7):
       buffer = ' ';
       return InputNextAction::FlushBuffer;
-    case to64(7, 5):
-      return InputNextAction::NewLine;
     case to64(7, 6):
       return InputNextAction::MoveToSignPlane;
     case to64(7, 7):
       return InputNextAction::MoveToNextPlane;
     default:
-      if (chars.x < 4 || (chars.x < 6 && chars.y < 6)) {
+      if (to64(chars.x, chars.y) <= to64(5, 3)) {
         buffer = table[chars.x * 8 + chars.y];
         return InputNextAction::FlushBuffer;
       } else {
@@ -36,13 +36,13 @@ InputNextAction SignsInput::onInput(glm::i8vec2 chars) {
 
 SignsInput::SignsInput() {
   table = {
-      u8"(", u8"[", u8"{", u8"<", u8"/", u8";", u8"-", u8"_",
-      u8")", u8"]", u8"}", u8">", u8"\\", u8":", u8"+", u8"=",
-      u8"“", u8".", u8"?", u8"1", u8"2", u8"3", u8"4", u8"5",
-      u8"‘", u8",", u8"!", u8"6", u8"7", u8"8", u8"9", u8"0",
-      u8"&", u8"*", u8"¥", u8"^", u8"%", u8"#", u8"", u8"",
-      u8"~", u8"`", u8"@", u8"$", u8"|", u8"€", u8"", u8"",
-      u8"", u8"", u8"", u8"", u8"", u8"Close", BackspaceIcon, SpaceIcon,
-      u8"", u8"", u8"", u8"", u8"", ReturnSign, SignsIcon, NextPlaneIcon,
+      u8"(", u8")", u8"[", u8"]", u8"{", u8"}", u8"<", u8">",
+      u8"/", u8"\\", u8";",  u8":", u8"-", u8"+", u8"_", u8"=",
+      u8"\"", u8"'", u8"#", u8"1", u8"2", u8"3", u8"4", u8"5",
+      u8".", u8",", u8"!", u8"6", u8"7", u8"8", u8"9", u8"0",
+      u8"&", u8"*", u8"¥", u8"€", u8"^", u8"%", u8"!", u8"?",
+      u8"~", u8"`", u8"@", u8"|", u8"", u8"", u8"Close", ReturnSign,
+      u8"", u8"", u8"", u8"", u8"", u8"", BackspaceIcon, SpaceIcon,
+      u8"", u8"", u8"", u8"", u8"", u8"", SignsIcon, NextPlaneIcon,
   };
 }
