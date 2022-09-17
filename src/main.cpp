@@ -303,7 +303,7 @@ bool KeyboardManager::doInput(glm::ivec2 key) {
 int glmain(SDL_Window *window) {
   Application application;
 
-  static const Uint32 interval = 1000 / 90;
+  static const Uint32 interval = 1000 / 30;
   static Uint32 nextTime = SDL_GetTicks() + interval;
 
   for (;;) {
