@@ -11,6 +11,7 @@
 #include "glm/gtc/constants.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtx/vector_angle.hpp"
+#include "global.h"
 
 void handle_input_err(vr::EVRInputError error) {
   if (error != vr::VRInputError_None) {
@@ -64,7 +65,7 @@ inline vr::HmdMatrix34_t toVR(const glm::mat4x3 &mat) {
 }
 
 OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-init)
-  std::filesystem::path path = std::filesystem::current_path() / "actions.json";
+  std::filesystem::path path = getResourcesDir() / "actions.json";
 
   handle_input_err(vr::VRInput()->SetActionManifestPath(path.string().c_str()));
 

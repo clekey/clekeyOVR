@@ -4,6 +4,7 @@
 
 #include "MainGuiRenderer.h"
 #include "glutil.h"
+#include "../global.h"
 #include <array>
 #include <filesystem>
 
@@ -66,7 +67,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   auto cursorCircleRenderer = CursorCircleRenderer::create();
 
   std::cout << "loading fonts" << std::endl;
-  for (const auto &entry: std::filesystem::directory_iterator("./fonts")) {
+  for (const auto &entry: std::filesystem::directory_iterator(getResourcesDir() / "fonts")) {
     if (entry.path().extension() == ".otf" || entry.path().extension() == ".ttf") {
       ftRenderer->addFontType(entry.path().string().c_str());
       std::cout << "loaded font:" << entry.path() << std::endl;

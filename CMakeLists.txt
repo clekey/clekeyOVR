@@ -16,6 +16,7 @@ find_package(Freetype REQUIRED)
 
 add_executable(clekey_ovr
         src/main.cpp
+        src/global.cpp
         src/OVRController.cpp
         src/graphics/MainGuiRenderer.cpp
         src/graphics/DesktopGuiRenderer.cpp
