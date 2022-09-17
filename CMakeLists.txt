@@ -53,7 +53,7 @@ target_link_libraries(
 )
 
 install(TARGETS clekey_ovr RUNTIME DESTINATION .)
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources DESTINATION resources)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources DESTINATION .)
 # freetype
 list(GET FREETYPE_LIBRARIES 0 FREETYPE_LIBRARY)
 get_filename_component(FREETYPE_DIRNAME ${FREETYPE_LIBRARY} DIRECTORY)
@@ -64,6 +64,28 @@ install(FILES ${OPENVR_SHARED_LIBRARIES} DESTINATION .)
 list(GET SDL2_LIBRARIES 0 SDL2_LIBRARY)
 get_filename_component(SDL2_DIRNAME "${SDL2_LIBRARY}" DIRECTORY)
 install(FILES ${SDL2_DIRNAME}/SDL2.dll DESTINATION .)
+# resources
+install(FILES ${CMAKE_SOURCE_DIR}/README.md DESTINATION .)
+install(FILES ${CMAKE_SOURCE_DIR}/for-releasing/README-SDL.txt DESTINATION .)
+install(FILES ${CMAKE_SOURCE_DIR}/for-releasing/LICENSE.txt DESTINATION .)
+# vc++ installer
+file(DOWNLOAD "https://aka.ms/vs/17/release/vc_redist.x64.exe"  "${CMAKE_BINARY_DIR}/vc_redist.x64.exe")
+install(FILES "${CMAKE_BINARY_DIR}/vc_redist.x64.exe" DESTINATION .)
+
+
+# cpack configuration
+set(CPACK_GENERATOR NSIS)
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "clekey for OpenVR")
+SET(CPACK_PACKAGE_VENDOR "anatawa12")
+set(CPACK_PACKAGE_VERSION_MAJOR 0)
+set(CPACK_PACKAGE_VERSION_MINOR 1)
+set(CPACK_PACKAGE_VERSION_PATCH 0)
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "clekey_ovr")
+set(CPACK_PACKAGE_DESCRIPTION "clekey, an experimental VR keyboard, implementation for OpenVR.")
+set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+    ExecWait '$INSTDIR\\\\vc_redist.x64.exe'
+")
+include(CPack)
 
 add_executable(freetype_test src/freetype_test.cpp)
 target_link_libraries(freetype_test Freetype::Freetype)
