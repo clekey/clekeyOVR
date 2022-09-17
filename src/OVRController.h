@@ -31,6 +31,10 @@ enum class ButtonKind {
   SuspendInput,
 };
 
+enum class HardKeyButton {
+  CloseButton,
+};
+
 class OVRController {
 #ifdef WITH_OPEN_VR
   // input
@@ -78,6 +82,8 @@ public:
   ) const;
 
   [[nodiscard]] bool getButtonStatus(ButtonKind kind) const;
+
+  [[nodiscard]] bool isClickStarted(HardKeyButton kind) const;
 
   OVRController(const OVRController &) = delete;
 

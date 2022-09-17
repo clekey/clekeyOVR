@@ -295,6 +295,24 @@ bool OVRController::getButtonStatus(ButtonKind kind) const {
   return digital_data.bState;
 }
 
+bool OVRController::isClickStarted(HardKeyButton kind) const {
+  vr::VRActionHandle_t handle;
+
+  switch (kind) {
+    case HardKeyButton::CloseButton:
+      handle = action_waiting_begin_input;
+      break;
+  }
+
+  vr::InputDigitalActionData_t digital_data = {};
+  handle_input_err(vr::VRInput()->GetDigitalActionData(
+      handle,
+      &digital_data, sizeof(digital_data),
+      vr::k_ulInvalidInputValueHandle));
+
+  return digital_data.bState && digital_data.bChanged;
+}
+
 #else
 
 // no openVR

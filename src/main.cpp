@@ -68,6 +68,7 @@ bool init_gl(SDL_Window *window) {
 }
 
 class KeyboardManager {
+  OVRController *ovr_controller;
   std::unique_ptr<IInputMethod> signInput;
   size_t index;
   std::vector<std::unique_ptr<IInputMethod>> methods;
@@ -75,11 +76,13 @@ class KeyboardManager {
 public:
   KeyboardStatus status;
 
-  KeyboardManager();
+  KeyboardManager(OVRController *ovr_controller);
 
   void flush() const;
 
   bool tick();
+
+  bool doInput(glm::ivec2 key);
 
   void swapSignInput() {
     std::swap(signInputPtr, status.method);
@@ -92,7 +95,8 @@ public:
   }
 };
 
-KeyboardManager::KeyboardManager() :
+KeyboardManager::KeyboardManager(OVRController *ovr_controller) :
+    ovr_controller(ovr_controller),
     signInput(std::make_unique<SignsInput>()),
     index(0),
     methods{},
@@ -107,11 +111,13 @@ class Application {
 #ifndef NDEBUG
   std::unique_ptr<DesktopGuiRenderer> desktop_renderer;
 #endif
-  OVRController ovr_controller;
+  std::unique_ptr<OVRController> ovr_controller;
   gl::Texture2D circleTextures[2];
   gl::Texture2D centerTexture;
   KeyboardManager keyboard;
   AppStatus status;
+
+  void setStatus(AppStatus status);
 
   bool SDLTick();
 
@@ -144,9 +150,10 @@ Application::Application() :
 #ifndef NDEBUG
     desktop_renderer(DesktopGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
 #endif
-    ovr_controller(),
+    ovr_controller(new OVRController()),
     circleTextures{makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT), makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT)},
     centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
+    keyboard(ovr_controller.get()),
     status(AppStatus::Waiting) {}
 
 bool Application::tick() {
@@ -183,27 +190,27 @@ bool Application::SDLTick() {
 }
 
 void Application::waitingTick() {
-  ovr_controller.setActiveActionSet({ActionSetKind::Waiting});
-  ovr_controller.hideOverlays();
-  if (ovr_controller.getButtonStatus(ButtonKind::BeginInput))
-    status = AppStatus::Inputting;
+  ovr_controller->setActiveActionSet({ActionSetKind::Waiting});
+  ovr_controller->hideOverlays();
+  if (ovr_controller->isClickStarted(HardKeyButton::CloseButton))
+    setStatus(AppStatus::Inputting);
 }
 
 void Application::inputtingTick() {
-  ovr_controller.setActiveActionSet({ActionSetKind::Suspender, ActionSetKind::Input});
-  ovr_controller.update_status(keyboard.status);
+  ovr_controller->setActiveActionSet({ActionSetKind::Suspender, ActionSetKind::Input, ActionSetKind::Waiting});
+  ovr_controller->update_status(keyboard.status);
 
   main_renderer->drawRing(keyboard.status, LeftRight::Left, true, circleTextures[LeftRight::Left]);
-  ovr_controller.set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
+  ovr_controller->set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
 
   main_renderer->drawRing(keyboard.status, LeftRight::Right, false, circleTextures[LeftRight::Right]);
-  ovr_controller.set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
+  ovr_controller->set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
 
   if (keyboard.status.method->getBuffer().length()) {
     main_renderer->drawCenter(keyboard.status, centerTexture);
-    ovr_controller.setCenterTexture(centerTexture.expose());
+    ovr_controller->setCenterTexture(centerTexture.expose());
   } else {
-    ovr_controller.closeCenterOverlay();
+    ovr_controller->closeCenterOverlay();
   }
 
   //export_as_bmp(main_renderer.dest_texture, 0);
@@ -216,17 +223,21 @@ void Application::inputtingTick() {
 #endif
 
   if (keyboard.tick()) {
-    status = AppStatus::Waiting;
-  } else if (ovr_controller.getButtonStatus(ButtonKind::SuspendInput)) {
-    status = AppStatus::Suspending;
+    setStatus(AppStatus::Waiting);
+  } else if (ovr_controller->getButtonStatus(ButtonKind::SuspendInput)) {
+    setStatus(AppStatus::Suspending);
   }
 }
 
 void Application::suspendingTick() {
-  ovr_controller.setActiveActionSet({ActionSetKind::Suspender});
-  ovr_controller.hideOverlays();
-  if (!ovr_controller.getButtonStatus(ButtonKind::SuspendInput))
-    status = AppStatus::Inputting;
+  ovr_controller->setActiveActionSet({ActionSetKind::Suspender});
+  ovr_controller->hideOverlays();
+  if (!ovr_controller->getButtonStatus(ButtonKind::SuspendInput))
+    setStatus(AppStatus::Inputting);
+}
+
+void Application::setStatus(AppStatus value) {
+  status = value;
 }
 
 void KeyboardManager::flush() const {
@@ -239,43 +250,52 @@ void KeyboardManager::flush() const {
 bool KeyboardManager::tick() {
   if ((status.left.clickStarted() || status.right.clickStarted())
       && status.left.selection != -1 && status.right.selection != -1) {
-    auto action = status.method->onInput({status.left.selection, status.right.selection});
-    switch (action) {
-      case InputNextAction::Nop:
-        // nop
-        break;
-      case InputNextAction::MoveToNextPlane:
-        flush();
-        moveToNextKeyboard();
-        break;
-      case InputNextAction::MoveToSignPlane:
-        flush();
-        swapSignInput();
-        break;
-      case InputNextAction::FlushBuffer:
-        flush();
-        break;
-      case InputNextAction::RemoveLastChar:
+    if (doInput({status.left.selection, status.right.selection}))
+      return true;
+  }
+  if (ovr_controller->isClickStarted(HardKeyButton::CloseButton))
+    if (doInput({5, 6}))
+      return true;
+  return false;
+}
+
+bool KeyboardManager::doInput(glm::ivec2 key) {
+  auto action = status.method->onInput(key);
+  switch (action) {
+    case InputNextAction::Nop:
+      // nop
+      break;
+    case InputNextAction::MoveToNextPlane:
+      flush();
+      moveToNextKeyboard();
+      break;
+    case InputNextAction::MoveToSignPlane:
+      flush();
+      swapSignInput();
+      break;
+    case InputNextAction::FlushBuffer:
+      flush();
+      break;
+    case InputNextAction::RemoveLastChar:
 #ifdef WIN32
-        std::cout << "simulate backspace" << std::endl;
+      std::cout << "simulate backspace" << std::endl;
         keybd_event(VK_BACK, 0, 0, 0);
         keybd_event(VK_BACK, 0, KEYEVENTF_KEYUP, 0);
 #endif
-        std::cout << "RemoveLastChar" << std::endl;
-        break;
-      case InputNextAction::CloseKeyboard:
-        flush();
-        return true; // TODO: just close overlay and wait for request to open
-      case InputNextAction::NewLine:
-        flush();
+      std::cout << "RemoveLastChar" << std::endl;
+      break;
+    case InputNextAction::CloseKeyboard:
+      flush();
+      return true; // TODO: just close overlay and wait for request to open
+    case InputNextAction::NewLine:
+      flush();
 #ifdef WIN32
-        std::cout << "simulate return" << std::endl;
+      std::cout << "simulate return" << std::endl;
         keybd_event(VK_RETURN, 0, 0, 0);
         keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
 #endif
-        std::cout << "RemoveLastChar" << std::endl;
-        break;
-    }
+      std::cout << "RemoveLastChar" << std::endl;
+      break;
   }
   return false;
 }
