@@ -91,12 +91,6 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
       vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.right", "clekey-ovr right", &overlay_handles[1]));
   handle_overlay_err(
       vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.center", "clekey-ovr center", &overlay_handles[2]));
-  for (auto &overlay_handle: overlay_handles) {
-    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, .3);
-    vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
-  }
-  vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], .5);
-  vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
 
   std::cout << "action_left_stick:          " << action_input_left_stick << std::endl;
   std::cout << "action_left_click:          " << action_input_left_click << std::endl;
@@ -111,16 +105,22 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "action_set_suspender:       " << action_set_suspender << std::endl;
 
   {
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[0], .3);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handles[0], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[0],
         vr::k_unTrackedDeviceIndex_Hmd,
         asPtr(toVR(overlayPositionMatrix(+6.0885f, -18.3379f, 1.5f))));
 
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[1], .3);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handles[1], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[1],
         vr::k_unTrackedDeviceIndex_Hmd,
         asPtr(toVR(overlayPositionMatrix(-6.0885f, -18.3379f, 1.5f))));
 
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], .5);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[2],
         vr::k_unTrackedDeviceIndex_Hmd,
