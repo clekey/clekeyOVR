@@ -144,9 +144,9 @@ void loadOverlayPositionConfig(vr::VROverlayHandle_t handle, const OverlayPositi
 }
 
 void OVRController::loadConfig(const CleKeyConfig &config) {
-  loadOverlayPositionConfig(overlay_handles[0], config.leftRing);
-  loadOverlayPositionConfig(overlay_handles[1], config.rightRing);
-  loadOverlayPositionConfig(overlay_handles[2], config.completion);
+  loadOverlayPositionConfig(overlay_handles[0], config.leftRing.position);
+  loadOverlayPositionConfig(overlay_handles[1], config.rightRing.position);
+  loadOverlayPositionConfig(overlay_handles[2], config.completion.position);
 }
 
 int8_t computeAngle(const glm::vec2 &stick) {

@@ -51,11 +51,16 @@ void to_json(json &j, const CleKeyConfig &p) {
 OverlayPositionConfig::OverlayPositionConfig(float yaw, float pitch, float distance, float widthRadio, float alpha)
     : yaw(yaw), pitch(pitch), distance(distance), widthRadio(widthRadio), alpha(alpha) {}
 
-CleKeyConfig::CleKeyConfig():
-  leftRing{+6.0885f, -18.3379f, .75f, .2f, 1.0f},
-  rightRing{-6.0885f, -18.3379f, .75f, .2f, 1.0f},
-  completion{0.0f, -26.565f, .75f, .333f, 1.0f}
-{}
+CleKeyConfig::CleKeyConfig() :
+    leftRing{
+        .position = {+6.0885f, -18.3379f, .75f, .2f, 1.0f},
+    },
+    rightRing{
+        .position = {-6.0885f, -18.3379f, .75f, .2f, 1.0f},
+    },
+    completion{
+        .position = {0.0f, -26.565f, .75f, .333f, 1.0f},
+    } {}
 
 void from_json(const json &j, CleKeyConfig &p) {
   TRY_GET_TO(p, j, leftRing);
