@@ -105,27 +105,30 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "action_set_suspender:       " << action_set_suspender << std::endl;
 
   {
-    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[0], .15);
+    float distance;
+    distance = .75f;
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[0], distance * 0.2f);
     vr::VROverlay()->SetOverlayAlpha(overlay_handles[0], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[0],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix(+6.0885f, -18.3379f, .75f))));
+        asPtr(toVR(overlayPositionMatrix(+6.0885f, -18.3379f, distance))));
 
-    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[1], .15);
+    distance = .75f;
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[1], distance * 0.2f);
     vr::VROverlay()->SetOverlayAlpha(overlay_handles[1], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[1],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix(-6.0885f, -18.3379f, .75f))));
+        asPtr(toVR(overlayPositionMatrix(-6.0885f, -18.3379f, distance))));
 
-    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], .25);
+    distance = .75f;
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], distance * 0.333f);
     vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[2],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix(0.0f, -26.565f, .75f))));
-        //asPtr(toVR(overlayPositionMatrix({0.0f, -0.75f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(0.0f, -26.565f, distance))));
   }
 
   std::cout << "successfully launched" << std::endl;
