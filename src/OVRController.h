@@ -14,6 +14,7 @@
 #include "GL/glew.h"
 #include "glm/vec2.hpp"
 #include "AppStatus.h"
+#include "Config.h"
 #include <vector>
 
 bool init_ovr();
@@ -58,6 +59,8 @@ class OVRController {
 #endif
 public:
   OVRController();
+
+  void loadConfig(const CleKeyConfig &config);
 
   void setActiveActionSet(std::vector<ActionSetKind> kinds) const;
 

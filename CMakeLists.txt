@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.11)
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 
@@ -14,10 +14,15 @@ set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 find_package(Freetype REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 add_executable(clekey_ovr
         src/main.cpp
         src/global.cpp
         src/OVRController.cpp
+        src/Config.cpp
         src/graphics/MainGuiRenderer.cpp
         src/graphics/DesktopGuiRenderer.cpp
         src/graphics/bmp_export.cpp
@@ -50,6 +55,7 @@ target_link_libraries(
         GLEW::glew_s
         Freetype::Freetype
         ${OPENGL_LIBRARIES}
+        nlohmann_json::nlohmann_json
 )
 
 install(TARGETS clekey_ovr RUNTIME DESTINATION .)

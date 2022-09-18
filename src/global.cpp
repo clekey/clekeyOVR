@@ -13,6 +13,10 @@ std::filesystem::path computeExePath() {
   return std::filesystem::path(path);
 }
 
+std::filesystem::path computeConfigDir() {
+  return std::filesystem::path(_wgetenv(L"APPDATA")) / "clekey_ovr";
+}
+
 }
 
 std::filesystem::path getExePath() {
@@ -27,5 +31,10 @@ std::filesystem::path getExeDir() {
 
 std::filesystem::path getResourcesDir() {
   static std::filesystem::path path = getExeDir() / "resources";
+  return path;
+}
+
+std::filesystem::path getConfigDir() {
+  static std::filesystem::path path = computeConfigDir();
   return path;
 }

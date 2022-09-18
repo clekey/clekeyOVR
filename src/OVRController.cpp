@@ -134,6 +134,21 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "successfully launched" << std::endl;
 }
 
+void loadOverlayPositionConfig(vr::VROverlayHandle_t handle, const OverlayPositionConfig &config) {
+  vr::VROverlay()->SetOverlayWidthInMeters(handle, config.distance * config.widthRadio);
+  vr::VROverlay()->SetOverlayAlpha(handle, config.alpha);
+  vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
+      handle,
+      vr::k_unTrackedDeviceIndex_Hmd,
+      asPtr(toVR(overlayPositionMatrix(config.yaw, config.pitch, config.distance))));
+}
+
+void OVRController::loadConfig(const CleKeyConfig &config) {
+  loadOverlayPositionConfig(overlay_handles[0], config.leftRing);
+  loadOverlayPositionConfig(overlay_handles[1], config.rightRing);
+  loadOverlayPositionConfig(overlay_handles[2], config.completion);
+}
+
 int8_t computeAngle(const glm::vec2 &stick) {
   float angleF = -std::atan2(stick.y, stick.x) / (glm::pi<float>() / 4);
   auto angle = int8_t(std::round(angleF));
