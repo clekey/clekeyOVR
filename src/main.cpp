@@ -10,6 +10,7 @@
 #include "input_method/JapaneseInput.h"
 #include "input_method/SignsInput.h"
 #include "input_method/EnglishInput.h"
+#include "Config.h"
 
 #define WINDOW_CAPTION "clekeyOVR"
 #define WINDOW_HEIGHT 1024
@@ -107,6 +108,7 @@ KeyboardManager::KeyboardManager(OVRController *ovr_controller) :
 }
 
 class Application {
+  CleKeyConfig config;
   std::unique_ptr<MainGuiRenderer> main_renderer;
 #ifndef NDEBUG
   std::unique_ptr<DesktopGuiRenderer> desktop_renderer;
@@ -146,6 +148,7 @@ gl::Texture2D makeTexture(GLsizei width, GLsizei height) {
 }
 
 Application::Application() :
+    config(),
     main_renderer(MainGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
 #ifndef NDEBUG
     desktop_renderer(DesktopGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
@@ -154,7 +157,10 @@ Application::Application() :
     circleTextures{makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT), makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT)},
     centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
     keyboard(ovr_controller.get()),
-    status(AppStatus::Waiting) {}
+    status(AppStatus::Waiting) {
+  loadConfig(config);
+  ovr_controller->loadConfig(config);
+}
 
 bool Application::tick() {
   if (SDLTick()) return true;

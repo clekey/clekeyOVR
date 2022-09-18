@@ -45,13 +45,12 @@ const T *asPtr(const T &value) {
   return &value;
 }
 
-glm::mat4x3 overlayPositionMatrix(glm::vec3 position) {
-  auto axis = glm::normalize(glm::cross(position, {0.0f, 0.0f, -1.0f}));
-  auto angle = -glm::orientedAngle(glm::normalize(position), {0.0f, 0.0f, -1.0f}, axis);
+glm::mat4x3 overlayPositionMatrix(float yaw, float pitch, float distance) {
+  auto matrix = glm::mat4x4(1);
 
-  glm::mat4x4 matrix = glm::mat4x4(1);
-  matrix = angle == 0 ? matrix : glm::rotate(matrix, angle, axis);;
-  matrix = glm::translate(matrix, {0.0f, 0.0f, -1.5f});
+  matrix = glm::rotate(matrix, glm::radians(yaw), {0, 1, 0});
+  matrix = glm::rotate(matrix, glm::radians(pitch), {1, 0, 0});
+  matrix = glm::translate(matrix, {0, 0, -distance});
 
   return matrix;
 }
@@ -92,12 +91,6 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
       vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.right", "clekey-ovr right", &overlay_handles[1]));
   handle_overlay_err(
       vr::VROverlay()->CreateOverlay("com.anatawa12.clekey-ovr.center", "clekey-ovr center", &overlay_handles[2]));
-  for (auto &overlay_handle: overlay_handles) {
-    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handle, .3);
-    vr::VROverlay()->SetOverlayAlpha(overlay_handle, 1.0);
-  }
-  vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], .5);
-  vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
 
   std::cout << "action_left_stick:          " << action_input_left_stick << std::endl;
   std::cout << "action_left_click:          " << action_input_left_click << std::endl;
@@ -112,23 +105,48 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
   std::cout << "action_set_suspender:       " << action_set_suspender << std::endl;
 
   {
+    float distance;
+    distance = .75f;
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[0], distance * 0.2f);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handles[0], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[0],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix({-0.16f, -0.5f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(+6.0885f, -18.3379f, distance))));
 
+    distance = .75f;
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[1], distance * 0.2f);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handles[1], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[1],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix({+0.16f, -0.5f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(-6.0885f, -18.3379f, distance))));
 
+    distance = .75f;
+    vr::VROverlay()->SetOverlayWidthInMeters(overlay_handles[2], distance * 0.333f);
+    vr::VROverlay()->SetOverlayAlpha(overlay_handles[2], 1.0);
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[2],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix({0.0f, -0.75f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(0.0f, -26.565f, distance))));
   }
 
   std::cout << "successfully launched" << std::endl;
+}
+
+void loadOverlayPositionConfig(vr::VROverlayHandle_t handle, const OverlayPositionConfig &config) {
+  vr::VROverlay()->SetOverlayWidthInMeters(handle, config.distance * config.widthRadio);
+  vr::VROverlay()->SetOverlayAlpha(handle, config.alpha);
+  vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
+      handle,
+      vr::k_unTrackedDeviceIndex_Hmd,
+      asPtr(toVR(overlayPositionMatrix(config.yaw, config.pitch, config.distance))));
+}
+
+void OVRController::loadConfig(const CleKeyConfig &config) {
+  loadOverlayPositionConfig(overlay_handles[0], config.leftRing);
+  loadOverlayPositionConfig(overlay_handles[1], config.rightRing);
+  loadOverlayPositionConfig(overlay_handles[2], config.completion);
 }
 
 int8_t computeAngle(const glm::vec2 &stick) {

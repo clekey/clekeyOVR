@@ -10,5 +10,6 @@
 std::filesystem::path getExePath();
 std::filesystem::path getExeDir();
 std::filesystem::path getResourcesDir();
+std::filesystem::path getConfigDir();
 
 #endif //CLEKEY_OVR_GLOBAL_H
