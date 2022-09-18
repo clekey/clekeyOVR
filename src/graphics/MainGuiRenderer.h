@@ -21,10 +21,11 @@ public:
       const KeyboardStatus &status,
       LeftRight side,
       bool alwaysShowInCircle,
+      const RingOverlayConfig &config,
       gl::Texture2D &texture
   );
 
-  void drawCenter(const KeyboardStatus &status, gl::Texture2D &texture);
+  void drawCenter(const KeyboardStatus &status, const CompletionOverlayConfig &config, gl::Texture2D &texture);
 
   glm::ivec2 size;
 

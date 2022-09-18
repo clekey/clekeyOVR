@@ -206,14 +206,14 @@ void Application::inputtingTick() {
   ovr_controller->setActiveActionSet({ActionSetKind::Suspender, ActionSetKind::Input, ActionSetKind::Waiting});
   ovr_controller->update_status(keyboard.status);
 
-  main_renderer->drawRing(keyboard.status, LeftRight::Left, true, circleTextures[LeftRight::Left]);
+  main_renderer->drawRing(keyboard.status, LeftRight::Left, true, config.leftRing, circleTextures[LeftRight::Left]);
   ovr_controller->set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
 
-  main_renderer->drawRing(keyboard.status, LeftRight::Right, false, circleTextures[LeftRight::Right]);
+  main_renderer->drawRing(keyboard.status, LeftRight::Right, false, config.rightRing, circleTextures[LeftRight::Right]);
   ovr_controller->set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
 
   if (keyboard.status.method->getBuffer().length()) {
-    main_renderer->drawCenter(keyboard.status, centerTexture);
+    main_renderer->drawCenter(keyboard.status, config.completion, centerTexture);
     ovr_controller->setCenterTexture(centerTexture.expose());
   } else {
     ovr_controller->closeCenterOverlay();

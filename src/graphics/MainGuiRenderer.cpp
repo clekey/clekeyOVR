@@ -90,6 +90,7 @@ void MainGuiRenderer::drawRing(
     const KeyboardStatus &status,
     LeftRight side,
     bool alwaysShowInCircle,
+    const RingOverlayConfig &config,
     gl::Texture2D &texture
 ) {
   gl::Bind(frame_buffer);
@@ -105,21 +106,22 @@ void MainGuiRenderer::drawRing(
   int8_t selectingOpposite = status.getSelectingOfOppositeSide(side);
 
   auto stickPos = status.getStickPos(side);
-  glm::vec3 normalCharColor = {0.0, 0.0, 0.0};
-  glm::vec3 unSelectingCharColor = {0.5, 0.5, 0.5};
-  glm::vec3 selectingCharColor = {0.0, 0.0, 0.0};
 
-  backgroundRingRenderer->draw();
+  backgroundRingRenderer->draw(
+      {config.centerColor, 1},
+      {config.backgroundColor, 1},
+      {config.edgeColor, 1}
+  );
 
   int lineStep = side == LeftRight::Left ? 8 : 1;
   int lineLen = side == LeftRight::Left ? 1 : 8;
 
-  auto getColor = [=](int idx) {
+  auto getColor = [selectingCurrent, &config](int idx) {
     return selectingCurrent == -1
-           ? normalCharColor
+           ? config.normalCharColor
            : idx == selectingCurrent
-             ? selectingCharColor
-             : unSelectingCharColor;
+             ? config.selectingCharColor
+             : config.unSelectingCharColor;
   };
 
   if (alwaysShowInCircle || selectingOpposite == -1) {
@@ -150,12 +152,13 @@ void MainGuiRenderer::drawRing(
 
 void MainGuiRenderer::drawCenter(
     const KeyboardStatus &status,
+    const CompletionOverlayConfig &config,
     gl::Texture2D &texture
 ) {
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
   gl::Viewport(0, 0, size.x, size.y / 8);
-  gl::ClearColor(.188f, .345f, .749f, 1.0f);
+  gl::ClearColor(config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b, 1.0f);
   gl::Clear().Color().Depth();
   gl::Enable(gl::kBlend);
   gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
@@ -164,7 +167,7 @@ void MainGuiRenderer::drawCenter(
 
   glm::vec2 cursor{-1 + 1.0f / 8 / 2, -0.4f};
 
-  cursor.x = ftRenderer->addString(status.method->getBuffer(), cursor, {1, 0, 0}, fontSize);
+  cursor.x = ftRenderer->addString(status.method->getBuffer(), cursor, config.inputtingCharColor, fontSize);
 
   ftRenderer->doDraw();
 

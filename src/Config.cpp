@@ -11,6 +11,23 @@
 
 using json = nlohmann::basic_json<>;
 
+namespace nlohmann {
+template<typename T, glm::qualifier Q>
+struct adl_serializer<glm::vec<3, T, Q>> {
+  template<typename BasicJsonType>
+  static void to_json(BasicJsonType &j, const glm::vec<3, T, Q> &opt) {
+    j = {opt.x, opt.y, opt.z};
+  }
+
+  template<typename BasicJsonType>
+  static void from_json(const BasicJsonType &j, glm::vec<3, T, Q> &opt) {
+    opt.x = j.at(0);
+    opt.y = j.at(1);
+    opt.z = j.at(2);
+  }
+};
+}
+
 template<typename T>
 void tryGetTo(T &variable, json j, const typename json::object_t::key_type &key) {
   try {
@@ -40,6 +57,33 @@ void from_json(const json &j, OverlayPositionConfig &p) {
   TRY_GET_TO(p, j, alpha);
 }
 
+void to_json(json &j, const RingOverlayConfig &p) {
+  j = json{
+      {"position",        p.position},
+      {"centerColor",     p.centerColor},
+      {"backgroundColor", p.backgroundColor},
+      {"edgeColor",       p.edgeColor},
+  };
+}
+
+void from_json(const json &j, RingOverlayConfig &p) {
+  TRY_GET_TO(p, j, position);
+}
+
+void to_json(json &j, const CompletionOverlayConfig &p) {
+  j = json{
+      {"position",           p.position},
+      {"backgroundColor",    p.backgroundColor},
+      {"inputtingCharColor", p.inputtingCharColor},
+  };
+}
+
+void from_json(const json &j, CompletionOverlayConfig &p) {
+  TRY_GET_TO(p, j, position);
+  TRY_GET_TO(p, j, backgroundColor);
+  TRY_GET_TO(p, j, inputtingCharColor);
+}
+
 void to_json(json &j, const CleKeyConfig &p) {
   j = json{
       {"leftRing",   p.leftRing},
@@ -60,6 +104,8 @@ CleKeyConfig::CleKeyConfig() :
     },
     completion{
         .position = {0.0f, -26.565f, .75f, .333f, 1.0f},
+        .backgroundColor = {.188f, .345f, .749f},
+        .inputtingCharColor = {1, 0, 0},
     } {}
 
 void from_json(const json &j, CleKeyConfig &p) {
