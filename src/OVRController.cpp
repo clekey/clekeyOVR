@@ -45,13 +45,12 @@ const T *asPtr(const T &value) {
   return &value;
 }
 
-glm::mat4x3 overlayPositionMatrix(glm::vec3 position) {
-  auto axis = glm::normalize(glm::cross(position, {0.0f, 0.0f, -1.0f}));
-  auto angle = -glm::orientedAngle(glm::normalize(position), {0.0f, 0.0f, -1.0f}, axis);
+glm::mat4x3 overlayPositionMatrix(float yaw, float pitch, float distance) {
+  auto matrix = glm::mat4x4(1);
 
-  glm::mat4x4 matrix = glm::mat4x4(1);
-  matrix = angle == 0 ? matrix : glm::rotate(matrix, angle, axis);;
-  matrix = glm::translate(matrix, {0.0f, 0.0f, -1.5f});
+  matrix = glm::rotate(matrix, glm::radians(yaw), {0, 1, 0});
+  matrix = glm::rotate(matrix, glm::radians(pitch), {1, 0, 0});
+  matrix = glm::translate(matrix, {0, 0, -distance});
 
   return matrix;
 }
@@ -115,17 +114,18 @@ OVRController::OVRController() { // NOLINT(cppcoreguidelines-pro-type-member-ini
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[0],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix({-0.16f, -0.5f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(+6.0885f, -18.3379f, 1.5f))));
 
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[1],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix({+0.16f, -0.5f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(-6.0885f, -18.3379f, 1.5f))));
 
     vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
         overlay_handles[2],
         vr::k_unTrackedDeviceIndex_Hmd,
-        asPtr(toVR(overlayPositionMatrix({0.0f, -0.75f, -1.5f}))));
+        asPtr(toVR(overlayPositionMatrix(0.0f, -26.565f, 1.5f))));
+        //asPtr(toVR(overlayPositionMatrix({0.0f, -0.75f, -1.5f}))));
   }
 
   std::cout << "successfully launched" << std::endl;
