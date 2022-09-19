@@ -12,6 +12,8 @@ public:
   SignsInput();
 
   InputNextAction onInput(glm::i8vec2) override;
+
+  InputNextAction onHardInput(HardKeyButton) override;
 };
 
 

@@ -10,6 +10,7 @@
 #include "glm/glm.hpp"
 
 #include "../utf8.h"
+#include "HardKeyButton.h"
 #include <bitset>
 #include <concepts>
 
@@ -66,6 +67,8 @@ public:
   [[nodiscard]] virtual std::u8string getAndClearBuffer() = 0;
 
   virtual InputNextAction onInput(glm::i8vec2) = 0;
+
+  virtual InputNextAction onHardInput(HardKeyButton) = 0;
 
   virtual ~IInputMethod() = default;
 };

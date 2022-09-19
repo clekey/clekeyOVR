@@ -101,6 +101,13 @@ InputNextAction JapaneseInput::onInput(glm::i8vec2 chars) {
   return result;
 }
 
+InputNextAction JapaneseInput::onHardInput(HardKeyButton button) {
+  switch (button) {
+    case HardKeyButton::CloseButton:
+      return InputNextAction::CloseKeyboard;
+  }
+}
+
 #define DAKUTEN_ICON u8"\u2B1A\u3099"
 #define HANDAKUTEN_ICON u8"\u2B1A\u309a"
 

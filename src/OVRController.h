@@ -15,6 +15,7 @@
 #include "glm/vec2.hpp"
 #include "AppStatus.h"
 #include "Config.h"
+#include "input_method/HardKeyButton.h"
 #include <vector>
 
 bool init_ovr();
@@ -30,10 +31,6 @@ enum class ActionSetKind {
 enum class ButtonKind {
   BeginInput,
   SuspendInput,
-};
-
-enum class HardKeyButton {
-  CloseButton,
 };
 
 class OVRController {

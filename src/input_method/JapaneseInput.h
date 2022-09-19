@@ -14,6 +14,8 @@ public:
   [[nodiscard]] std::u8string getAndClearBuffer() override;
 
   InputNextAction onInput(glm::i8vec2) override;
+
+  InputNextAction onHardInput(HardKeyButton) override;
 };
 
 #endif //CLEKEY_OVR_JAPANESEINPUT_H

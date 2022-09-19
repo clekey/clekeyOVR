@@ -83,7 +83,7 @@ public:
 
   bool tick();
 
-  bool doInput(glm::ivec2 key);
+  bool doInputAction(InputNextAction);
 
   void swapSignInput() {
     std::swap(signInputPtr, status.method);
@@ -256,17 +256,17 @@ void KeyboardManager::flush() const {
 bool KeyboardManager::tick() {
   if ((status.left.clickStarted() || status.right.clickStarted())
       && status.left.selection != -1 && status.right.selection != -1) {
-    if (doInput({status.left.selection, status.right.selection}))
+    if (doInputAction(status.method->onInput({status.left.selection, status.right.selection})))
       return true;
   }
-  if (ovr_controller->isClickStarted(HardKeyButton::CloseButton))
-    if (doInput({5, 6}))
-      return true;
+  for (const auto item: HardKeyButtonValues)
+    if (ovr_controller->isClickStarted(item))
+      if (doInputAction(status.method->onHardInput(item)))
+        return true;
   return false;
 }
 
-bool KeyboardManager::doInput(glm::ivec2 key) {
-  auto action = status.method->onInput(key);
+bool KeyboardManager::doInputAction(InputNextAction action) {
   switch (action) {
     case InputNextAction::Nop:
       // nop
