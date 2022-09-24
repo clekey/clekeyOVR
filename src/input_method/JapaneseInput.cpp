@@ -80,6 +80,7 @@ InputNextAction JapaneseInput::onInput(glm::i8vec2 chars) {
       }
       break;
     case to64(6, 7):
+      if (buffer.empty()) result = InputNextAction::FlushBuffer;
       buffer += ' ';
       break;
     case to64(7, 6):
@@ -87,6 +88,17 @@ InputNextAction JapaneseInput::onInput(glm::i8vec2 chars) {
       break;
     case to64(7, 7):
       result = InputNextAction::MoveToNextPlane;
+      break;
+    case to64(2, 5):
+    case to64(2, 6):
+    case to64(2, 7):
+    case to64(3, 5):
+    case to64(3, 6):
+    case to64(3, 7):
+    case to64(6, 5):
+    case to64(7, 5):
+      if (buffer.empty()) result = InputNextAction::FlushBuffer;
+      buffer += table[chars.x * 8 + chars.y];
       break;
     default:
       buffer += table[chars.x * 8 + chars.y];
@@ -113,8 +125,8 @@ InputNextAction JapaneseInput::onHardInput(HardKeyButton button) {
 
 JapaneseInput::JapaneseInput() {
   table = {
-      u8"あ", u8"い", u8"う", u8"え", u8"お", u8"や", u8"ゆ", u8"よ",
-      u8"か", u8"き", u8"く", u8"け", u8"こ", u8"わ", u8"を", u8"ん",
+      u8"あ", u8"い", u8"う", u8"え", u8"お", u8"よ", u8"ゆ", u8"や",
+      u8"か", u8"き", u8"く", u8"け", u8"こ", u8"ん", u8"を", u8"わ",
       u8"さ", u8"し", u8"す", u8"せ", u8"そ", u8"「", u8"。", u8"?",
       u8"た", u8"ち", u8"つ", u8"て", u8"と", u8"」", u8"、", u8"!",
       u8"な", u8"に", u8"ぬ", u8"ね", u8"の", u8"小", DAKUTEN_ICON, HANDAKUTEN_ICON,
