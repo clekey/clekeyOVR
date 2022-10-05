@@ -119,8 +119,11 @@ name = "clekey-ovr-rs"
 version = "0.1.0"
 dependencies = [
  "glium",
+ "log",
  "openvr",
  "sdl2",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

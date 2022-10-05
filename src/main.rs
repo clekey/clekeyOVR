@@ -1,4 +1,8 @@
 mod sdl2_glium;
+mod ovr_controller;
+mod utils;
+mod config;
+mod global;
 
 use crate::sdl2_glium::DisplayBuild;
 use glium::backend::Facade;
