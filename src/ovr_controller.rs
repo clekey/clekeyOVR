@@ -1,8 +1,8 @@
+use crate::utils::{IntoStringLossy, ToCString};
+use openvr::overlay::OwnedInVROverlay;
+use openvr::{cstr, VRActionHandle_t, VRActionSetHandle_t, VRContext};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use openvr::{cstr, VRActionHandle_t, VRActionSetHandle_t, VRContext};
-use openvr::overlay::OwnedInVROverlay;
-use crate::utils::{IntoStringLossy, ToCString};
 
 pub struct OVRController {
     // input
@@ -45,24 +45,44 @@ impl OVRController {
 
         input.set_action_manifest_path(path.into_string_lossy().to_c_string().as_c_str())?;
 
-        let action_input_left_stick = input.get_action_handle(cstr!("/actions/input/in/left_stick"))?;
-        let action_input_left_click = input.get_action_handle(cstr!("/actions/input/in/left_click"))?;
-        let action_input_left_haptic = input.get_action_handle(cstr!("/actions/input/output/left_haptic"))?;
-        let action_input_right_stick = input.get_action_handle(cstr!("/actions/input/in/right_stick"))?;
-        let action_input_right_click = input.get_action_handle(cstr!("/actions/input/in/right_click"))?;
-        let action_input_right_haptic = input.get_action_handle(cstr!("/actions/input/output/right_haptic"))?;
+        let action_input_left_stick =
+            input.get_action_handle(cstr!("/actions/input/in/left_stick"))?;
+        let action_input_left_click =
+            input.get_action_handle(cstr!("/actions/input/in/left_click"))?;
+        let action_input_left_haptic =
+            input.get_action_handle(cstr!("/actions/input/output/left_haptic"))?;
+        let action_input_right_stick =
+            input.get_action_handle(cstr!("/actions/input/in/right_stick"))?;
+        let action_input_right_click =
+            input.get_action_handle(cstr!("/actions/input/in/right_click"))?;
+        let action_input_right_haptic =
+            input.get_action_handle(cstr!("/actions/input/output/right_haptic"))?;
         let action_set_input = input.get_action_handle(cstr!("/actions/input"))?;
 
-        let action_waiting_begin_input = input.get_action_handle(cstr!("/actions/waiting/in/begin_input"))?;
+        let action_waiting_begin_input =
+            input.get_action_handle(cstr!("/actions/waiting/in/begin_input"))?;
         let action_set_waiting = input.get_action_set_handle(cstr!("/actions/waiting"))?;
 
-        let action_suspender_suspender = input.get_action_handle(cstr!("/actions/suspender/in/suspender"))?;
+        let action_suspender_suspender =
+            input.get_action_handle(cstr!("/actions/suspender/in/suspender"))?;
         let action_set_suspender = input.get_action_set_handle(cstr!("/actions/suspender"))?;
 
         let overlay_handles = [
-            OwnedInVROverlay::new(overlay, cstr!("com.anatawa12.clekey-ovr.left"), cstr!("clekey-ovr left"))?,
-            OwnedInVROverlay::new(overlay, cstr!("com.anatawa12.clekey-ovr.right"), cstr!("clekey-ovr right"))?,
-            OwnedInVROverlay::new(overlay, cstr!("com.anatawa12.clekey-ovr.center"), cstr!("clekey-ovr center"))?,
+            OwnedInVROverlay::new(
+                overlay,
+                cstr!("com.anatawa12.clekey-ovr.left"),
+                cstr!("clekey-ovr left"),
+            )?,
+            OwnedInVROverlay::new(
+                overlay,
+                cstr!("com.anatawa12.clekey-ovr.right"),
+                cstr!("clekey-ovr right"),
+            )?,
+            OwnedInVROverlay::new(
+                overlay,
+                cstr!("com.anatawa12.clekey-ovr.center"),
+                cstr!("clekey-ovr center"),
+            )?,
         ];
 
         println!("action_left_stick:          {}", action_input_left_stick);
@@ -76,7 +96,6 @@ impl OVRController {
         println!("action_set_waiting:         {}", action_set_waiting);
         println!("action_suspender_suspender: {}", action_suspender_suspender);
         println!("action_set_suspender:       {}", action_set_suspender);
-
 
         Ok(OVRController {
             action_input_left_stick,

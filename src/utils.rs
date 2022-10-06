@@ -14,7 +14,8 @@ impl IntoStringLossy for PathBuf {
 
 impl IntoStringLossy for OsString {
     fn into_string_lossy(self) -> String {
-        self.into_string().unwrap_or_else(|x| x.to_string_lossy().into_owned())
+        self.into_string()
+            .unwrap_or_else(|x| x.to_string_lossy().into_owned())
     }
 }
 
@@ -28,3 +29,7 @@ impl ToCString for String {
         CString::new(self.as_bytes()).unwrap()
     }
 }
+
+pub type Vec2<F = f32> = [F; 2];
+pub type Vec3<F = f32> = [F; 3];
+pub type Vec4<F = f32> = [F; 4];

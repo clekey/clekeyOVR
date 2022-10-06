@@ -1,20 +1,21 @@
+use crate::global::get_config_dir;
+use crate::utils::{Vec3, Vec4};
 use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-use crate::global::get_config_dir;
 
 trait MergeSerialize {
     type PartialType;
     fn merge(&mut self, parital: Self::PartialType);
 }
 
-enum OptionalValue<T : MergeSerialize> {
+enum OptionalValue<T: MergeSerialize> {
     Value(T::PartialType),
     Omitted,
 }
 
-impl <T : MergeSerialize> OptionalValue<T> {
+impl<T: MergeSerialize> OptionalValue<T> {
     pub fn merge_value(self, target: &mut T) {
         if let OptionalValue::Value(partial) = self {
             MergeSerialize::merge(target, partial)
@@ -22,15 +23,20 @@ impl <T : MergeSerialize> OptionalValue<T> {
     }
 }
 
-impl <T: MergeSerialize> Default for OptionalValue<T> {
+impl<T: MergeSerialize> Default for OptionalValue<T> {
     fn default() -> Self {
         OptionalValue::Omitted
     }
 }
 
-impl <'de, T: MergeSerialize> serde::Deserialize<'de> for OptionalValue<T>
-    where T::PartialType: serde::Deserialize<'de> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
+impl<'de, T: MergeSerialize> serde::Deserialize<'de> for OptionalValue<T>
+where
+    T::PartialType: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
         serde::Deserialize::deserialize(deserializer).map(OptionalValue::Value)
     }
 }
@@ -38,10 +44,10 @@ impl <'de, T: MergeSerialize> serde::Deserialize<'de> for OptionalValue<T>
 macro_rules! merging_serde {
     (
         $(#[$attr: meta])*
-        struct $name: ident {
+        $access: vis struct $name: ident {
             $(
             $(#[$field_attr: meta])*
-            $field_name: ident: $field_type: ty
+            $field_vis: vis $field_name: ident: $field_type: ty
             ),*
             $(,)?
         }
@@ -49,7 +55,7 @@ macro_rules! merging_serde {
     ) => {
         $(#[$attr])*
         #[derive(serde::Serialize)]
-        struct $name {
+        $access struct $name {
             $( $(#[$field_attr])* $field_name: $field_type, )*
         }
 
@@ -60,7 +66,7 @@ macro_rules! merging_serde {
                 $(
                 $(#[$field_attr])*
                 #[serde(default)]
-                $field_name: OptionalValue<$field_type>,
+                $field_vis $field_name: OptionalValue<$field_type>,
                 )*
             }
 
@@ -78,11 +84,8 @@ macro_rules! merging_serde {
     () => {};
 }
 
-pub type Vec3 = [f32; 3];
-pub type Vec4 = [f32; 4];
-
 merging_serde! {
-    struct OverlayPositionConfig {
+    pub struct OverlayPositionConfig {
         // in degree
         yaw: f32,
         pitch: f32,
@@ -94,7 +97,7 @@ merging_serde! {
         alpha: f32,
     }
 
-    struct RingOverlayConfig {
+    pub struct RingOverlayConfig {
         position: OverlayPositionConfig,
         #[serde(rename="centerColor")]
         center_color: Vec4,
@@ -110,7 +113,7 @@ merging_serde! {
         selecting_char_color: Vec3,
     }
 
-    struct CompletionOverlayConfig {
+    pub struct CompletionOverlayConfig {
         position: OverlayPositionConfig,
         #[serde(rename="backgroundColor")]
         background_color: Vec3,
@@ -118,7 +121,7 @@ merging_serde! {
         inputting_char_color: Vec3,
     }
 
-    struct CleKeyConfig {
+    pub struct CleKeyConfig {
         #[serde(rename="leftRing")]
         left_ring: RingOverlayConfig,
         #[serde(rename="rightRing")]
@@ -162,7 +165,7 @@ fn load_config(config: &mut CleKeyConfig) {
 // the trait to simplify primitive values for MergeSerializable
 trait MergeSerializePrimitive {}
 
-impl <T : MergeSerializePrimitive> MergeSerialize for T {
+impl<T: MergeSerializePrimitive> MergeSerialize for T {
     type PartialType = T;
 
     #[inline(always)]

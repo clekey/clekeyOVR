@@ -1,18 +1,29 @@
-mod sdl2_glium;
-mod ovr_controller;
-mod utils;
+extern crate core;
+
 mod config;
 mod global;
+mod input_method;
+mod ovr_controller;
+mod sdl2_glium;
+mod utils;
 
+use crate::config::CleKeyConfig;
+use crate::input_method::IInputMethod;
+use crate::ovr_controller::OVRController;
 use crate::sdl2_glium::DisplayBuild;
+use crate::utils::Vec2;
 use glium::backend::Facade;
+use glium::framebuffer::{
+    DepthRenderBuffer, MultiOutputFrameBuffer, RenderBuffer, SimpleFrameBuffer,
+};
 use glium::texture::{DepthFormat, RawImage2d};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
 use glium::{implement_vertex, Program, Surface, VertexBuffer};
-use glium::framebuffer::{DepthRenderBuffer, MultiOutputFrameBuffer, RenderBuffer, SimpleFrameBuffer};
 use openvr::cstr;
-use sdl2::video::GLProfile;
 use openvr::overlay::OwnedInVROverlay;
+use sdl2::mouse::SystemCursor::Hand;
+use sdl2::video::GLProfile;
+use std::collections::VecDeque;
 
 const WINDOW_HEIGHT: u32 = 256;
 const WINDOW_WIDTH: u32 = 512;
@@ -44,17 +55,36 @@ fn main() {
         .set_action_manifest_path(cstr!(r"C:\Users\anata\clekey-ovr-build\actions.json"))
         .expect("");
 
-    let action_left_stick = input.get_action_handle(cstr!("/actions/input/in/left_stick")).expect("action left_stick not found");
-    let action_left_click = input.get_action_handle(cstr!("/actions/input/in/left_click")).expect("action left_click not found");
-    let action_left_haptic = input.get_action_handle(cstr!("/actions/input/in/left_haptic")).expect("action left_haptic not found");
-    let action_right_stick = input.get_action_handle(cstr!("/actions/input/in/right_stick")).expect("action right_stick not found");
-    let action_right_click = input.get_action_handle(cstr!("/actions/input/in/right_click")).expect("action right_click not found");
-    let action_right_haptic = input.get_action_handle(cstr!("/actions/input/in/right_haptic")).expect("action right_haptic not found");
+    let action_left_stick = input
+        .get_action_handle(cstr!("/actions/input/in/left_stick"))
+        .expect("action left_stick not found");
+    let action_left_click = input
+        .get_action_handle(cstr!("/actions/input/in/left_click"))
+        .expect("action left_click not found");
+    let action_left_haptic = input
+        .get_action_handle(cstr!("/actions/input/in/left_haptic"))
+        .expect("action left_haptic not found");
+    let action_right_stick = input
+        .get_action_handle(cstr!("/actions/input/in/right_stick"))
+        .expect("action right_stick not found");
+    let action_right_click = input
+        .get_action_handle(cstr!("/actions/input/in/right_click"))
+        .expect("action right_click not found");
+    let action_right_haptic = input
+        .get_action_handle(cstr!("/actions/input/in/right_haptic"))
+        .expect("action right_haptic not found");
     let action_set_input = input.get_action_set_handle(cstr!("/actions/input"));
 
-    let overlay_handle = OwnedInVROverlay::new(overlay, cstr!("com.anatawa12.clekey-ovr"), cstr!("clekey-ovr")).expect("create overlay");
+    let overlay_handle = OwnedInVROverlay::new(
+        overlay,
+        cstr!("com.anatawa12.clekey-ovr"),
+        cstr!("clekey-ovr"),
+    )
+    .expect("create overlay");
 
-    overlay_handle.set_overlay_width_in_meters(2.0).expect("overlay");
+    overlay_handle
+        .set_overlay_width_in_meters(2.0)
+        .expect("overlay");
     overlay_handle.set_overlay_alpha(1.0).expect("overlay");
 
     // gl main
@@ -62,32 +92,38 @@ fn main() {
     let shader_program = Program::from_source(
         &window,
         concat!(
-        "#version 330 core\n",
-        "layout(location = 0) in vec3 position;\n",
-        "layout(location = 1) in vec4 color;\n",
-        "out vec4 out_color;\n",
-        "void main() {\n",
-        "    gl_Position.xyz = position;\n",
-        "    out_color = color;\n",
-        "}\n",
+            "#version 330 core\n",
+            "layout(location = 0) in vec3 position;\n",
+            "layout(location = 1) in vec4 color;\n",
+            "out vec4 out_color;\n",
+            "void main() {\n",
+            "    gl_Position.xyz = position;\n",
+            "    out_color = color;\n",
+            "}\n",
         ),
         concat!(
-                "#version 330 core\n",
-                "in vec4 out_color;\n",
-                "",
-                "// Ouput data\n",
-                "layout(location = 0) out vec4 color;\n",
-                "\n",
-                "void main() {\n",
-                "    // Output color = red \n",
-                "    color = out_color;\n",
-        "}\n",
+            "#version 330 core\n",
+            "in vec4 out_color;\n",
+            "",
+            "// Ouput data\n",
+            "layout(location = 0) out vec4 color;\n",
+            "\n",
+            "void main() {\n",
+            "    // Output color = red \n",
+            "    color = out_color;\n",
+            "}\n",
         ),
         None,
-    ).expect("shader_err");
-    let dest_texture = glium::Texture2d::empty(&window, WINDOW_WIDTH, WINDOW_HEIGHT).expect("main texture creation");
-    let depth_buffer = DepthRenderBuffer::new(&window, DepthFormat::F32, WINDOW_WIDTH, WINDOW_HEIGHT).expect("depth buffer creation");
-    let mut frame_buffer = SimpleFrameBuffer::with_depth_buffer(&window, &dest_texture, &depth_buffer).expect("framebuffer creation");
+    )
+    .expect("shader_err");
+    let dest_texture = glium::Texture2d::empty(&window, WINDOW_WIDTH, WINDOW_HEIGHT)
+        .expect("main texture creation");
+    let depth_buffer =
+        DepthRenderBuffer::new(&window, DepthFormat::F32, WINDOW_WIDTH, WINDOW_HEIGHT)
+            .expect("depth buffer creation");
+    let mut frame_buffer =
+        SimpleFrameBuffer::with_depth_buffer(&window, &dest_texture, &depth_buffer)
+            .expect("framebuffer creation");
 
     let texture = {
         // for debugging, make a image
@@ -116,22 +152,93 @@ fn main() {
     }
     implement_vertex!(Vertex, position, color);
 
-    let vertexbuffer = VertexBuffer::new(&window, &[
-        Vertex { position: [-1.0, -1.0, 0.0], color: [1.0, 0.0, 0.0, 1.0] },
-        Vertex { position: [1.0, -1.0, 0.0], color: [0.0, 1.0, 0.0, 1.0] },
-        Vertex { position: [0.0, 1.0, 0.0], color: [0.0, 0.0, 1.0, 1.0] },
-    ]).expect("vertex buffer creation");
+    let vertexbuffer = VertexBuffer::new(
+        &window,
+        &[
+            Vertex {
+                position: [-1.0, -1.0, 0.0],
+                color: [1.0, 0.0, 0.0, 1.0],
+            },
+            Vertex {
+                position: [1.0, -1.0, 0.0],
+                color: [0.0, 1.0, 0.0, 1.0],
+            },
+            Vertex {
+                position: [0.0, 1.0, 0.0],
+                color: [0.0, 0.0, 1.0, 1.0],
+            },
+        ],
+    )
+    .expect("vertex buffer creation");
 
-    frame_buffer.draw(
-        &vertexbuffer,
-        glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-        &shader_program,
-        &glium::uniforms::EmptyUniforms,
-        &Default::default()
-    ).expect("draw");
+    frame_buffer
+        .draw(
+            &vertexbuffer,
+            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+            &shader_program,
+            &glium::uniforms::EmptyUniforms,
+            &Default::default(),
+        )
+        .expect("draw");
 
     let mut frame = window.draw();
     //frame.clear_color();
 
     println!("Hello, world!");
+}
+
+pub struct HandInfo {
+    stick: Vec2,
+    selection: i8,
+    selection_old: i8,
+
+    clicking: bool,
+    clicking_old: bool,
+}
+
+impl HandInfo {
+    pub fn new() -> Self {
+        Self {
+            stick: [0.0, 0.0],
+            selection: -1,
+            selection_old: -1,
+            clicking: false,
+            clicking_old: false,
+        }
+    }
+
+    fn click_started(&self) -> bool {
+        return self.clicking && !self.clicking_old;
+    }
+}
+
+pub struct KeyboardStatus {
+    left: HandInfo,
+    right: HandInfo,
+    method: Box<dyn IInputMethod>,
+}
+
+struct KeyboardManager<'ovr> {
+    ovr_controller: &'ovr OVRController,
+    sign_input: Box<dyn IInputMethod>,
+    methods: VecDeque<Box<dyn IInputMethod>>,
+    is_sign: bool,
+    status: KeyboardStatus,
+}
+
+impl<'ovr> KeyboardManager<'ovr> {
+    pub fn new(ovr: &'ovr OVRController, config: &CleKeyConfig) -> Self {
+        use input_method::*;
+        Self {
+            ovr_controller: ovr,
+            sign_input: Box::new(SignsInput::new()),
+            methods: VecDeque::from([Box::new(EnglishInput::new()) as Box<dyn IInputMethod>]),
+            is_sign: false,
+            status: KeyboardStatus {
+                left: HandInfo::new(),
+                right: HandInfo::new(),
+                method: Box::new(JapaneseInput::new()),
+            },
+        }
+    }
 }
