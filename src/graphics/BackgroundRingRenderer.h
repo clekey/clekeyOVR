@@ -14,7 +14,13 @@ class BackgroundRingRenderer {
 public:
   static std::unique_ptr<BackgroundRingRenderer> create();
 
-  void draw(SkSurface& surface, glm::vec4 centerColor, glm::vec4 backgroundColor, glm::vec4 edgeColor);
+  void draw(
+      SkCanvas *canvas,
+      SkPoint center,
+      float radius,
+      glm::vec4 centerColor,
+      glm::vec4 backgroundColor,
+      glm::vec4 edgeColor);
 };
 
 

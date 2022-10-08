@@ -86,7 +86,9 @@ void MainGuiRenderer::drawRing(
   auto stickPos = status.getStickPos(side);
 
   backgroundRingRenderer->draw(
-      surface,
+      surface.getCanvas(),
+      SkPoint {float(surface.width()) / 2, float(surface.height()) / 2},
+      float(surface.width()) / 2,
       {config.centerColor, 1},
       {config.backgroundColor, 1},
       {config.edgeColor, 1}

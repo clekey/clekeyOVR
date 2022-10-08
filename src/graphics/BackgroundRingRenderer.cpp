@@ -13,15 +13,13 @@ std::unique_ptr<BackgroundRingRenderer> BackgroundRingRenderer::create() {
 }
 
 void BackgroundRingRenderer::draw(
-    SkSurface& surface,
+    SkCanvas *canvas,
+    SkPoint center,
+    float radius,
     glm::vec4 centerColor,
     glm::vec4 backgroundColor,
     glm::vec4 edgeColor
 ) {
-  SkCanvas *canvas = surface.getCanvas();
-  auto center = SkPoint {float(surface.width()) / 2, float(surface.height()) / 2};
-  auto radius = float(surface.width()) / 2;
-
   auto edgeWidth = radius * 0.04f;
   auto backgroundRadius = radius - edgeWidth / 2;
 
