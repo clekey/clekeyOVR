@@ -5,12 +5,13 @@
 #ifndef CLEKEY_OVR_MAINGUIRENDERER_H
 #define CLEKEY_OVR_MAINGUIRENDERER_H
 
-#include <GL/glew.h>
-#include "oglwrap/oglwrap.h"
+#include <include/core/SkRefCnt.h>
+#include <include/core/SkSurface.h>
+
 #include "BackgroundRingRenderer.h"
-#include "CursorCircleRenderer.h"
+//#include "CursorCircleRenderer.h"
 #include "../OVRController.h"
-#include "FreetypeRenderer.h"
+//#include "FreetypeRenderer.h"
 #include "../AppStatus.h"
 
 class MainGuiRenderer {
@@ -22,19 +23,16 @@ public:
       LeftRight side,
       bool alwaysShowInCircle,
       const RingOverlayConfig &config,
-      gl::Texture2D &texture
+      SkSurface& surface
   );
 
-  void drawCenter(const KeyboardStatus &status, const CompletionOverlayConfig &config, gl::Texture2D &texture);
+  void drawCenter(const KeyboardStatus &status, const CompletionOverlayConfig &config, sk_sp<SkSurface> texture);
 
   glm::ivec2 size;
 
-  gl::Renderbuffer depth_buffer;
-  gl::Framebuffer frame_buffer;
-
   std::unique_ptr<BackgroundRingRenderer> backgroundRingRenderer;
-  std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
-  std::unique_ptr<FreetypeRenderer> ftRenderer;
+  //std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
+  //std::unique_ptr<FreetypeRenderer> ftRenderer;
 };
 
 #endif //CLEKEY_OVR_MAINGUIRENDERER_H

@@ -2,6 +2,7 @@
 // Created by anatawa12 on 8/11/22.
 //
 
+#include <include/core/SkCanvas.h>
 #include "MainGuiRenderer.h"
 #include "glutil.h"
 #include "../global.h"
@@ -27,6 +28,7 @@ inline std::array<glm::vec2, 8> calcOffsets(float size) {
   };
 }
 
+#if 0
 void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
                      std::function<std::pair<const std::u8string &, glm::vec3>(int)> getChar) {
   float fontSize = size * 0.4f;
@@ -40,48 +42,29 @@ void renderRingChars(FreetypeRenderer &renderer, glm::vec2 center, float size,
         CenteredMode::Both);
   }
 }
+#endif
 
 }
 
 std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
-  gl::Renderbuffer depth_buffer;
-  gl::Framebuffer frame_buffer;
-
-  gl::Bind(frame_buffer);
-
-  gl::Bind(depth_buffer);
-  depth_buffer.storage(gl::kDepthComponent, size.x, size.y);
-  frame_buffer.attachBuffer(gl::kDepthAttachment, depth_buffer);
-  //frame_buffer.attachTexture(gl::kColorAttachment0, dest_texture, 0);
-
-  gl::DrawBuffers({gl::kColorAttachment0});
-
-  gl::FramebufferStatus buffer_status = frame_buffer.status();
-  if (buffer_status != gl::kFramebufferComplete) {
-    std::cerr << "GL_FRAMEBUFFER mismatch: " << GLenum(buffer_status) << std::endl;
-  }
-  check_gl_err("rendered_texture generation");
-
-  auto ftRenderer = FreetypeRenderer::create();
+  //auto ftRenderer = FreetypeRenderer::create();
   auto backgroundRingRenderer = BackgroundRingRenderer::create();
-  auto cursorCircleRenderer = CursorCircleRenderer::create();
+  //auto cursorCircleRenderer = CursorCircleRenderer::create();
 
-  std::cout << "loading fonts" << std::endl;
-  for (const auto &entry: std::filesystem::directory_iterator(getResourcesDir() / "fonts")) {
-    if (entry.path().extension() == ".otf" || entry.path().extension() == ".ttf") {
-      ftRenderer->addFontType(entry.path().string().c_str());
-      std::cout << "loaded font:" << entry.path() << std::endl;
-    }
-  }
+  //std::cout << "loading fonts" << std::endl;
+  //for (const auto &entry: std::filesystem::directory_iterator(getResourcesDir() / "fonts")) {
+  //  if (entry.path().extension() == ".otf" || entry.path().extension() == ".ttf") {
+  //    ftRenderer->addFontType(entry.path().string().c_str());
+  //    std::cout << "loaded font:" << entry.path() << std::endl;
+  //  }
+  //}
 
   auto res = new MainGuiRenderer{
       .size = size,
-      .depth_buffer = std::move(depth_buffer),
-      .frame_buffer = std::move(frame_buffer),
 
       .backgroundRingRenderer = std::move(backgroundRingRenderer),
-      .cursorCircleRenderer = std::move(cursorCircleRenderer),
-      .ftRenderer = std::move(ftRenderer),
+      //.cursorCircleRenderer = std::move(cursorCircleRenderer),
+      //.ftRenderer = std::move(ftRenderer),
   };
   return std::unique_ptr<MainGuiRenderer>(res);
 }
@@ -91,16 +74,11 @@ void MainGuiRenderer::drawRing(
     LeftRight side,
     bool alwaysShowInCircle,
     const RingOverlayConfig &config,
-    gl::Texture2D &texture
+    SkSurface& surface
 ) {
-  gl::Bind(frame_buffer);
-  frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
-  gl::Viewport(0, 0, size.x, size.y);
-  gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  gl::Clear().Color().Depth();
-  gl::Enable(gl::kBlend);
-  gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
-
+  // clear to transparent
+  surface.getCanvas()->clear(SK_ColorTRANSPARENT);
+  check_gl_err("drawRing: clear");
 
   int8_t selectingCurrent = status.getSelectingOfCurrentSide(side);
   int8_t selectingOpposite = status.getSelectingOfOppositeSide(side);
@@ -108,11 +86,14 @@ void MainGuiRenderer::drawRing(
   auto stickPos = status.getStickPos(side);
 
   backgroundRingRenderer->draw(
+      surface,
       {config.centerColor, 1},
       {config.backgroundColor, 1},
       {config.edgeColor, 1}
   );
+  check_gl_err("drawRing: background");
 
+#if 0
   int lineStep = side == LeftRight::Left ? 8 : 1;
   int lineLen = side == LeftRight::Left ? 1 : 8;
 
@@ -148,13 +129,15 @@ void MainGuiRenderer::drawRing(
   gl::Unbind(frame_buffer);
 
   check_gl_err("main gui rendering");
+#endif
 }
 
 void MainGuiRenderer::drawCenter(
     const KeyboardStatus &status,
     const CompletionOverlayConfig &config,
-    gl::Texture2D &texture
+    sk_sp<SkSurface> texture
 ) {
+#if 0
   gl::Bind(frame_buffer);
   frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
   gl::Viewport(0, 0, size.x, size.y / 8);
@@ -174,4 +157,5 @@ void MainGuiRenderer::drawCenter(
   gl::Unbind(frame_buffer);
 
   check_gl_err("main gui rendering");
+#endif
 }

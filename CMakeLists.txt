@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.15)
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 
@@ -18,22 +18,39 @@ include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
+# skis should be built on chrome/m106 with
+# bin/gn gen out/Static --args='is_official_build=true is_debug=false skia_use_system_libjpeg_turbo=false skia_use_system_icu=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_system_harfbuzz=false skia_use_system_expat=false skia_use_gl=true'
+if(WIN32)
+    set(HOME_DIR "$ENV{USERPROFILE}")
+else()
+    set(HOME_DIR "$ENV{HOME}")
+endif()
+set(SKIA_DIR "${HOME_DIR}/buildskia/skia")
+set(SKIA_OUT_DIR "${SKIA_DIR}/out/Static")
+add_library(Skia::Skia STATIC IMPORTED)
+set_target_properties(Skia::Skia PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SKIA_DIR};${SKIA_DIR}/tools/sk_app")
+set_target_properties(Skia::Skia PROPERTIES IMPORTED_LOCATION "${SKIA_OUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}skia${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set_target_properties(Skia::Skia PROPERTIES INTERFACE_COMPILE_DEFINITIONS SK_GL)
+
 add_executable(clekey_ovr
         src/main.cpp
         src/global.cpp
         src/OVRController.cpp
         src/Config.cpp
         src/graphics/MainGuiRenderer.cpp
-        src/graphics/DesktopGuiRenderer.cpp
+#        src/graphics/DesktopGuiRenderer.cpp
         src/graphics/bmp_export.cpp
         src/graphics/BackgroundRingRenderer.cpp
-        src/graphics/CursorCircleRenderer.cpp
-        src/graphics/FreetypeRenderer.cpp
+#        src/graphics/CursorCircleRenderer.cpp
+#        src/graphics/FreetypeRenderer.cpp
         src/input_method/IInputMethod.cpp
         src/input_method/JapaneseInput.cpp
         src/input_method/SignsInput.cpp
         src/input_method/EnglishInput.cpp
         )
+
+#set_property(TARGET clekey_ovr PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set_property(TARGET clekey_ovr PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 add_custom_command(TARGET clekey_ovr
         POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -42,11 +59,12 @@ add_custom_command(TARGET clekey_ovr
 add_definitions(-DWITH_OPEN_VR)
 add_definitions(-DGLEW_STATIC)
 add_definitions(-DGL_SILENCE_DEPRECATION)
+add_definitions(-DNO_OGLWRAP=1)
 link_openvr(clekey_ovr)
 include_directories(
         ${SDL2_INCLUDE_DIRS}
-        ${OPENGL_INCLUDE_DIRS}
-        oglwrap
+#        ${OPENGL_INCLUDE_DIRS}
+#        oglwrap
         glm
 )
 target_link_libraries(
@@ -56,7 +74,9 @@ target_link_libraries(
         Freetype::Freetype
         ${OPENGL_LIBRARIES}
         nlohmann_json::nlohmann_json
+        Skia::Skia
 )
+
 
 install(TARGETS clekey_ovr RUNTIME DESTINATION .)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/resources DESTINATION .)

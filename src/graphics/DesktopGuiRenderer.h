@@ -5,8 +5,9 @@
 #ifndef CLEKEY_OVR_DESKTOPGUIRENDERER_H
 #define CLEKEY_OVR_DESKTOPGUIRENDERER_H
 
-#include <GL/glew.h>
-#include <oglwrap/oglwrap.h>
+//#include <GL/glew.h>
+#include <glm/glm.hpp>
+#include <memory>
 
 class DesktopGuiRenderer {
 public:
@@ -14,17 +15,17 @@ public:
 
   void preDraw();
 
-  void drawTexture(const gl::Texture2D &texture, glm::vec2 bottomLeft, glm::vec2 size);
+  //void drawTexture(const gl::Texture2D &texture, glm::vec2 bottomLeft, glm::vec2 size);
 
   glm::ivec2 size;
 
-  gl::Program shader_program;
-  gl::VertexAttrib posAttrib;
-  gl::Uniform<glm::vec2> uBottomLeft;
-  gl::Uniform<glm::vec2> uSize;
-  gl::UniformSampler texture_id;
-  gl::VertexArray vertex_array;
-  gl::ArrayBuffer vertex_buffer;
+  //gl::Program shader_program;
+  //gl::VertexAttrib posAttrib;
+  //gl::Uniform<glm::vec2> uBottomLeft;
+  //gl::Uniform<glm::vec2> uSize;
+  //gl::UniformSampler texture_id;
+  //gl::VertexArray vertex_array;
+  //gl::ArrayBuffer vertex_buffer;
 };
 
 

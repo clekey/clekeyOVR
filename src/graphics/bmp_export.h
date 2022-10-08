@@ -5,9 +5,8 @@
 #ifndef CLEKEY_OVR_BMP_EXPORT_H
 #define CLEKEY_OVR_BMP_EXPORT_H
 
-#include <GL/glew.h>
-#include <oglwrap/oglwrap.h>
+#include "../opengl.h"
 
-void export_as_bmp(gl::Texture2D &texture, GLint level);
+void export_as_bmp(GLuint texture, GLint level);
 
 #endif //CLEKEY_OVR_BMP_EXPORT_H
