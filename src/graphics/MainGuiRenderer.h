@@ -7,6 +7,7 @@
 
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTypeface.h>
 
 #include "BackgroundRingRenderer.h"
 //#include "CursorCircleRenderer.h"
@@ -31,6 +32,7 @@ public:
   glm::ivec2 size;
 
   std::unique_ptr<BackgroundRingRenderer> backgroundRingRenderer;
+  sk_sp<SkTypeface> face;
   //std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
   //std::unique_ptr<FreetypeRenderer> ftRenderer;
 };
