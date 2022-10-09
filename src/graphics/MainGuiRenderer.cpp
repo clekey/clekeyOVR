@@ -72,7 +72,7 @@ void renderRingChars(SkCanvas *canvas, sk_sp<SkTypeface> face, SkPoint center, f
 std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
   //auto ftRenderer = FreetypeRenderer::create();
   auto backgroundRingRenderer = BackgroundRingRenderer::create();
-  //auto cursorCircleRenderer = CursorCircleRenderer::create();
+  auto cursorCircleRenderer = CursorCircleRenderer::create();
 
   std::cout << "loading fonts" << std::endl;
   for (const auto &entry: std::filesystem::directory_iterator(getResourcesDir() / "fonts")) {
@@ -93,7 +93,7 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
 
       .backgroundRingRenderer = std::move(backgroundRingRenderer),
       .face = std::move(face),
-      //.cursorCircleRenderer = std::move(cursorCircleRenderer),
+      .cursorCircleRenderer = std::move(cursorCircleRenderer),
       //.ftRenderer = std::move(ftRenderer),
   };
   return std::unique_ptr<MainGuiRenderer>(res);
@@ -158,7 +158,7 @@ void MainGuiRenderer::drawRing(
                     });
   }
 
-  //cursorCircleRenderer->draw(stickPos);
+  cursorCircleRenderer->draw(surface.getCanvas(), center, radius, stickPos);
 
   SkPaint paint2;
   auto text = SkTextBlob::MakeFromString("Hello, Skia!", SkFont(face, 18));

@@ -10,7 +10,7 @@
 #include <include/core/SkTypeface.h>
 
 #include "BackgroundRingRenderer.h"
-//#include "CursorCircleRenderer.h"
+#include "CursorCircleRenderer.h"
 #include "../OVRController.h"
 //#include "FreetypeRenderer.h"
 #include "../AppStatus.h"
@@ -33,7 +33,7 @@ public:
 
   std::unique_ptr<BackgroundRingRenderer> backgroundRingRenderer;
   sk_sp<SkTypeface> face;
-  //std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
+  std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
   //std::unique_ptr<FreetypeRenderer> ftRenderer;
 };
 
