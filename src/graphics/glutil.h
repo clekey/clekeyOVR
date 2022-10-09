@@ -44,4 +44,8 @@ inline SkColor4f Color4fFromVec4(glm::vec4 color) {
   return SkColor4f{color.r, color.g, color.b, color.a};
 }
 
+inline SkColor4f Color4fFromVec3(glm::vec3 color) {
+  return SkColor4f{color.r, color.g, color.b, 1.0f};
+}
+
 #endif //CLEKEY_OVR_GLUTIL_H

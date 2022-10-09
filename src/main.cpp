@@ -273,7 +273,7 @@ void Application::inputtingTick() {
   main_renderer->drawRing(keyboard.status, LeftRight::Right, false, config.rightRing, *circleTextures[LeftRight::Right].surface);
 
   if (keyboard.status.method->getBuffer().length()) {
-    main_renderer->drawCenter(keyboard.status, config.completion, centerTexture.surface);
+    main_renderer->drawCenter(keyboard.status, config.completion, *centerTexture.surface);
   }
 
   check_gl_err("inputtingTick; after flush&submit");
@@ -308,7 +308,7 @@ void Application::inputtingTick() {
 
     canvas->drawImageRect(
         centerTexture.image,
-        SkRect::MakeXYWH(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT / 8.0f),
+        SkRect::MakeXYWH(0, WINDOW_HEIGHT / 2.0f, WINDOW_WIDTH, WINDOW_HEIGHT / 8.0f),
         SkSamplingOptions());
   }
 #endif

@@ -27,7 +27,7 @@ public:
       SkSurface& surface
   );
 
-  void drawCenter(const KeyboardStatus &status, const CompletionOverlayConfig &config, sk_sp<SkSurface> texture);
+  void drawCenter(const KeyboardStatus &status, const CompletionOverlayConfig &config, SkSurface& surface);
 
   glm::ivec2 size;
 

@@ -170,27 +170,17 @@ void MainGuiRenderer::drawRing(
 void MainGuiRenderer::drawCenter(
     const KeyboardStatus &status,
     const CompletionOverlayConfig &config,
-    sk_sp<SkSurface> texture
+    SkSurface& surface
 ) {
-#if 0
-  gl::Bind(frame_buffer);
-  frame_buffer.attachTexture(gl::kColorAttachment0, texture, 0);
-  gl::Viewport(0, 0, size.x, size.y / 8);
-  gl::ClearColor(config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b, 1.0f);
-  gl::Clear().Color().Depth();
-  gl::Enable(gl::kBlend);
-  gl::BlendFunc(gl::kSrcAlpha, gl::kOneMinusSrcAlpha);
+  auto canvas = surface.getCanvas();
+  canvas->clear(SkColor4f{config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b, 1.0f});
 
-  glm::vec2 fontSize{1.0f / 8, 1};
+  auto text = SkTextBlob::MakeFromString((char*)status.method->getBuffer().c_str(), SkFont(face, float(surface.height()) * 0.5f));
 
-  glm::vec2 cursor{-1 + 1.0f / 8 / 2, -0.4f};
+  SkPaint textPaint;
+  textPaint.setColor(Color4fFromVec3(config.inputtingCharColor));
 
-  cursor.x = ftRenderer->addString(status.method->getBuffer(), cursor, config.inputtingCharColor, fontSize);
-
-  ftRenderer->doDraw();
-
-  gl::Unbind(frame_buffer);
+  canvas->drawTextBlob(text.get(), float(surface.height()) * 0.15f, float(surface.height()) * 0.7f, textPaint);
 
   check_gl_err("main gui rendering");
-#endif
 }
