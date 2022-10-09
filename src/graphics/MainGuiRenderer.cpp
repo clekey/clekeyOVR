@@ -40,30 +40,13 @@ void renderRingChars(SkCanvas *canvas, sk_sp<SkTypeface> face, SkPoint center, f
   for (int i = 0; i < 8; ++i) {
     auto pair = getChar(i);
 
-    // TODO: fix text does not rendered
-    //auto text = SkTextBlob::MakeFromString((char *)pair.first.c_str(), SkFont(nullptr, fontSize));
-    auto text = SkTextBlob::MakeFromString("hello", SkFont(nullptr, fontSize));
+    // TODO: centered char rendering & auto scaling
+    auto text = SkTextBlob::MakeFromString((char *)pair.first.c_str(), SkFont(face, fontSize));
 
     auto textCenterPos = center + offsets[i];
     SkPaint textPaint;
     textPaint.setColor(SkColor4f{pair.second.r, pair.second.g, pair.second.b, 1.0f});
-    //*
-    textPaint.setColor(SkColor4f{pair.second.r, pair.second.g, pair.second.b, .5f});
-    SkRect rect {
-        .fLeft = textCenterPos.x() - fontSize / 2,
-        .fTop = textCenterPos.y() - fontSize / 2,
-        .fRight = textCenterPos.x() + fontSize / 2,
-        .fBottom = textCenterPos.y() + fontSize / 2,
-    };
-    canvas->drawRect(rect, textPaint);
-    //*/
     canvas->drawTextBlob(text.get(), textCenterPos.x(), textCenterPos.y(), textPaint);
-    // */
-
-    //renderer.addCenteredStringWithMaxWidth(
-    //    pair.first, center + offsets[i], pair.second,
-    //    {fontSize, fontSize}, fontSize,
-    //    CenteredMode::Both);
   }
 }
 
