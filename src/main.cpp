@@ -217,7 +217,12 @@ Application::Application() :
     circleTextures{makeSurface(WINDOW_WIDTH, WINDOW_HEIGHT), makeSurface(WINDOW_WIDTH, WINDOW_HEIGHT)},
     centerTexture(makeSurface(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
     keyboard(ovr_controller.get()),
-    status(AppStatus::Waiting) {
+#if defined(WITH_OPEN_VR)
+    status(AppStatus::Waiting)
+#else
+    status(AppStatus::Inputting)
+#endif
+{
   loadConfig(config);
   ovr_controller->loadConfig(config);
   std::cout << "left tex id:   " << circleTextures[0].glId << std::endl;
