@@ -43,22 +43,38 @@ void renderRingChars(SkCanvas *canvas, sk_sp<FontCollection> fonts, SkPoint cent
   for (int i = 0; i < 8; ++i) {
     auto pair = getChar(i);
 
-    // TODO: centered char rendering & auto scaling
+    // general format
     ParagraphStyle style;
     style.setTextAlign(TextAlign::kCenter);
     style.setTextDirection(TextDirection::kLtr);
     TextStyle tStyle;
     tStyle.setColor(SkColor4f{pair.second.r, pair.second.g, pair.second.b, 1.0f}.toSkColor());
-    tStyle.setFontSize(fontSize);
+
+    // first, compute actual font size
+    float actualFontSize;
+    {
+      tStyle.setFontSize(fontSize);
+      style.setTextStyle(tStyle);
+      auto pBuilder = ParagraphBuilder::make(style, fonts);
+      pBuilder->addText(reinterpret_cast<const char *>(pair.first.c_str()), pair.first.length());
+      auto paragraph = pBuilder->Build();
+      paragraph->layout(10000);
+      auto width = paragraph->getMaxIntrinsicWidth() + 1;
+      auto computedFontSize = fontSize * fontSize / width;
+      actualFontSize = std::min(computedFontSize, fontSize);
+    }
+
+    tStyle.setFontSize(actualFontSize);
     style.setTextStyle(tStyle);
     auto pBuilder = ParagraphBuilder::make(style, fonts);
     pBuilder->addText(reinterpret_cast<const char *>(pair.first.c_str()), pair.first.length());
     auto paragraph = pBuilder->Build();
-    paragraph->layout(paragraph->getMaxWidth());
+    paragraph->layout(fontSize + 10);
 
     auto textCenterPos = center + offsets[i];
-    textCenterPos.fX -= fontSize / 2;
-    textCenterPos.fY -= fontSize / 2;
+    textCenterPos.fX -= fontSize / 2 + 0.5f;
+    textCenterPos.fY -= paragraph->getHeight() / 2;
+
     paragraph->paint(canvas, textCenterPos.x(), textCenterPos.y());
   }
 }
