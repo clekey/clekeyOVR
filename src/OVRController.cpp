@@ -4,13 +4,14 @@
 
 #include "OVRController.h"
 
+#include "glm/gtc/constants.hpp"
+#include "glm/gtx/transform.hpp"
+#include "glm/gtx/vector_angle.hpp"
+
 #ifdef WITH_OPEN_VR
 
 #include <iostream>
 #include <filesystem>
-#include "glm/gtc/constants.hpp"
-#include "glm/gtx/transform.hpp"
-#include "glm/gtx/vector_angle.hpp"
 #include "global.h"
 
 void handle_input_err(vr::EVRInputError error) {
@@ -342,6 +343,88 @@ void shutdown_ovr() {
 }
 
 OVRController::OVRController() = default;
-void OVRController::tick(GLuint texture) const {}
+
+void OVRController::loadConfig(const CleKeyConfig &config) {
+}
+
+int8_t computeAngle(const glm::vec2 &stick) {
+  float angleF = -std::atan2(stick.y, stick.x) / (glm::pi<float>() / 4);
+  auto angle = int8_t(std::round(angleF));
+  angle += 2;
+  angle &= 7;
+  return angle;
+}
+
+void OVRController::setActiveActionSet(std::vector<ActionSetKind> kinds) const {
+}
+
+void updateHand(const OVRController &controller, KeyboardStatus &status, LeftRight hand) {
+  HandInfo &handInfo = status.getControllerInfo(hand);
+
+  // first, set stick
+  handInfo.stick = controller.getStickPos(hand);
+
+  // then, set selection
+  float lenSqrt = glm::dot(handInfo.stick, handInfo.stick);
+  handInfo.selectionOld = handInfo.selection;
+  if (lenSqrt >= 0.8 * 0.8) {
+    handInfo.selection = computeAngle(handInfo.stick);
+  } else if (lenSqrt >= 0.75 * 0.75) {
+    if (handInfo.selection != -1) {
+      handInfo.selection = computeAngle(handInfo.stick);
+    }
+  } else {
+    handInfo.selection = -1;
+  }
+
+  if (handInfo.selectionOld != handInfo.selection) {
+    controller.playHaptics(hand, 0, 0.05f, 1, .5f);
+  }
+
+  handInfo.clickingOld = handInfo.clicking;
+  handInfo.clicking = controller.getTriggerStatus(hand);
+}
+
+void OVRController::update_status(KeyboardStatus &status) const {
+  updateHand(*this, status, LeftRight::Left);
+  updateHand(*this, status, LeftRight::Right);
+}
+
+void OVRController::set_texture(GLuint texture, LeftRight side) const {
+}
+
+void OVRController::setCenterTexture(GLuint texture) const {
+}
+
+void OVRController::hideOverlays() {
+}
+
+void OVRController::closeCenterOverlay() const {
+}
+
+glm::vec2 OVRController::getStickPos(LeftRight hand) const {
+  return {0, 0};
+}
+
+bool OVRController::getTriggerStatus(LeftRight hand) const {
+  return false;
+}
+
+void OVRController::playHaptics(
+    LeftRight hand,
+    float fStartSecondsFromNow,
+    float fDurationSeconds,
+    float fFrequency,
+    float fAmplitude
+) const {
+}
+
+bool OVRController::getButtonStatus(ButtonKind kind) const {
+  return false;
+}
+
+bool OVRController::isClickStarted(HardKeyButton kind) const {
+  return false;
+}
 
 #endif

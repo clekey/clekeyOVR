@@ -13,6 +13,12 @@ find_package(GLEW REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 find_package(Freetype REQUIRED)
+if (APPLE)
+    find_library(CORE_FOUNDATION CoreFoundation REQUIRED)
+    find_library(CORE_TEXT CoreText REQUIRED)
+    find_library(CORE_GRAPHICS CoreGraphics REQUIRED)
+    find_library(CORE_SERVICES CoreServices REQUIRED)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
@@ -31,6 +37,15 @@ add_library(Skia::Skia STATIC IMPORTED)
 set_target_properties(Skia::Skia PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SKIA_DIR};${SKIA_DIR}/tools/sk_app")
 set_target_properties(Skia::Skia PROPERTIES IMPORTED_LOCATION "${SKIA_OUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}skia${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set_target_properties(Skia::Skia PROPERTIES INTERFACE_COMPILE_DEFINITIONS SK_GL)
+if (APPLE)
+    #set_target_properties(Skia::Skia PROPERTIES LINK_LIBRARIES "${COREFOUNDATION}")
+    target_link_libraries(Skia::Skia INTERFACE
+            "${CORE_FOUNDATION}"
+            "${CORE_GRAPHICS}"
+            "${CORE_TEXT}"
+            "${CORE_SERVICES}"
+    )
+endif()
 
 add_library(Skia::Paragraph STATIC IMPORTED)
 set_target_properties(Skia::Paragraph PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SKIA_DIR}/modules/skparagraph")
@@ -71,11 +86,13 @@ add_custom_command(TARGET clekey_ovr
         POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/resources
             $<TARGET_FILE_DIR:clekey_ovr>/resources)
-add_definitions(-DWITH_OPEN_VR)
 add_definitions(-DGLEW_STATIC)
 add_definitions(-DGL_SILENCE_DEPRECATION)
 add_definitions(-DNO_OGLWRAP=1)
-link_openvr(clekey_ovr)
+if (WIN32)
+  add_definitions(-DWITH_OPEN_VR)
+  link_openvr(clekey_ovr)
+endif()
 include_directories(
         ${SDL2_INCLUDE_DIRS}
 #        ${OPENGL_INCLUDE_DIRS}
