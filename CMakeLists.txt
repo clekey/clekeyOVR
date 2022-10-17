@@ -32,6 +32,11 @@ set_target_properties(Skia::Skia PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SKI
 set_target_properties(Skia::Skia PROPERTIES IMPORTED_LOCATION "${SKIA_OUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}skia${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set_target_properties(Skia::Skia PROPERTIES INTERFACE_COMPILE_DEFINITIONS SK_GL)
 
+add_library(Skia::Paragraph STATIC IMPORTED)
+set_target_properties(Skia::Paragraph PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SKIA_DIR}/modules/skparagraph")
+set_target_properties(Skia::Paragraph PROPERTIES IMPORTED_LOCATION "${SKIA_OUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}skparagraph${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set_target_properties(Skia::Paragraph PROPERTIES INTERFACE_LINK_LIBRARIES "Skia::Skia")
+
 add_executable(clekey_ovr
         src/main.cpp
         src/global.cpp
@@ -75,6 +80,7 @@ target_link_libraries(
         ${OPENGL_LIBRARIES}
         nlohmann_json::nlohmann_json
         Skia::Skia
+        Skia::Paragraph
 )
 
 

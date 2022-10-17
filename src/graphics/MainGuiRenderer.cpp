@@ -6,12 +6,15 @@
 #include <include/core/SkTextBlob.h>
 #include <include/core/SkTypeface.h>
 #include <include/core/SkFontMgr.h>
-#include <modules/skshaper/include/SkShaper.h>
+#include <include/Paragraph.h>
+#include <include/ParagraphBuilder.h>
 #include "MainGuiRenderer.h"
 #include "glutil.h"
 #include "../global.h"
 #include <array>
 #include <filesystem>
+
+using namespace skia::textlayout;
 
 namespace {
 
@@ -32,7 +35,7 @@ inline std::array<SkPoint, 8> calcOffsets(float size) {
   };
 }
 
-void renderRingChars(SkCanvas *canvas, sk_sp<SkTypeface> face, SkPoint center, float size,
+void renderRingChars(SkCanvas *canvas, sk_sp<FontCollection> fonts, SkPoint center, float size,
                      std::function<std::pair<const std::u8string &, glm::vec3>(int)> getChar) {
   float fontSize = size * 0.4f;
   auto offsets = calcOffsets(size);
@@ -41,12 +44,18 @@ void renderRingChars(SkCanvas *canvas, sk_sp<SkTypeface> face, SkPoint center, f
     auto pair = getChar(i);
 
     // TODO: centered char rendering & auto scaling
-    auto text = SkTextBlob::MakeFromString((char *)pair.first.c_str(), SkFont(face, fontSize));
+    ParagraphStyle style;
+    style.setTextAlign(TextAlign::kCenter);
+    auto pBuilder = ParagraphBuilder::make(style, fonts);
+    TextStyle tStyle;
+    tStyle.setColor(SkColor4f{pair.second.r, pair.second.g, pair.second.b, 1.0f}.toSkColor());
+    tStyle.setFontSize(fontSize);
+    pBuilder->pushStyle(tStyle);
+    pBuilder->addText(reinterpret_cast<const char *>(pair.first.c_str()), pair.first.length());
+    auto paragraph = pBuilder->Build();
 
     auto textCenterPos = center + offsets[i];
-    SkPaint textPaint;
-    textPaint.setColor(SkColor4f{pair.second.r, pair.second.g, pair.second.b, 1.0f});
-    canvas->drawTextBlob(text.get(), textCenterPos.x(), textCenterPos.y(), textPaint);
+    paragraph->paint(canvas, textCenterPos.x(), textCenterPos.y());
   }
 }
 
@@ -70,12 +79,14 @@ std::unique_ptr<MainGuiRenderer> MainGuiRenderer::create(glm::ivec2 size) {
     }
   }
   auto face = SkTypeface::MakeFromFile((getResourcesDir() / "fonts" / "NotoSansJP-Medium.otf").string().c_str());
+  sk_sp<FontCollection> fonts(new FontCollection());
+  fonts->setDefaultFontManager(SkFontMgr::RefDefault());
 
   auto res = new MainGuiRenderer{
       .size = size,
 
       .backgroundRingRenderer = std::move(backgroundRingRenderer),
-      .face = std::move(face),
+      .fonts = std::move(fonts),
       .cursorCircleRenderer = std::move(cursorCircleRenderer),
       //.ftRenderer = std::move(ftRenderer),
   };
@@ -129,13 +140,13 @@ void MainGuiRenderer::drawRing(
       int colOrigin = lineStep * pos;
       auto ringColor = getColor(pos);
       auto ringSize = (pos == selectingCurrent ? 0.22f : 0.2f) * radius;
-      renderRingChars(surface.getCanvas(), this->face, offsets[pos] + center, ringSize, [=](int idx) -> std::pair<const std::u8string &, glm::vec3> {
+      renderRingChars(surface.getCanvas(), this->fonts, offsets[pos] + center, ringSize, [=](int idx) -> std::pair<const std::u8string &, glm::vec3> {
         return {status.method->getTable()[colOrigin + lineLen * idx], ringColor};
       });
     }
   } else {
     int lineOrigin = lineLen * selectingOpposite;
-    renderRingChars(surface.getCanvas(), this->face, center, radius,
+    renderRingChars(surface.getCanvas(), this->fonts, center, radius,
                     [=, &status, &getColor](auto idx) -> std::pair<const std::u8string &, glm::vec3> {
                       return {status.method->getTable()[lineOrigin + lineStep * idx], getColor(idx)};
                     });
@@ -144,7 +155,7 @@ void MainGuiRenderer::drawRing(
   cursorCircleRenderer->draw(surface.getCanvas(), center, radius, stickPos);
 
   SkPaint paint2;
-  auto text = SkTextBlob::MakeFromString("Hello, Skia!", SkFont(face, 18));
+  auto text = SkTextBlob::MakeFromString("Hello, Skia!", SkFont(fonts->defaultFallback(), 18));
   surface.getCanvas()->drawTextBlob(text.get(), 50, 25, paint2);
 
   check_gl_err("main gui rendering");
@@ -158,7 +169,7 @@ void MainGuiRenderer::drawCenter(
   auto canvas = surface.getCanvas();
   canvas->clear(SkColor4f{config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b, 1.0f});
 
-  auto text = SkTextBlob::MakeFromString((char*)status.method->getBuffer().c_str(), SkFont(face, float(surface.height()) * 0.5f));
+  auto text = SkTextBlob::MakeFromString((char*)status.method->getBuffer().c_str(), SkFont(fonts->defaultFallback(), float(surface.height()) * 0.5f));
 
   SkPaint textPaint;
   textPaint.setColor(Color4fFromVec3(config.inputtingCharColor));

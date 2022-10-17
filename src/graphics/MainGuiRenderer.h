@@ -14,6 +14,7 @@
 #include "../OVRController.h"
 //#include "FreetypeRenderer.h"
 #include "../AppStatus.h"
+#include <include/FontCollection.h>
 
 class MainGuiRenderer {
 public:
@@ -32,7 +33,7 @@ public:
   glm::ivec2 size;
 
   std::unique_ptr<BackgroundRingRenderer> backgroundRingRenderer;
-  sk_sp<SkTypeface> face;
+  sk_sp<skia::textlayout::FontCollection> fonts;
   std::unique_ptr<CursorCircleRenderer> cursorCircleRenderer;
   //std::unique_ptr<FreetypeRenderer> ftRenderer;
 };
