@@ -46,15 +46,19 @@ void renderRingChars(SkCanvas *canvas, sk_sp<FontCollection> fonts, SkPoint cent
     // TODO: centered char rendering & auto scaling
     ParagraphStyle style;
     style.setTextAlign(TextAlign::kCenter);
-    auto pBuilder = ParagraphBuilder::make(style, fonts);
+    style.setTextDirection(TextDirection::kLtr);
     TextStyle tStyle;
     tStyle.setColor(SkColor4f{pair.second.r, pair.second.g, pair.second.b, 1.0f}.toSkColor());
     tStyle.setFontSize(fontSize);
-    pBuilder->pushStyle(tStyle);
+    style.setTextStyle(tStyle);
+    auto pBuilder = ParagraphBuilder::make(style, fonts);
     pBuilder->addText(reinterpret_cast<const char *>(pair.first.c_str()), pair.first.length());
     auto paragraph = pBuilder->Build();
+    paragraph->layout(paragraph->getMaxWidth());
 
     auto textCenterPos = center + offsets[i];
+    textCenterPos.fX -= fontSize / 2;
+    textCenterPos.fY -= fontSize / 2;
     paragraph->paint(canvas, textCenterPos.x(), textCenterPos.y());
   }
 }
