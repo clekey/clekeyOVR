@@ -241,7 +241,7 @@ fn do_load_config(config: &mut CleKeyConfig) -> io::Result<()> {
 
 fn write_config(config: &CleKeyConfig) -> io::Result<()> {
     let mut writing = File::create(get_config_path())?;
-    serde_json::to_writer(&mut writing, config)?;
+    serde_json::to_writer_pretty(&mut writing, config)?;
     writing.flush()?;
     Ok(())
 }
