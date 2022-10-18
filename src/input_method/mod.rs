@@ -1,6 +1,6 @@
 use crate::Vec2;
 
-enum HardKeyButton {
+pub enum HardKeyButton {
     CloseButton,
 }
 
@@ -92,8 +92,8 @@ pub trait IInputMethod {
     fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction;
 }
 
-fn stick_index(stick: Vec2<u8>) -> u8 {
-    stick[0] * 8 + stick[1]
+pub fn stick_index(stick: Vec2<u8>) -> u8 {
+    stick.0 * 8 + stick.1
 }
 
 const BACKSPACE_ICON: &str = "⌫";
@@ -129,17 +129,17 @@ impl IInputMethod for SignsInput {
 
     fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction {
         match stick {
-            [5, 6] => InputNextAction::close_keyboard(false),
-            [5, 7] => InputNextAction::new_line(false),
-            [6, 6] => InputNextAction::remove_last_char(false),
-            [6, 7] => InputNextAction::enter_char(false, ' '),
-            [7, 6] => InputNextAction::move_to_sign_plane(false),
-            [7, 7] => InputNextAction::move_to_next_plane(false),
-            [0..=4, _] | [5, 0..=3] => {
+            (5, 6) => InputNextAction::close_keyboard(false),
+            (5, 7) => InputNextAction::new_line(false),
+            (6, 6) => InputNextAction::remove_last_char(false),
+            (6, 7) => InputNextAction::enter_char(false, ' '),
+            (7, 6) => InputNextAction::move_to_sign_plane(false),
+            (7, 7) => InputNextAction::move_to_next_plane(false),
+            (0..=4, _) | (5, 0..=3) => {
                 InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
             }
-            [0..=7, 0..=7] => InputNextAction::nop(false),
-            [8..=u8::MAX, _] | [_, 8..=u8::MAX] => unreachable!(),
+            (0..=7, 0..=7) => InputNextAction::nop(false),
+            (8..=u8::MAX, _) | (_, 8..=u8::MAX) => unreachable!(),
         }
     }
 
@@ -177,20 +177,20 @@ impl IInputMethod for EnglishInput {
 
     fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction {
         match stick {
-            [5, 6] => InputNextAction::close_keyboard(false),
-            [5, 7] => InputNextAction::new_line(false),
-            [6, 6] => InputNextAction::remove_last_char(false),
-            [6, 7] => InputNextAction::enter_char(false, ' '),
-            [7, 6] => InputNextAction::move_to_sign_plane(false),
-            [7, 7] => InputNextAction::move_to_next_plane(false),
-            [0..=7, 0..=7] => InputNextAction::enter_char(
+            (5, 6) => InputNextAction::close_keyboard(false),
+            (5, 7) => InputNextAction::new_line(false),
+            (6, 6) => InputNextAction::remove_last_char(false),
+            (6, 7) => InputNextAction::enter_char(false, ' '),
+            (7, 6) => InputNextAction::move_to_sign_plane(false),
+            (7, 7) => InputNextAction::move_to_next_plane(false),
+            (0..=7, 0..=7) => InputNextAction::enter_char(
                 false,
                 self.get_table()[stick_index(stick) as usize]
                     .chars()
                     .next()
                     .unwrap(),
             ),
-            [8..=u8::MAX, _] | [_, 8..=u8::MAX] => unreachable!(),
+            (8..=u8::MAX, _) | (_, 8..=u8::MAX) => unreachable!(),
         }
     }
 
@@ -225,13 +225,13 @@ impl JapaneseInput {
     }
 
     fn set_inputted_table(&mut self) {
-        self.table[stick_index([5, 6]) as usize] = "閉じる";
-        self.table[stick_index([5, 7]) as usize] = RETURN_ICON;
+        self.table[stick_index((5, 6)) as usize] = "閉じる";
+        self.table[stick_index((5, 7)) as usize] = RETURN_ICON;
     }
 
     fn set_inputting_table(&mut self) {
-        self.table[stick_index([5, 6]) as usize] = "変換";
-        self.table[stick_index([5, 7]) as usize] = "確定";
+        self.table[stick_index((5, 6)) as usize] = "変換";
+        self.table[stick_index((5, 7)) as usize] = "確定";
     }
 }
 
@@ -245,7 +245,7 @@ impl IInputMethod for JapaneseInput {
 
     fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction {
         match stick {
-            [4, 5] => {
+            (4, 5) => {
                 // small char
                 if let Some(c) = self.buffer.pop() {
                     self.buffer.push(match c {
@@ -262,7 +262,7 @@ impl IInputMethod for JapaneseInput {
                 }
                 InputNextAction::nop(false)
             }
-            [4, 6] => {
+            (4, 6) => {
                 // add Dakuten
                 if let Some(c) = self.buffer.pop() {
                     self.buffer.push(match c {
@@ -279,7 +279,7 @@ impl IInputMethod for JapaneseInput {
                 }
                 InputNextAction::nop(false)
             }
-            [4, 7] => {
+            (4, 7) => {
                 // add Handakuten
                 if let Some(c) = self.buffer.pop() {
                     self.buffer.push(match c {
@@ -296,23 +296,23 @@ impl IInputMethod for JapaneseInput {
                 }
                 InputNextAction::nop(false)
             }
-            [5, 5] => InputNextAction::nop(false),
+            (5, 5) => InputNextAction::nop(false),
             ////////////
-            [5, 6] => {
+            (5, 6) => {
                 if self.buffer.is_empty() {
                     InputNextAction::close_keyboard(false)
                 } else {
                     InputNextAction::nop(false)
                 }
             }
-            [5, 7] => {
+            (5, 7) => {
                 if self.buffer.is_empty() {
                     InputNextAction::new_line(true)
                 } else {
                     InputNextAction::nop(true)
                 }
             }
-            [6, 6] => {
+            (6, 6) => {
                 if let Some(_) = self.buffer.pop() {
                     if self.buffer.is_empty() {
                         self.set_inputted_table();
@@ -322,7 +322,7 @@ impl IInputMethod for JapaneseInput {
                     InputNextAction::remove_last_char(false)
                 }
             }
-            [6, 7] => {
+            (6, 7) => {
                 if self.buffer.is_empty() {
                     InputNextAction::enter_char(true, ' ')
                 } else {
@@ -330,10 +330,10 @@ impl IInputMethod for JapaneseInput {
                     InputNextAction::nop(false)
                 }
             }
-            [7, 6] => InputNextAction::move_to_sign_plane(true),
-            [7, 7] => InputNextAction::move_to_next_plane(true),
+            (7, 6) => InputNextAction::move_to_sign_plane(true),
+            (7, 7) => InputNextAction::move_to_next_plane(true),
             ////////////
-            [2 | 3, 5 | 6 | 7] | [6 | 7, 5] => {
+            (2 | 3, 5 | 6 | 7) | (6 | 7, 5) => {
                 if self.buffer.is_empty() {
                     InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
                 } else {
@@ -342,12 +342,12 @@ impl IInputMethod for JapaneseInput {
                     InputNextAction::nop(false)
                 }
             }
-            [0..=7, 0..=7] => {
+            (0..=7, 0..=7) => {
                 self.buffer.push_str(&get_table_str!(self.table, stick));
                 self.set_inputting_table();
                 InputNextAction::nop(false)
             }
-            [8..=u8::MAX, _] | [_, 8..=u8::MAX] => unreachable!(),
+            (8..=u8::MAX, _) | (_, 8..=u8::MAX) => unreachable!(),
         }
     }
 

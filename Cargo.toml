@@ -16,7 +16,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4.17"
 once_cell = "1.15.0"
-skia-safe = { version = "0.55.0", features = ["gl"] }
+skia-safe = { version = "0.55.0", features = ["gl", "textlayout"] }
 gl = "0.14.0"
 cfg-if = "1.0.0"
 
@@ -25,6 +25,7 @@ git = "https://github.com/bjz/glfw-rs.git"
 
 [features]
 default = ['openvr']
+debug_window = []
 
 [target.'cfg(windows)'.dependencies]
 openvr = { path = "openvr", optional = true }

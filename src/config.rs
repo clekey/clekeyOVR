@@ -1,5 +1,6 @@
 use crate::global::get_config_dir;
 use crate::utils::{Vec3, Vec4};
+use skia_safe::Color4f;
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -56,7 +57,7 @@ macro_rules! merging_serde {
         $(#[$attr])*
         #[derive(serde::Serialize)]
         $access struct $name {
-            $( $(#[$field_attr])* $field_name: $field_type, )*
+            $( $(#[$field_attr])* $field_vis $field_name: $field_type, )*
         }
 
         #[doc(hidden)]
@@ -87,46 +88,140 @@ macro_rules! merging_serde {
 merging_serde! {
     pub struct OverlayPositionConfig {
         // in degree
-        yaw: f32,
-        pitch: f32,
+        pub yaw: f32,
+        pub pitch: f32,
         // in meter
-        distance: f32,
+        pub distance: f32,
         // width = distance * witchRadio
         #[serde(rename="widthRadio")]
-        width_radio: f32,
-        alpha: f32,
+        pub width_radio: f32,
+        pub alpha: f32,
     }
 
     pub struct RingOverlayConfig {
-        position: OverlayPositionConfig,
-        #[serde(rename="centerColor")]
-        center_color: Vec4,
-        #[serde(rename="backgroundColor")]
-        background_color: Vec4,
-        #[serde(rename="edgeColor")]
-        edge_color: Vec4,
-        #[serde(rename="normalCharColor")]
-        normal_char_color: Vec3,
-        #[serde(rename="unSelectingCharColor")]
-        un_selecting_char_color: Vec3,
-        #[serde(rename="selectingCharColor")]
-        selecting_char_color: Vec3,
+        pub position: OverlayPositionConfig,
+        #[serde(rename="centerColor", with="serialize_color4f_3f")]
+        pub center_color: Color4f,
+        #[serde(rename="backgroundColor", with="serialize_color4f_3f")]
+        pub background_color: Color4f,
+        #[serde(rename="edgeColor", with="serialize_color4f_3f")]
+        pub edge_color: Color4f,
+        #[serde(rename="normalCharColor", with="serialize_color4f_3f")]
+        pub normal_char_color: Color4f,
+        #[serde(rename="unSelectingCharColor", with="serialize_color4f_3f")]
+        pub un_selecting_char_color: Color4f,
+        #[serde(rename="selectingCharColor", with="serialize_color4f_3f")]
+        pub selecting_char_color: Color4f,
     }
 
     pub struct CompletionOverlayConfig {
-        position: OverlayPositionConfig,
+        pub position: OverlayPositionConfig,
         #[serde(rename="backgroundColor")]
-        background_color: Vec3,
+        pub background_color: Vec3,
         #[serde(rename="inputtingCharColor")]
-        inputting_char_color: Vec3,
+        pub inputting_char_color: Vec3,
     }
 
     pub struct CleKeyConfig {
         #[serde(rename="leftRing")]
-        left_ring: RingOverlayConfig,
+        pub left_ring: RingOverlayConfig,
         #[serde(rename="rightRing")]
-        right_ring: RingOverlayConfig,
-        completion: CompletionOverlayConfig,
+        pub right_ring: RingOverlayConfig,
+        pub completion: CompletionOverlayConfig,
+    }
+}
+
+mod serialize_color4f_4f {
+    use super::OptionalValue;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use skia_safe::{scalar, Color4f};
+
+    pub fn serialize<S: Serializer>(value: &Color4f, serializer: S) -> Result<S::Ok, S::Error> {
+        Serialize::serialize(value.as_array(), serializer)
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<OptionalValue<Color4f>, D::Error> {
+        <[scalar; 4] as Deserialize>::deserialize(deserializer)
+            .map(|[r, g, b, a]| Color4f::new(r, g, b, a))
+            .map(OptionalValue::Value)
+    }
+}
+
+mod serialize_color4f_3f {
+    use super::OptionalValue;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use skia_safe::{scalar, Color4f};
+
+    pub fn serialize<S: Serializer>(value: &Color4f, serializer: S) -> Result<S::Ok, S::Error> {
+        Serialize::serialize(&value.as_array()[..3], serializer)
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<OptionalValue<Color4f>, D::Error> {
+        <[scalar; 3] as Deserialize>::deserialize(deserializer)
+            .map(|[r, g, b]| Color4f::new(r, g, b, 1.0))
+            .map(OptionalValue::Value)
+    }
+}
+
+impl Default for CleKeyConfig {
+    fn default() -> Self {
+        Self {
+            left_ring: RingOverlayConfig {
+                position: OverlayPositionConfig {
+                    yaw: 6.0885,
+                    pitch: -18.3379,
+                    distance: 1.75,
+                    width_radio: 1.2,
+                    alpha: 1.0,
+                },
+                ..Default::default()
+            },
+            right_ring: RingOverlayConfig {
+                position: OverlayPositionConfig {
+                    yaw: -6.0885,
+                    pitch: -18.3379,
+                    distance: 1.75,
+                    width_radio: 1.2,
+                    alpha: 1.0,
+                },
+                ..Default::default()
+            },
+            completion: CompletionOverlayConfig {
+                position: OverlayPositionConfig {
+                    yaw: 0.0,
+                    pitch: -26.565,
+                    distance: 0.75,
+                    width_radio: 0.333,
+                    alpha: 1.0,
+                },
+                background_color: (0.188, 0.345, 0.749),
+                inputting_char_color: (1.0, 0.0, 0.0),
+            },
+        }
+    }
+}
+
+impl Default for RingOverlayConfig {
+    fn default() -> Self {
+        Self {
+            position: OverlayPositionConfig {
+                yaw: 0.0,
+                pitch: 0.0,
+                distance: 0.0,
+                width_radio: 0.0,
+                alpha: 0.0,
+            },
+            center_color: Color4f::new(0.83, 0.83, 0.83, 1.0),
+            background_color: Color4f::new(0.686, 0.686, 0.686, 1.0),
+            edge_color: Color4f::new(1.0, 1.0, 1.0, 1.0),
+            normal_char_color: Color4f::new(0.0, 0.0, 0.0, 1.0),
+            un_selecting_char_color: Color4f::new(0.5, 0.5, 0.5, 1.0),
+            selecting_char_color: Color4f::new(0.0, 0.0, 0.0, 1.0),
+        }
     }
 }
 
@@ -151,7 +246,7 @@ fn write_config(config: &CleKeyConfig) -> io::Result<()> {
     Ok(())
 }
 
-fn load_config(config: &mut CleKeyConfig) {
+pub fn load_config(config: &mut CleKeyConfig) {
     if let Err(err) = do_load_config(config) {
         log::error!("loading config: {}", err);
     }
@@ -187,5 +282,6 @@ impl MergeSerializePrimitive for f64 {}
 impl MergeSerializePrimitive for Vec3 {}
 impl MergeSerializePrimitive for Vec4 {}
 impl MergeSerializePrimitive for String {}
+impl MergeSerializePrimitive for Color4f {}
 
 ////////////////////////////////////////

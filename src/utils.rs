@@ -30,6 +30,6 @@ impl ToCString for String {
     }
 }
 
-pub type Vec2<F = f32> = [F; 2];
-pub type Vec3<F = f32> = [F; 3];
-pub type Vec4<F = f32> = [F; 4];
+pub type Vec2<F = f32> = (F, F);
+pub type Vec3<F = f32> = (F, F, F);
+pub type Vec4<F = f32> = (F, F, F, F);

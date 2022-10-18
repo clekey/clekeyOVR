@@ -23,5 +23,5 @@ pub fn get_config_dir() -> &'static Path {
 
 #[cfg(not(windows))]
 pub fn get_config_dir() -> &'static Path {
-    panic!("not supported")
+    "/Users/anatawa12/IdeaProjects/clekeyOVR".as_ref()
 }
