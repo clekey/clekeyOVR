@@ -17,12 +17,15 @@ use crate::input_method::IInputMethod;
 use crate::ovr_controller::OVRController;
 use crate::utils::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
-use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
-use skia_safe::{ColorType, Paint, Surface};
+use skia_safe::gpu::{BackendRenderTarget, BackendTexture, Mipmapped, SurfaceOrigin};
+use skia_safe::{AlphaType, ColorType, gpu, Image, Paint, Rect, SamplingOptions, Surface};
 use std::collections::VecDeque;
+use std::ptr::null;
+use gl::types::GLuint;
+use skia_safe::gpu::gl::{Format, TextureInfo};
 
-const WINDOW_HEIGHT: u32 = 1024;
-const WINDOW_WIDTH: u32 = 1024;
+const WINDOW_HEIGHT: i32 = 1024;
+const WINDOW_WIDTH: i32 = 1024;
 
 #[derive(Copy, Clone)]
 pub enum LeftRight {
@@ -43,8 +46,8 @@ fn main() {
 
     let (mut window, events) = glfw
         .create_window(
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
+            WINDOW_WIDTH as _,
+            WINDOW_HEIGHT as _,
             "clekeyOVR",
             glfw::WindowMode::Windowed,
         )
@@ -67,8 +70,8 @@ fn main() {
             gl::Viewport(
                 0,
                 0,
-                WINDOW_WIDTH as gl::types::GLsizei,
-                WINDOW_HEIGHT as gl::types::GLsizei,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
             );
             gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             let mut fboid: u32 = 0;
@@ -79,7 +82,7 @@ fn main() {
             };
         }
         let target =
-            BackendRenderTarget::new_gl((WINDOW_WIDTH as _, WINDOW_HEIGHT as _), None, 8, fbi);
+            BackendRenderTarget::new_gl((WINDOW_WIDTH, WINDOW_HEIGHT), None, 8, fbi);
         Surface::from_backend_render_target(
             &mut skia_ctx,
             &target,
@@ -101,31 +104,115 @@ fn main() {
 
     let kbd = KeyboardManager::new(&ovr_controller, &config);
 
-    // gl main
+    // gl initialiation
 
-    let canvas = window_surface.canvas();
-    let paint = Paint::default();
-    canvas.draw_rect(skia_safe::Rect::new(0.0, 0.0, 100.0, 100.0), &paint);
-    window_surface.flush();
+    let mut left_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
+    let mut right_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
+
     //frame.clear_color();
 
     while !window.should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {}
+
+        // TODO: openvr tick
+
+        draw_ring(
+            &kbd.status,
+            LeftRight::Left,
+            true,
+            &config.left_ring,
+            &mut left_ring.surface,
+        );
+
+        draw_ring(
+            &kbd.status,
+            LeftRight::Right,
+            false,
+            &config.right_ring,
+            &mut right_ring.surface,
+        );
+        
+
+        // TODO: pass texture to openvr
+
         #[cfg(feature = "debug_window")]
         {
-            draw_ring(
-                &kbd.status,
-                LeftRight::Left,
-                true,
-                &config.left_ring,
-                &mut window_surface,
-            );
-            window_surface.flush();
-            window.swap_buffers();
+            let canvas = window_surface.canvas();
+            let half_width = WINDOW_WIDTH as f32 / 2.0;
+            canvas
+                .draw_image_rect_with_sampling_options(
+                    &left_ring.image,
+                    None,
+                    Rect::from_xywh(0.0, 0.0, half_width, half_width),
+                    SamplingOptions::default(),
+                    &Default::default(),
+                )
+                .draw_image_rect_with_sampling_options(
+                    &right_ring.image,
+                    None,
+                    Rect::from_xywh(half_width, 0.0, half_width, half_width),
+                    SamplingOptions::default(),
+                    &Default::default(),
+                );
         }
+        window_surface.flush();
+
+        #[cfg(feature = "debug_window")]
+        window.swap_buffers();
     }
     println!("Hello, world!");
+}
+
+struct SurfaceInfo {
+    gl_tex_id: GLuint,
+    surface: Surface,
+    image: Image,
+}
+
+fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) -> SurfaceInfo {
+    let mut gl_tex_id = 0;
+    unsafe {
+        gl::GenTextures(1, &mut gl_tex_id);
+        gl::BindTexture(gl::TEXTURE_2D, gl_tex_id);
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as _, width, height, 0, gl::RGBA, gl::UNSIGNED_BYTE, null());
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
+    }
+
+    let backend_texture = unsafe {
+        BackendTexture::new_gl(
+            (width, height), Mipmapped::No, 
+            TextureInfo {
+                target: gl::TEXTURE_2D,
+                format: gl::RGBA8,
+                id: gl_tex_id,
+            }
+        )
+    };
+    let surface = Surface::from_backend_texture(
+        context,
+        &backend_texture,
+        SurfaceOrigin::BottomLeft,
+        None,
+        ColorType::RGBA8888,
+        None,
+        None
+    ).expect("creating surface");
+    let image = Image::from_texture(
+        context,
+        &backend_texture,
+        SurfaceOrigin::BottomLeft,
+        ColorType::RGBA8888,
+        AlphaType::Opaque,
+        None
+    ).expect("image creation");
+
+    SurfaceInfo {
+        gl_tex_id,
+        surface,
+        image,
+    }
 }
 
 pub struct HandInfo {
