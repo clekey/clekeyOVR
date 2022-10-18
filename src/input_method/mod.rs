@@ -61,20 +61,24 @@ pub enum InputNextMoreAction {
     NewLine,
 }
 
+macro_rules! get_table_str {
+    ($table: expr, $stick: expr) => {
+        $table[stick_index($stick) as usize]
+    };
+}
+
+macro_rules! get_table_char {
+    ($table: expr, $stick: expr) => {
+        get_table_str!($table, $stick).chars().next().unwrap()
+    };
+}
+
 pub trait IInputMethod {
     #[must_use]
     fn get_table(&self) -> &[&str; 8 * 8];
 
-    fn get_table_str(&self, stick: Vec2<u8>) -> &str {
-        self.get_table()[stick_index(stick) as usize]
-    }
-
-    fn get_table_char(&self, stick: Vec2<u8>) -> char {
-        self.get_table_str(stick).chars().next().unwrap()
-    }
-
     #[must_use]
-    fn get_buffer(&self) -> &str {
+    fn buffer(&self) -> &str {
         ""
     }
 
@@ -132,7 +136,7 @@ impl IInputMethod for SignsInput {
             [7, 6] => InputNextAction::move_to_sign_plane(false),
             [7, 7] => InputNextAction::move_to_next_plane(false),
             [0..=4, _] | [5, 0..=3] => {
-                InputNextAction::enter_char(false, self.get_table_char(stick))
+                InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
             }
             [0..=7, 0..=7] => InputNextAction::nop(false),
             [8..=u8::MAX, _] | [_, 8..=u8::MAX] => unreachable!(),
@@ -331,15 +335,15 @@ impl IInputMethod for JapaneseInput {
             ////////////
             [2 | 3, 5 | 6 | 7] | [6 | 7, 5] => {
                 if self.buffer.is_empty() {
-                    InputNextAction::enter_char(false, self.get_table_char(stick))
+                    InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
                 } else {
-                    self.buffer.push_str(&self.get_table_str(stick));
+                    self.buffer.push_str(&get_table_str!(self.table, stick));
                     self.set_inputting_table();
                     InputNextAction::nop(false)
                 }
             }
             [0..=7, 0..=7] => {
-                self.buffer.push_str(&self.get_table_str(stick));
+                self.buffer.push_str(&get_table_str!(self.table, stick));
                 self.set_inputting_table();
                 InputNextAction::nop(false)
             }
