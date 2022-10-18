@@ -1,4 +1,3 @@
-use crate::utils::ToCString;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
@@ -14,7 +13,7 @@ impl OVRController {
 pub enum OVRError {}
 
 impl Display for OVRError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _: &mut Formatter<'_>) -> std::fmt::Result {
         match *self {}
     }
 }

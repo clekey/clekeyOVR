@@ -4,10 +4,7 @@ mod config;
 mod global;
 mod graphics;
 mod input_method;
-#[cfg_attr(
-    not(all(feature = "openvr", windows)),
-    path = "ovr_controller.no-ovr.rs"
-)]
+#[cfg_attr(not(feature = "openvr"), path = "ovr_controller.no-ovr.rs")]
 mod ovr_controller;
 mod utils;
 
@@ -62,7 +59,7 @@ fn main() {
 
     // debug block
     #[cfg(feature = "debug_window")]
-    let mut window_surface = {
+        let mut window_surface = {
         window.make_current();
         // init gl context here
         let fbi;
@@ -91,7 +88,7 @@ fn main() {
             None,
             None,
         )
-        .expect("skia debug sufface creation")
+            .expect("skia debug sufface creation")
     };
 
     // openvr initialization
@@ -132,7 +129,7 @@ fn main() {
             &config.right_ring,
             &mut right_ring.surface,
         );
-        
+
 
         // TODO: pass texture to openvr
 
@@ -182,7 +179,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
 
     let backend_texture = unsafe {
         BackendTexture::new_gl(
-            (width, height), Mipmapped::No, 
+            (width, height), Mipmapped::No,
             TextureInfo {
                 target: gl::TEXTURE_2D,
                 format: gl::RGBA8,

@@ -19,13 +19,14 @@ once_cell = "1.15.0"
 skia-safe = { version = "0.55.0", features = ["gl", "textlayout"] }
 gl = "0.14.0"
 cfg-if = "1.0.0"
+openvr = { path = "openvr", optional = true }
 
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"
 
 [features]
-default = ['openvr']
+# by build.rs, 
+#  - debug_window is enabled in default on debug build (cfg(debug_assertions))
+#  - debug_window is openvr in default on windows
+default = []
 debug_window = []
-
-[target.'cfg(windows)'.dependencies]
-openvr = { path = "openvr", optional = true }
