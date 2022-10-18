@@ -3,15 +3,15 @@ extern crate core;
 mod config;
 mod global;
 mod input_method;
+#[cfg_attr(not(all(feature = "openvr", windows)), path="ovr_controller.no-ovr.rs")]
 mod ovr_controller;
 mod utils;
+mod graphics;
 
 use crate::config::CleKeyConfig;
 use crate::input_method::IInputMethod;
 use crate::ovr_controller::OVRController;
 use crate::utils::Vec2;
-use openvr::cstr;
-use openvr::overlay::OwnedInVROverlay;
 use sdl2::video::GLProfile;
 use std::collections::VecDeque;
 use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
@@ -66,46 +66,8 @@ fn main() {
 
     // openvr initialization
 
-    let ovr = openvr::init(openvr::ApplicationType::Overlay).expect("ovr");
-
-    let overlay = ovr.overlay().expect("openvr overlay must be accessible");
-    let input = ovr.input().expect("openvr input must be accessible");
-
-    input
-        .set_action_manifest_path(cstr!(r"C:\Users\anata\clekey-ovr-build\actions.json"))
-        .expect("");
-
-    let action_left_stick = input
-        .get_action_handle(cstr!("/actions/input/in/left_stick"))
-        .expect("action left_stick not found");
-    let action_left_click = input
-        .get_action_handle(cstr!("/actions/input/in/left_click"))
-        .expect("action left_click not found");
-    let action_left_haptic = input
-        .get_action_handle(cstr!("/actions/input/in/left_haptic"))
-        .expect("action left_haptic not found");
-    let action_right_stick = input
-        .get_action_handle(cstr!("/actions/input/in/right_stick"))
-        .expect("action right_stick not found");
-    let action_right_click = input
-        .get_action_handle(cstr!("/actions/input/in/right_click"))
-        .expect("action right_click not found");
-    let action_right_haptic = input
-        .get_action_handle(cstr!("/actions/input/in/right_haptic"))
-        .expect("action right_haptic not found");
-    let action_set_input = input.get_action_set_handle(cstr!("/actions/input"));
-
-    let overlay_handle = OwnedInVROverlay::new(
-        overlay,
-        cstr!("com.anatawa12.clekey-ovr"),
-        cstr!("clekey-ovr"),
-    )
-    .expect("create overlay");
-
-    overlay_handle
-        .set_overlay_width_in_meters(2.0)
-        .expect("overlay");
-    overlay_handle.set_overlay_alpha(1.0).expect("overlay");
+    let ovr_controller = OVRController::new(".".as_ref())
+        .expect("ovr controller");
 
     // gl main
 
