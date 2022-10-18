@@ -12,8 +12,8 @@ use crate::config::CleKeyConfig;
 use crate::input_method::IInputMethod;
 use crate::ovr_controller::OVRController;
 use crate::utils::Vec2;
-use sdl2::video::GLProfile;
 use std::collections::VecDeque;
+use glfw::{Context, OpenGlProfileHint, WindowHint};
 use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
 use skia_safe::{ColorType, Paint, Surface};
 
@@ -21,22 +21,21 @@ const WINDOW_HEIGHT: u32 = 256;
 const WINDOW_WIDTH: u32 = 512;
 
 fn main() {
-    // sdl initialization
-    let sdl = sdl2::init().expect("sdl initialization error");
-    let sdl_video = sdl.video().expect("sdl video");
-    sdl_video.gl_attr().set_double_buffer(true);
-    sdl_video.gl_attr().set_context_major_version(4);
-    sdl_video.gl_attr().set_context_minor_version(1);
-    sdl_video.gl_attr().set_context_profile(GLProfile::Core);
+    // glfw initialization
+    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+    glfw.window_hint(WindowHint::DoubleBuffer(true));
+    glfw.window_hint(WindowHint::ContextVersionMajor(4));
+    glfw.window_hint(WindowHint::ContextVersionMinor(1));
+    glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
+    glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
+    glfw.window_hint(WindowHint::Resizable(false));
 
-    let window = sdl_video
-        .window("clekeyOVR", WINDOW_WIDTH, WINDOW_HEIGHT)
-        .position(0, 0)
-        .opengl()
-        .build()
+    let (mut window, events) = glfw.create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "clekeyOVR", glfw::WindowMode::Windowed)
         .expect("window creation");
-    let sdl_gl_ctx = window.gl_create_context()
-        .expect("sdl gl init");
+    window.make_current();
+    
+    // gl crate initialization
+    gl::load_with(|s| glfw.get_proc_address_raw(s));
 
     let mut skia_ctx = skia_safe::gpu::DirectContext::new_gl(None, None)
         .expect("skia gpu context creation");
@@ -44,7 +43,7 @@ fn main() {
     // debug block
     #[cfg(debug_assertions)]
     let mut window_surface = {
-        window.gl_make_current(&sdl_gl_ctx).expect("sdl gl make current");
+        window.make_current();
         // init gl context here
         let fbi;
         unsafe {
@@ -77,6 +76,12 @@ fn main() {
     window_surface.flush();
     //frame.clear_color();
 
+    
+    while !window.should_close() {
+        glfw.poll_events();
+        for (_, event) in glfw::flush_messages(&events) {
+        }
+    }
     println!("Hello, world!");
 }
 
