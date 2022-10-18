@@ -4,26 +4,18 @@ mod config;
 mod global;
 mod input_method;
 mod ovr_controller;
-mod sdl2_glium;
 mod utils;
 
 use crate::config::CleKeyConfig;
 use crate::input_method::IInputMethod;
 use crate::ovr_controller::OVRController;
-use crate::sdl2_glium::DisplayBuild;
 use crate::utils::Vec2;
-use glium::backend::Facade;
-use glium::framebuffer::{
-    DepthRenderBuffer, MultiOutputFrameBuffer, RenderBuffer, SimpleFrameBuffer,
-};
-use glium::texture::{DepthFormat, RawImage2d};
-use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
-use glium::{implement_vertex, Program, Surface, VertexBuffer};
 use openvr::cstr;
 use openvr::overlay::OwnedInVROverlay;
-use sdl2::mouse::SystemCursor::Hand;
 use sdl2::video::GLProfile;
 use std::collections::VecDeque;
+use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
+use skia_safe::{ColorType, Paint, Surface};
 
 const WINDOW_HEIGHT: u32 = 256;
 const WINDOW_WIDTH: u32 = 512;
@@ -41,8 +33,36 @@ fn main() {
         .window("clekeyOVR", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position(0, 0)
         .opengl()
-        .build_glium()
+        .build()
         .expect("window creation");
+    let sdl_gl_ctx = window.gl_create_context()
+        .expect("sdl gl init");
+
+    let mut skia_ctx = skia_safe::gpu::DirectContext::new_gl(None, None)
+        .expect("skia gpu context creation");
+
+    // debug block
+    #[cfg(debug_assertions)]
+    let mut window_surface = {
+        window.gl_make_current(&sdl_gl_ctx).expect("sdl gl make current");
+        // init gl context here
+        let fbi;
+        unsafe {
+            gl::Viewport(0, 0, WINDOW_WIDTH as gl::types::GLsizei, WINDOW_HEIGHT as gl::types::GLsizei);
+            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
+            let mut fboid: u32 = 0;
+            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut fboid as *mut u32 as *mut i32);
+            fbi = skia_safe::gpu::gl::FramebufferInfo {
+                fboid,
+                format: gl::RGBA8,
+            };
+        }
+        let target = BackendRenderTarget::new_gl((WINDOW_WIDTH as _, WINDOW_HEIGHT as _), None, 8, fbi);
+        Surface::from_backend_render_target(
+            &mut skia_ctx, &target,
+            SurfaceOrigin::BottomLeft, ColorType::RGBA8888, None, None)
+            .expect("skia debug sufface creation")
+    };
 
     // openvr initialization
 
@@ -89,99 +109,10 @@ fn main() {
 
     // gl main
 
-    let shader_program = Program::from_source(
-        &window,
-        concat!(
-            "#version 330 core\n",
-            "layout(location = 0) in vec3 position;\n",
-            "layout(location = 1) in vec4 color;\n",
-            "out vec4 out_color;\n",
-            "void main() {\n",
-            "    gl_Position.xyz = position;\n",
-            "    out_color = color;\n",
-            "}\n",
-        ),
-        concat!(
-            "#version 330 core\n",
-            "in vec4 out_color;\n",
-            "",
-            "// Ouput data\n",
-            "layout(location = 0) out vec4 color;\n",
-            "\n",
-            "void main() {\n",
-            "    // Output color = red \n",
-            "    color = out_color;\n",
-            "}\n",
-        ),
-        None,
-    )
-    .expect("shader_err");
-    let dest_texture = glium::Texture2d::empty(&window, WINDOW_WIDTH, WINDOW_HEIGHT)
-        .expect("main texture creation");
-    let depth_buffer =
-        DepthRenderBuffer::new(&window, DepthFormat::F32, WINDOW_WIDTH, WINDOW_HEIGHT)
-            .expect("depth buffer creation");
-    let mut frame_buffer =
-        SimpleFrameBuffer::with_depth_buffer(&window, &dest_texture, &depth_buffer)
-            .expect("framebuffer creation");
-
-    let texture = {
-        // for debugging, make a image
-        let mut data = vec![0 as u8; (WINDOW_WIDTH * WINDOW_HEIGHT * 4) as usize];
-        for rgba in data.chunks_mut(4) {
-            rgba[0] = 0x80;
-            rgba[1] = 0x40;
-            rgba[2] = 0xC0;
-            rgba[3] = 0xFF;
-        }
-        let data = RawImage2d::from_raw_rgba(data, (WINDOW_WIDTH, WINDOW_HEIGHT));
-        let texture = glium::Texture2d::new(&window, data).expect("main texture creation");
-
-        texture
-    };
-    let texture_sampled = texture
-        .sampled()
-        .minify_filter(MinifySamplerFilter::Linear)
-        .magnify_filter(MagnifySamplerFilter::Nearest);
-
-    frame_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 0.0);
-    #[derive(Copy, Clone)]
-    struct Vertex {
-        position: [f32; 3],
-        color: [f32; 4],
-    }
-    implement_vertex!(Vertex, position, color);
-
-    let vertexbuffer = VertexBuffer::new(
-        &window,
-        &[
-            Vertex {
-                position: [-1.0, -1.0, 0.0],
-                color: [1.0, 0.0, 0.0, 1.0],
-            },
-            Vertex {
-                position: [1.0, -1.0, 0.0],
-                color: [0.0, 1.0, 0.0, 1.0],
-            },
-            Vertex {
-                position: [0.0, 1.0, 0.0],
-                color: [0.0, 0.0, 1.0, 1.0],
-            },
-        ],
-    )
-    .expect("vertex buffer creation");
-
-    frame_buffer
-        .draw(
-            &vertexbuffer,
-            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-            &shader_program,
-            &glium::uniforms::EmptyUniforms,
-            &Default::default(),
-        )
-        .expect("draw");
-
-    let mut frame = window.draw();
+    let canvas = window_surface.canvas();
+    let paint = Paint::default();
+    canvas.draw_rect(skia_safe::Rect::new(0.0, 0.0, 100.0, 100.0), &paint);
+    window_surface.flush();
     //frame.clear_color();
 
     println!("Hello, world!");
