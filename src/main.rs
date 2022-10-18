@@ -39,6 +39,7 @@ fn main() {
     glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
     glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
     glfw.window_hint(WindowHint::Resizable(false));
+    glfw.window_hint(WindowHint::CocoaRetinaFramebuffer(false));
 
     let (mut window, events) = glfw
         .create_window(
