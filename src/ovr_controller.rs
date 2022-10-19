@@ -1,8 +1,14 @@
+use std::env::var;
 use crate::utils::{IntoStringLossy, ToCString};
 use openvr::overlay::OwnedInVROverlay;
-use openvr::{cstr, VRActionHandle_t, VRActionSetHandle_t, VRContext};
+use openvr::{cstr, VRActionHandle_t, VRActionSetHandle_t, VRActiveActionSet_t, VRContext};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
+use glam::Vec3;
+use crate::CleKeyConfig;
+use crate::config::OverlayPositionConfig;
+
+pub type Result<T> = Result<T, OVRError>
 
 pub struct OVRController {
     // input
@@ -34,7 +40,7 @@ pub struct OVRController {
 }
 
 impl OVRController {
-    pub fn new(resources: &Path) -> Result<OVRController, OVRError> {
+    pub fn new(resources: &Path) -> Result<OVRController> {
         let context = openvr::init(openvr::ApplicationType::Overlay)?;
         // load required components
         let overlay = context.overlay()?;
@@ -113,6 +119,80 @@ impl OVRController {
             context,
         })
     }
+
+    fn load_config(&self, config: &CleKeyConfig) -> Result<()> {
+        fn overlay_position_matrix(yaw: f32, pitch: f32, distance: f32) -> openvr::HmdMatrix34_t {
+            let mat = glam::Mat4::from_rotation_y(yaw.to_radians())
+                * glam::Mat4::from_rotation_x(pitch.to_radians())
+                * glam::Mat4::from_translation(Vec3::new(0.0, 0.0, -distance));
+
+            let mat = mat.transpose();
+            let cols = mat.to_cols_array_2d();
+            openvr::HmdMatrix34_t {
+                m: [cols[0], cols[1], cols[2]]
+            }
+        }
+
+        fn load(handle: &OwnedInVROverlay, config: &OverlayPositionConfig) -> Result<()> {
+            handle.set_overlay_width_in_meters(config.width_radio * config.distance)?;
+            handle.set_overlay_alpha(1.0)?;
+            handle.set_overlay_transform_tracked_device_relative(
+                0,
+                &overlay_position_matrix(
+                    config.yaw,
+                    config.pitch,
+                    config.distance,
+                )
+            )?;
+            Ok(())
+        }
+        load(&self.overlay_handles[0], &config.left_ring.position);
+        load(&self.overlay_handles[1], &config.right_ring.position);
+        load(&self.overlay_handles[2], &config.completion.position);
+        Ok(())
+    }
+
+    pub(in super) fn as_vr_action_set(&self, kind: ActionSetKind) -> VRActiveActionSet_t {
+        match kind {
+            ActionSetKind::Input => VRActiveActionSet_t{
+                ulActionSet: self.action_set_input,
+                ulRestrictedToDevice: 0,
+                ulSecondaryActionSet: 0,
+                unPadding: 0,
+                nPriority: 0x01000000,
+            },
+            ActionSetKind::Waiting => VRActiveActionSet_t{
+                ulActionSet: 0,
+                ulRestrictedToDevice: 0,
+                ulSecondaryActionSet: 0,
+                unPadding: 0,
+                nPriority: 0
+            },
+            ActionSetKind::Suspender => VRActiveActionSet_t{
+                ulActionSet: 0,
+                ulRestrictedToDevice: 0,
+                ulSecondaryActionSet: 0,
+                unPadding: 0,
+                nPriority: 0x01000000
+            },
+        }
+    }
+
+    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = &ActionSetKind>) -> Result<()> {
+        let sets = kinds.into_iter().map(|x| self.as_vr_action_set(x)).collect::<Vec<_>>();
+        self.context.input().expect("input").update_action_state(&sets)?;
+        Ok(())
+    }
+}
+
+#[derive(Copy, Clone)]
+enum ActionSetKind {
+    // action set have sticks
+    Input,
+    // action set for waiting: button to turn on keyboard
+    Waiting,
+    // action set for waiting: button to turn on clekey
+    Suspender,
 }
 
 #[derive(Debug)]
