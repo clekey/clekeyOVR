@@ -6,6 +6,12 @@ pub enum HardKeyButton {
     CloseButton,
 }
 
+impl HardKeyButton {
+    pub const VALUES: [HardKeyButton; 1] = [
+        HardKeyButton::CloseButton,
+    ];
+}
+
 pub struct InputNextAction {
     flush: bool,
     action: InputNextMoreAction,
@@ -50,6 +56,13 @@ impl InputNextAction {
     /// enter new line
     pub fn new_line(flush: bool) -> Self {
         Self::new(flush, InputNextMoreAction::NewLine)
+    }
+
+    pub fn flush(&self) -> bool {
+        self.flush
+    }
+    pub fn action(&self) -> &InputNextMoreAction {
+        &self.action
     }
 }
 

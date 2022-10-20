@@ -118,6 +118,13 @@ impl OVRController {
         Ok(self.main.plane_handle(plane).hide_overlay()?)
     }
 
+    pub fn hide_all_overlay(&self) -> Result<()> {
+        for x in OverlayPlane::VALUES {
+            self.hide_overlay(x)?;
+        }
+        Ok(())
+    }
+
     pub fn draw_if_visible(&self, plane: OverlayPlane, renderer: impl FnOnce() -> GLuint) -> Result<()> {
         let handle = self.main.plane_handle(plane);
         if handle.is_visible() {

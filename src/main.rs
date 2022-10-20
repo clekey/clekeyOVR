@@ -9,17 +9,19 @@ mod utils;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::draw_ring;
-use crate::input_method::{HardKeyButton, IInputMethod};
+use crate::input_method::{HardKeyButton, IInputMethod, InputNextAction, InputNextMoreAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OverlayPlane, OVRController};
 use gl::types::GLuint;
-use glam::Vec2;
+use glam::{UVec2, Vec2};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use skia_safe::gpu::gl::{Format, TextureInfo};
 use skia_safe::gpu::{BackendRenderTarget, BackendTexture, Mipmapped, SurfaceOrigin};
 use skia_safe::{gpu, AlphaType, ColorType, Image, Paint, Rect, SamplingOptions, Surface};
 use std::collections::VecDeque;
+use std::os::macos::raw::stat;
 use std::ptr::null;
 use std::rc::Rc;
+use crate::ButtonKind::SuspendInput;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -96,11 +98,11 @@ fn main() {
     let ovr_controller = OVRController::new(".".as_ref()).expect("ovr controller");
     ovr_controller.load_config(&config).expect("loading config on ovr");
 
-    let kbd = KeyboardManager::new(&ovr_controller, &config);
+    let mut kbd = KeyboardManager::new(&ovr_controller, &config);
 
     let mut app = Application {
         ovr_controller: &ovr_controller,
-        kbd: &kbd,
+        keyboard: &mut kbd,
         status: Rc::new(Waiting),
     };
 
@@ -122,7 +124,7 @@ fn main() {
 
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             draw_ring(
-                &kbd.status,
+                &app.keyboard.status,
                 LeftRight::Left,
                 true,
                 &config.left_ring,
@@ -133,7 +135,7 @@ fn main() {
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             draw_ring(
-                &kbd.status,
+                &app.keyboard.status,
                 LeftRight::Right,
                 true,
                 &config.right_ring,
@@ -185,7 +187,7 @@ fn main() {
 
 struct Application<'a> {
     ovr_controller: &'a OVRController,
-    kbd: &'a KeyboardManager<'a>,
+    keyboard: &'a mut KeyboardManager<'a>,
     status: Rc<dyn ApplicationStatus>,
 }
 
@@ -200,9 +202,7 @@ impl ApplicationStatus for Waiting {
         app.ovr_controller.set_active_action_set([ActionSetKind::Waiting])
             .expect("setting active action set");
 
-        for x in OverlayPlane::VALUES {
-            app.ovr_controller.hide_overlay(x).expect("hiding overlay");
-        }
+        app.ovr_controller.hide_all_overlay().expect("hiding overlay");
 
         if app.ovr_controller.click_started(HardKeyButton::CloseButton) {
             app.status = Rc::new(Inputting);
@@ -213,6 +213,31 @@ impl ApplicationStatus for Waiting {
 struct Inputting;
 
 impl ApplicationStatus for Inputting {
+    fn tick(&self, app: &mut Application) {
+        app.ovr_controller.set_active_action_set([ActionSetKind::Suspender, ActionSetKind::Input, ActionSetKind::Waiting]).expect("set_active_action_set");
+        app.ovr_controller.update_status(&mut app.keyboard.status).expect("updating");
+
+        app.ovr_controller.show_overlay(OverlayPlane::Left).expect("show overlay");
+        app.ovr_controller.show_overlay(OverlayPlane::Right).expect("show overlay");
+        if !app.keyboard.status.method.buffer().is_empty() {
+            app.ovr_controller.show_overlay(OverlayPlane::Center).expect("show overlay");
+        } else {
+            app.ovr_controller.hide_overlay(OverlayPlane::Center).expect("show overlay");
+        }
+
+        if app.keyboard.tick() {
+            app.status = Rc::new(Waiting);
+        }
+
+        if app.ovr_controller.button_status(SuspendInput) {
+            app.status = Rc::new(Suspending)
+        }
+    }
+}
+
+struct Suspending;
+
+impl ApplicationStatus for Suspending {
     fn tick(&self, app: &mut Application) {
     }
 }
@@ -352,10 +377,67 @@ impl<'ovr> KeyboardManager<'ovr> {
         }
     }
 
+    pub(crate) fn tick(&mut self) -> bool {
+        if self.status.left.click_started() || self.status.right.click_started()
+            && self.status.left.selection != -1 && self.status.right.selection != -1 {
+            if self.do_input_action(self.status.method.on_input(UVec2::new(self.status.left.selection as u32, self.status.right.selection as u32))) {
+                return true;
+            }
+        }
+
+        for x in HardKeyButton::VALUES {
+            if self.ovr_controller.click_started(x) {
+                if self.do_input_action(self.status.method.on_hard_input(x)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    fn do_input_action(&mut self, action: InputNextAction) -> bool {
+        if action.flush() {
+            self.flush()
+        }
+
+        match action.action() {
+            InputNextMoreAction::Nop => false,
+            InputNextMoreAction::MoveToNextPlane => {
+                if self.is_sign {
+                    // if current is sign, back to zero
+                    std::mem::swap(&mut self.sign_input, &mut self.status.method);
+                }
+                // rotate
+                std::mem::swap(&mut self.status.method, self.methods.front_mut().unwrap());
+                self.methods.rotate_left(1);
+                false
+            }
+            InputNextMoreAction::MoveToSignPlane => {
+                std::mem::swap(&mut self.sign_input, &mut self.status.method);
+                false
+            }
+            InputNextMoreAction::EnterChar(c) => {
+                // TODO: enter an char
+                false
+            }
+            InputNextMoreAction::RemoveLastChar => {
+                // TODO: enter delete char
+                false
+            }
+            InputNextMoreAction::CloseKeyboard => {
+                true
+            }
+            InputNextMoreAction::NewLine => {
+                // TODO: enter 'enter' key
+                false
+            }
+        }
+    }
+
     pub fn flush(&mut self) {
-        let buffer = self.methods.front_mut().unwrap().get_and_clear_buffer();
+        let buffer = self.status.method.get_and_clear_buffer();
         if !buffer.is_empty() {
-            
+            // TODO: flush
         }
     }
 }
