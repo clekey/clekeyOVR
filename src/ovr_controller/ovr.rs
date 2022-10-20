@@ -53,7 +53,7 @@ impl OvrImpl for OVRController {
         let input = context.input()?;
         context.system()?;
 
-        let path = resources.join("actions.json");
+        let path = resources.join(crate::global::get_resources_dir().join("actions.json"));
 
         input.set_action_manifest_path(path.into_string_lossy().to_c_string().as_c_str())?;
 

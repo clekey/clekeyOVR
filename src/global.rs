@@ -13,15 +13,4 @@ pub fn get_resources_dir() -> PathBuf {
     get_exe_dir().join("resources")
 }
 
-#[cfg(windows)]
-pub fn get_config_dir() -> &'static Path {
-    static VALUE: Lazy<PathBuf> = Lazy::new(|| {
-        PathBuf::from(std::env::var_os("APPDATA").expect("no APPDATA found")).join("clekey_ovr")
-    });
-    return &*VALUE;
-}
-
-#[cfg(not(windows))]
-pub fn get_config_dir() -> &'static Path {
-    "/Users/anatawa12/IdeaProjects/clekeyOVR".as_ref()
-}
+pub use crate::os::get_config_dir;

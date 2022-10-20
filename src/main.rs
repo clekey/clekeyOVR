@@ -1,11 +1,10 @@
-extern crate core;
-
 mod config;
 mod global;
 mod graphics;
 mod input_method;
 mod ovr_controller;
 mod utils;
+mod os;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::draw_ring;
@@ -463,16 +462,16 @@ impl<'ovr> KeyboardManager<'ovr> {
                 false
             }
             InputNextMoreAction::EnterChar(c) => {
-                // TODO: enter an char
+                os::enter_char(*c);
                 false
             }
             InputNextMoreAction::RemoveLastChar => {
-                // TODO: enter delete char
+                os::enter_backspace();
                 false
             }
             InputNextMoreAction::CloseKeyboard => true,
             InputNextMoreAction::NewLine => {
-                // TODO: enter 'enter' key
+                os::enter_enter();
                 false
             }
         }
@@ -481,6 +480,7 @@ impl<'ovr> KeyboardManager<'ovr> {
     pub fn flush(&mut self) {
         let buffer = self.status.method.get_and_clear_buffer();
         if !buffer.is_empty() {
+            os::copy_text_and_enter_paste_shortcut(&buffer);
             // TODO: flush
         }
     }
