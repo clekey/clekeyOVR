@@ -12,22 +12,22 @@ use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::draw_ring;
 use crate::input_method::IInputMethod;
 use crate::ovr_controller::OVRController;
-use crate::utils::Vec2;
+use gl::types::GLuint;
+use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
+use skia_safe::gpu::gl::{Format, TextureInfo};
 use skia_safe::gpu::{BackendRenderTarget, BackendTexture, Mipmapped, SurfaceOrigin};
-use skia_safe::{AlphaType, ColorType, gpu, Image, Paint, Rect, SamplingOptions, Surface};
+use skia_safe::{gpu, AlphaType, ColorType, Image, Paint, Rect, SamplingOptions, Surface};
 use std::collections::VecDeque;
 use std::ptr::null;
-use gl::types::GLuint;
-use skia_safe::gpu::gl::{Format, TextureInfo};
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
 
 #[derive(Copy, Clone)]
 pub enum LeftRight {
-    Left,
-    Right,
+    Left = 0,
+    Right = 1,
 }
 
 fn main() {
@@ -59,17 +59,12 @@ fn main() {
 
     // debug block
     #[cfg(feature = "debug_window")]
-        let mut window_surface = {
+    let mut window_surface = {
         window.make_current();
         // init gl context here
         let fbi;
         unsafe {
-            gl::Viewport(
-                0,
-                0,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-            );
+            gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
             gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             let mut fboid: u32 = 0;
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut fboid as *mut u32 as *mut i32);
@@ -78,8 +73,7 @@ fn main() {
                 format: gl::RGBA8,
             };
         }
-        let target =
-            BackendRenderTarget::new_gl((WINDOW_WIDTH, WINDOW_HEIGHT), None, 8, fbi);
+        let target = BackendRenderTarget::new_gl((WINDOW_WIDTH, WINDOW_HEIGHT), None, 8, fbi);
         Surface::from_backend_render_target(
             &mut skia_ctx,
             &target,
@@ -88,7 +82,7 @@ fn main() {
             None,
             None,
         )
-            .expect("skia debug sufface creation")
+        .expect("skia debug sufface creation")
     };
 
     // openvr initialization
@@ -96,6 +90,8 @@ fn main() {
     let mut config = CleKeyConfig::default();
 
     load_config(&mut config);
+    println!("{:?}", config);
+    println!("{:#?}", config);
 
     let ovr_controller = OVRController::new(".".as_ref()).expect("ovr controller");
 
@@ -130,7 +126,6 @@ fn main() {
             &mut right_ring.surface,
         );
 
-
         // TODO: pass texture to openvr
 
         #[cfg(feature = "debug_window")]
@@ -152,8 +147,8 @@ fn main() {
                     SamplingOptions::default(),
                     &Default::default(),
                 );
+            window_surface.flush();
         }
-        window_surface.flush();
 
         #[cfg(feature = "debug_window")]
         window.swap_buffers();
@@ -172,19 +167,30 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
     unsafe {
         gl::GenTextures(1, &mut gl_tex_id);
         gl::BindTexture(gl::TEXTURE_2D, gl_tex_id);
-        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as _, width, height, 0, gl::RGBA, gl::UNSIGNED_BYTE, null());
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGBA8 as _,
+            width,
+            height,
+            0,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            null(),
+        );
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
     }
 
     let backend_texture = unsafe {
         BackendTexture::new_gl(
-            (width, height), Mipmapped::No,
+            (width, height),
+            Mipmapped::No,
             TextureInfo {
                 target: gl::TEXTURE_2D,
                 format: gl::RGBA8,
                 id: gl_tex_id,
-            }
+            },
         )
     };
     let surface = Surface::from_backend_texture(
@@ -194,16 +200,18 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
         None,
         ColorType::RGBA8888,
         None,
-        None
-    ).expect("creating surface");
+        None,
+    )
+    .expect("creating surface");
     let image = Image::from_texture(
         context,
         &backend_texture,
         SurfaceOrigin::BottomLeft,
         ColorType::RGBA8888,
         AlphaType::Opaque,
-        None
-    ).expect("image creation");
+        None,
+    )
+    .expect("image creation");
 
     SurfaceInfo {
         gl_tex_id,
@@ -224,7 +232,7 @@ pub struct HandInfo {
 impl HandInfo {
     pub fn new() -> Self {
         Self {
-            stick: (0.0, 0.0),
+            stick: Vec2::new(0.0, 0.0),
             selection: -1,
             selection_old: -1,
             clicking: false,
@@ -268,7 +276,7 @@ struct KeyboardManager<'ovr> {
 }
 
 impl<'ovr> KeyboardManager<'ovr> {
-    pub fn new(ovr: &'ovr OVRController, config: &CleKeyConfig) -> Self {
+    pub fn new(ovr: &'ovr OVRController, _config: &CleKeyConfig) -> Self {
         use input_method::*;
         Self {
             ovr_controller: ovr,

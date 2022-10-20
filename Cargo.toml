@@ -20,7 +20,7 @@ skia-safe = { version = "0.55.0", features = ["gl", "textlayout"] }
 gl = "0.14.0"
 cfg-if = "1.0.0"
 openvr = { path = "openvr", optional = true }
-glam = "0.21.3"
+glam = { version = "0.21.3", features = ["serde"] }
 
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"

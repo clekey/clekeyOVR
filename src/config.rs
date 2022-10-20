@@ -1,5 +1,5 @@
 use crate::global::get_config_dir;
-use crate::utils::{Vec3, Vec4};
+use glam::{Vec3, Vec4};
 use skia_safe::Color4f;
 use std::fs::File;
 use std::io;
@@ -86,6 +86,7 @@ macro_rules! merging_serde {
 }
 
 merging_serde! {
+    #[derive(Debug)]
     pub struct OverlayPositionConfig {
         // in degree
         pub yaw: f32,
@@ -98,6 +99,7 @@ merging_serde! {
         pub alpha: f32,
     }
 
+    #[derive(Debug)]
     pub struct RingOverlayConfig {
         pub position: OverlayPositionConfig,
         #[serde(rename="centerColor", with="serialize_color4f_3f")]
@@ -114,6 +116,7 @@ merging_serde! {
         pub selecting_char_color: Color4f,
     }
 
+    #[derive(Debug)]
     pub struct CompletionOverlayConfig {
         pub position: OverlayPositionConfig,
         #[serde(rename="backgroundColor")]
@@ -122,6 +125,7 @@ merging_serde! {
         pub inputting_char_color: Vec3,
     }
 
+    #[derive(Debug)]
     pub struct CleKeyConfig {
         #[serde(rename="leftRing")]
         pub left_ring: RingOverlayConfig,
@@ -198,8 +202,8 @@ impl Default for CleKeyConfig {
                     width_radio: 0.333,
                     alpha: 1.0,
                 },
-                background_color: (0.188, 0.345, 0.749),
-                inputting_char_color: (1.0, 0.0, 0.0),
+                background_color: Vec3::new(0.188, 0.345, 0.749),
+                inputting_char_color: Vec3::new(1.0, 0.0, 0.0),
             },
         }
     }

@@ -1,14 +1,19 @@
-use std::env::var;
+use crate::config::OverlayPositionConfig;
 use crate::utils::{IntoStringLossy, ToCString};
+use crate::{CleKeyConfig, HandInfo, KeyboardStatus, LeftRight, Vec2};
+use gl::types::GLuint;
+use glam::Vec3;
 use openvr::overlay::OwnedInVROverlay;
-use openvr::{cstr, VRActionHandle_t, VRActionSetHandle_t, VRActiveActionSet_t, VRContext};
+use openvr::{
+    cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t,
+    VRActionSetHandle_t, VRActiveActionSet_t, VRContext,
+};
+use std::f32::consts::PI;
+use std::ffi::c_void;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use glam::Vec3;
-use crate::CleKeyConfig;
-use crate::config::OverlayPositionConfig;
 
-pub type Result<T> = Result<T, OVRError>
+pub type Result<T> = core::result::Result<T, OVRError>;
 
 pub struct OVRController {
     // input
@@ -120,7 +125,7 @@ impl OVRController {
         })
     }
 
-    fn load_config(&self, config: &CleKeyConfig) -> Result<()> {
+    pub fn load_config(&self, config: &CleKeyConfig) -> Result<()> {
         fn overlay_position_matrix(yaw: f32, pitch: f32, distance: f32) -> openvr::HmdMatrix34_t {
             let mat = glam::Mat4::from_rotation_y(yaw.to_radians())
                 * glam::Mat4::from_rotation_x(pitch.to_radians())
@@ -129,7 +134,7 @@ impl OVRController {
             let mat = mat.transpose();
             let cols = mat.to_cols_array_2d();
             openvr::HmdMatrix34_t {
-                m: [cols[0], cols[1], cols[2]]
+                m: [cols[0], cols[1], cols[2]],
             }
         }
 
@@ -138,11 +143,7 @@ impl OVRController {
             handle.set_overlay_alpha(1.0)?;
             handle.set_overlay_transform_tracked_device_relative(
                 0,
-                &overlay_position_matrix(
-                    config.yaw,
-                    config.pitch,
-                    config.distance,
-                )
+                &overlay_position_matrix(config.yaw, config.pitch, config.distance),
             )?;
             Ok(())
         }
@@ -152,47 +153,207 @@ impl OVRController {
         Ok(())
     }
 
-    pub(in super) fn as_vr_action_set(&self, kind: ActionSetKind) -> VRActiveActionSet_t {
+    pub(super) fn as_vr_action_set(&self, kind: ActionSetKind) -> VRActiveActionSet_t {
         match kind {
-            ActionSetKind::Input => VRActiveActionSet_t{
+            ActionSetKind::Input => VRActiveActionSet_t {
                 ulActionSet: self.action_set_input,
                 ulRestrictedToDevice: 0,
                 ulSecondaryActionSet: 0,
                 unPadding: 0,
                 nPriority: 0x01000000,
             },
-            ActionSetKind::Waiting => VRActiveActionSet_t{
-                ulActionSet: 0,
+            ActionSetKind::Waiting => VRActiveActionSet_t {
+                ulActionSet: self.action_set_waiting,
                 ulRestrictedToDevice: 0,
                 ulSecondaryActionSet: 0,
                 unPadding: 0,
-                nPriority: 0
+                nPriority: 0,
             },
-            ActionSetKind::Suspender => VRActiveActionSet_t{
-                ulActionSet: 0,
+            ActionSetKind::Suspender => VRActiveActionSet_t {
+                ulActionSet: self.action_set_suspender,
                 ulRestrictedToDevice: 0,
                 ulSecondaryActionSet: 0,
                 unPadding: 0,
-                nPriority: 0x01000000
+                nPriority: 0x01000000,
             },
         }
     }
 
-    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = &ActionSetKind>) -> Result<()> {
-        let sets = kinds.into_iter().map(|x| self.as_vr_action_set(x)).collect::<Vec<_>>();
-        self.context.input().expect("input").update_action_state(&sets)?;
+    pub fn set_active_action_set(
+        &self,
+        kinds: impl IntoIterator<Item = ActionSetKind>,
+    ) -> Result<()> {
+        let sets = kinds
+            .into_iter()
+            .map(|x| self.as_vr_action_set(x))
+            .collect::<Vec<_>>();
+        self.context
+            .input()
+            .expect("input")
+            .update_action_state(&sets)?;
         Ok(())
+    }
+
+    fn update_hand_status(&self, status: &mut HandInfo, hand: LeftRight) -> Result<()> {
+        status.stick = self.stick_pos(hand)?;
+        status.selection_old = status.selection;
+
+        fn compute_angle(vec: Vec2) -> i8 {
+            let a: f32 = vec.y.atan2(vec.x) * (4.0 / PI);
+            let mut angle = a.round() as i8;
+            return (angle + 2) & 7;
+        }
+
+        const LOWER_BOUND: f32 = 0.75 * 0.75;
+        const UPPER_BOUND: f32 = 0.8 * 0.8;
+
+        let len_sqrt = status.stick.length_squared();
+        status.selection = if len_sqrt >= UPPER_BOUND {
+            compute_angle(status.stick)
+        } else if len_sqrt >= LOWER_BOUND && status.selection != -1 {
+            compute_angle(status.stick)
+        } else {
+            -1
+        };
+
+        if status.selection != status.selection_old {
+            self.play_haptics(hand, 0.0, 0.05, 1.0, 0.5)?;
+        }
+
+        status.clicking_old = status.clicking;
+        status.clicking = self.trigger_status(hand)?;
+        Ok(())
+    }
+
+    pub fn update_status(&self, status: &mut KeyboardStatus) -> Result<()> {
+        self.update_hand_status(&mut status.left, LeftRight::Left)?;
+        self.update_hand_status(&mut status.left, LeftRight::Left)?;
+        Ok(())
+    }
+
+    fn set_texture_impl(&self, texture: GLuint, handle: usize) -> Result<()> {
+        let handle = &self.overlay_handles[handle];
+        handle.show_overlay()?;
+        if handle.is_overlay_visible() {
+            handle.set_overlay_texture(OverlayTexture {
+                handle: texture as usize as *mut c_void,
+                tex_type: TextureType::OpenGL,
+                color_space: ColorSpace::Auto,
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn set_texture(&self, texture: GLuint, side: LeftRight) -> Result<()> {
+        self.set_texture_impl(texture, side as usize)
+    }
+
+    pub fn set_center_texture(&self, texture: GLuint) -> Result<()> {
+        self.set_texture_impl(texture, 3)
+    }
+
+    pub fn hide_overlays(&self) -> Result<()> {
+        for x in &self.overlay_handles {
+            x.hide_overlay()?
+        }
+        Ok(())
+    }
+
+    pub fn close_center_overlay(&self) -> Result<()> {
+        Ok(self.overlay_handles[3].hide_overlay()?)
+    }
+
+    pub fn stick_pos(&self, hand: LeftRight) -> Result<Vec2> {
+        let action = match hand {
+            LeftRight::Left => self.action_input_left_stick,
+            LeftRight::Right => self.action_input_right_stick,
+        };
+        let data = self.context
+            .input()
+            .expect("inputs")
+            .get_analog_action_data(action, 0)?;
+        Ok(Vec2::new(data.x, data.y))
+    }
+
+    pub fn trigger_status(&self, hand: LeftRight) -> Result<bool> {
+        let action = match hand {
+            LeftRight::Left => self.action_input_left_click,
+            LeftRight::Right => self.action_input_right_click,
+        };
+let  data=         self.context
+            .input()
+            .expect("inputs")
+            .get_digital_action_data(action, 0)?;
+        Ok(data.bState)
+    }
+
+    pub fn play_haptics(
+        &self,
+        hand: LeftRight,
+        start_seconds_from_now: f32,
+        duration_seconds: f32,
+        frequency: f32,
+        amplitude: f32,
+    ) -> Result<()> {
+        let action = match hand {
+            LeftRight::Left => self.action_input_left_haptic,
+            LeftRight::Right => self.action_input_right_haptic,
+        };
+
+        self.context
+            .input()
+            .expect("inputs")
+            .trigger_haptic_vibration_action(
+                action,
+                start_seconds_from_now,
+                duration_seconds,
+                frequency,
+                amplitude,
+                0
+            )
+            .map_err(Into::into)
+    }
+
+    pub fn button_status(&self, button: ButtonKind) -> Result<bool> {
+        let action = match button {
+            ButtonKind::BeginInput => self.action_waiting_begin_input,
+            ButtonKind::SuspendInput => self.action_suspender_suspender,
+        };
+        let  data=         self.context
+            .input()
+            .expect("inputs")
+            .get_digital_action_data(action, 0)?;
+        Ok(data.bState)
+    }
+
+
+    pub fn click_started(&self, button: ButtonKind) -> Result<bool> {
+        let action = match button {
+            ButtonKind::BeginInput => self.action_waiting_begin_input,
+            ButtonKind::SuspendInput => self.action_suspender_suspender,
+        };
+        let  data=         self.context
+            .input()
+            .expect("inputs")
+            .get_digital_action_data(action, 0)?;
+        Ok(data.bState && data.bChanged)
     }
 }
 
-#[derive(Copy, Clone)]
-enum ActionSetKind {
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ActionSetKind {
     // action set have sticks
     Input,
     // action set for waiting: button to turn on keyboard
     Waiting,
     // action set for waiting: button to turn on clekey
     Suspender,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ButtonKind {
+    BeginInput,
+    SuspendInput,
 }
 
 #[derive(Debug)]

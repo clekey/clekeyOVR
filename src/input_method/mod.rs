@@ -1,4 +1,5 @@
-use crate::Vec2;
+use crate::utils::ToTuple;
+use glam::UVec2;
 
 pub enum HardKeyButton {
     CloseButton,
@@ -87,13 +88,13 @@ pub trait IInputMethod {
         String::new()
     }
 
-    fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction;
+    fn on_input(&mut self, stick: UVec2) -> InputNextAction;
 
     fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction;
 }
 
-pub fn stick_index(stick: Vec2<u8>) -> u8 {
-    stick.0 * 8 + stick.1
+pub fn stick_index(stick: UVec2) -> u8 {
+    (stick.x * 8 + stick.y) as u8
 }
 
 const BACKSPACE_ICON: &str = "⌫";
@@ -127,8 +128,8 @@ impl IInputMethod for SignsInput {
         ];
     }
 
-    fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction {
-        match stick {
+    fn on_input(&mut self, stick: UVec2) -> InputNextAction {
+        match stick.to_tuple() {
             (5, 6) => InputNextAction::close_keyboard(false),
             (5, 7) => InputNextAction::new_line(false),
             (6, 6) => InputNextAction::remove_last_char(false),
@@ -139,7 +140,7 @@ impl IInputMethod for SignsInput {
                 InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
             }
             (0..=7, 0..=7) => InputNextAction::nop(false),
-            (8..=u8::MAX, _) | (_, 8..=u8::MAX) => unreachable!(),
+            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => unreachable!(),
         }
     }
 
@@ -175,8 +176,8 @@ impl IInputMethod for EnglishInput {
         ];
     }
 
-    fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction {
-        match stick {
+    fn on_input(&mut self, stick: UVec2) -> InputNextAction {
+        match stick.to_tuple() {
             (5, 6) => InputNextAction::close_keyboard(false),
             (5, 7) => InputNextAction::new_line(false),
             (6, 6) => InputNextAction::remove_last_char(false),
@@ -190,7 +191,7 @@ impl IInputMethod for EnglishInput {
                     .next()
                     .unwrap(),
             ),
-            (8..=u8::MAX, _) | (_, 8..=u8::MAX) => unreachable!(),
+            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => unreachable!(),
         }
     }
 
@@ -225,13 +226,13 @@ impl JapaneseInput {
     }
 
     fn set_inputted_table(&mut self) {
-        self.table[stick_index((5, 6)) as usize] = "閉じる";
-        self.table[stick_index((5, 7)) as usize] = RETURN_ICON;
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "閉じる";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
     }
 
     fn set_inputting_table(&mut self) {
-        self.table[stick_index((5, 6)) as usize] = "変換";
-        self.table[stick_index((5, 7)) as usize] = "確定";
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
     }
 }
 
@@ -243,8 +244,8 @@ impl IInputMethod for JapaneseInput {
         &self.table
     }
 
-    fn on_input(&mut self, stick: Vec2<u8>) -> InputNextAction {
-        match stick {
+    fn on_input(&mut self, stick: UVec2) -> InputNextAction {
+        match stick.to_tuple() {
             (4, 5) => {
                 // small char
                 if let Some(c) = self.buffer.pop() {
@@ -347,7 +348,7 @@ impl IInputMethod for JapaneseInput {
                 self.set_inputting_table();
                 InputNextAction::nop(false)
             }
-            (8..=u8::MAX, _) | (_, 8..=u8::MAX) => unreachable!(),
+            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => unreachable!(),
         }
     }
 

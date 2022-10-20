@@ -1,3 +1,4 @@
+use glam::{UVec2, Vec2};
 use std::ffi::{CString, OsString};
 use std::path::PathBuf;
 
@@ -19,6 +20,27 @@ impl IntoStringLossy for OsString {
     }
 }
 
+pub trait ToTuple {
+    type Tuple;
+    fn to_tuple(&self) -> Self::Tuple;
+}
+
+impl ToTuple for Vec2 {
+    type Tuple = (f32, f32);
+
+    fn to_tuple(&self) -> Self::Tuple {
+        (self.x, self.y)
+    }
+}
+
+impl ToTuple for UVec2 {
+    type Tuple = (u32, u32);
+
+    fn to_tuple(&self) -> Self::Tuple {
+        (self.x, self.y)
+    }
+}
+
 pub trait ToCString {
     /// always convert to string with into_string and to_string_lossy
     fn to_c_string(&self) -> CString;
@@ -29,7 +51,3 @@ impl ToCString for String {
         CString::new(self.as_bytes()).unwrap()
     }
 }
-
-pub type Vec2<F = f32> = (F, F);
-pub type Vec3<F = f32> = (F, F, F);
-pub type Vec4<F = f32> = (F, F, F, F);

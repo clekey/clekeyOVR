@@ -1,15 +1,13 @@
-use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
+use crate::config::{RingOverlayConfig};
+use crate::utils::ToTuple;
 use crate::{KeyboardStatus, LeftRight};
 use skia_safe::colors::TRANSPARENT;
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
-    FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextDirection, TextStyle,
+    FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextStyle,
 };
-use skia_safe::BlendMode::Color;
 use skia_safe::{scalar, Canvas, Color4f, FontMgr, Paint, Point, Surface};
-use std::cmp::min;
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
-use std::os::unix::raw::off_t;
 
 pub fn draw_background_ring(
     canvas: &mut Canvas,
@@ -210,7 +208,7 @@ pub fn draw_ring(
         surface.canvas(),
         center,
         radius,
-        Point::from(stick_pos),
+        Point::from(stick_pos.to_tuple()),
         Color4f::new(0.22, 0.22, 0.22, 1.0),
     );
 }
