@@ -4,14 +4,13 @@ mod config;
 mod global;
 mod graphics;
 mod input_method;
-#[cfg_attr(not(feature = "openvr"), path = "ovr_controller.no-ovr.rs")]
 mod ovr_controller;
 mod utils;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::draw_ring;
 use crate::input_method::IInputMethod;
-use crate::ovr_controller::OVRController;
+use crate::ovr_controller::{OverlayPlane, OVRController};
 use gl::types::GLuint;
 use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
@@ -110,28 +109,38 @@ fn main() {
 
         // TODO: openvr tick
 
-        draw_ring(
-            &kbd.status,
-            LeftRight::Left,
-            true,
-            &config.left_ring,
-            &mut left_ring.surface,
-        );
+        ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+            draw_ring(
+                &kbd.status,
+                LeftRight::Left,
+                true,
+                &config.left_ring,
+                &mut left_ring.surface,
+            );
+            left_ring.gl_tex_id
+        }).expect("drawing / updating left");
 
-        draw_ring(
-            &kbd.status,
-            LeftRight::Right,
-            false,
-            &config.right_ring,
-            &mut right_ring.surface,
-        );
+        ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
+            draw_ring(
+                &kbd.status,
+                LeftRight::Right,
+                true,
+                &config.right_ring,
+                &mut right_ring.surface,
+            );
+            right_ring.gl_tex_id
+        }).expect("drawing / updating right");
 
-        // TODO: pass texture to openvr
+        ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+            // TODO rendering
+            center_field.gl_tex_id
+        }).expect("drawing / updating center");
 
         #[cfg(feature = "debug_window")]
         {
             let canvas = window_surface.canvas();
-            let half_width = WINDOW_WIDTH as f32 / 2.0;
+            let width = WINDOW_WIDTH as f32;
+            let half_width = width / 2.0;
             canvas
                 .draw_image_rect_with_sampling_options(
                     &left_ring.image,
@@ -144,6 +153,13 @@ fn main() {
                     &right_ring.image,
                     None,
                     Rect::from_xywh(half_width, 0.0, half_width, half_width),
+                    SamplingOptions::default(),
+                    &Default::default(),
+                )
+                .draw_image_rect_with_sampling_options(
+                    &center_field.image,
+                    None,
+                    Rect::from_xywh(half_width, 0.0, width, width / 8.0),
                     SamplingOptions::default(),
                     &Default::default(),
                 );

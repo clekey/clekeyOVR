@@ -44,6 +44,8 @@ pub(in super) struct OVRController {
 }
 
 impl OvrImpl for OVRController {
+    type OverlayPlaneHandle = OwnedInVROverlay<'static>;
+
     fn new(resources: &Path) -> Result<Self> {
         let context = openvr::init(openvr::ApplicationType::Overlay)?;
         // load required components
@@ -193,17 +195,8 @@ impl OvrImpl for OVRController {
         Ok(())
     }
 
-    fn set_texture_impl(&self, texture: GLuint, handle: usize) -> Result<()> {
-        let handle = &self.overlay_handles[handle];
-        handle.show_overlay()?;
-        if handle.is_overlay_visible() {
-            handle.set_overlay_texture(OverlayTexture {
-                handle: texture as usize as *mut c_void,
-                tex_type: TextureType::OpenGL,
-                color_space: ColorSpace::Auto,
-            })?;
-        }
-        Ok(())
+    fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle {
+        &self.overlay_handles[plane as usize]
     }
 
     fn hide_overlays(&self) -> Result<()> {
@@ -291,6 +284,29 @@ impl OvrImpl for OVRController {
             .expect("inputs")
             .get_digital_action_data(action, 0)?;
         Ok(data.bState && data.bChanged)
+    }
+}
+
+impl<'a> OverlayPlaneHandle for OwnedInVROverlay<'a> {
+    fn set_texture(&self, texture: GLuint) -> Result<()> {
+        self.set_overlay_texture(OverlayTexture {
+            handle: texture as usize as *mut c_void,
+            tex_type: TextureType::OpenGL,
+            color_space: ColorSpace::Auto,
+        })?;
+        Ok(())
+    }
+
+    fn is_visible(&self) -> bool {
+        self.is_overlay_visible()
+    }
+
+    fn show_overlay(&self) -> Result<()> {
+        Ok(self.show_overlay()?)
+    }
+
+    fn hide_overlay(&self) -> Result<()> {
+        Ok(self.hide_overlay()?)
     }
 }
 

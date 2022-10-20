@@ -15,7 +15,11 @@ macro_rules! assume_used {
     };
 }
 
+pub(in super) struct MockHandle;
+
 impl OvrImpl for OVRController {
+    type OverlayPlaneHandle = MockHandle;
+
     fn new(_resources: &Path) -> Result<OVRController> {
         Ok(Self {_unused: ()})
     }
@@ -30,9 +34,9 @@ impl OvrImpl for OVRController {
         Ok(())
     }
 
-    fn set_texture_impl(&self, texture: GLuint, handle: usize) -> Result<()> {
-        assume_used!(texture, handle);
-        Ok(())
+    fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle {
+        assume_used!(plane);
+        &MockHandle
     }
 
     fn hide_overlays(&self) -> Result<()> {
@@ -74,6 +78,25 @@ impl OvrImpl for OVRController {
     fn click_started(&self, button: ButtonKind) -> Result<bool> {
         assume_used!(button);
         Ok(false)
+    }
+}
+
+impl OverlayPlaneHandle for MockHandle {
+    fn set_texture(&self, texture: GLuint) -> Result<()> {
+        assume_used!(texture);
+        Ok(())
+    }
+
+    fn is_visible(&self) -> bool {
+        true
+    }
+
+    fn show_overlay(&self) -> Result<()> {
+        Ok(())
+    }
+
+    fn hide_overlay(&self) -> Result<()> {
+        Ok(())
     }
 }
 

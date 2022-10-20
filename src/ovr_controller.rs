@@ -14,10 +14,11 @@ mod ovr;
 pub type Result<T> = core::result::Result<T, OVRError>;
 
 trait OvrImpl : Sized {
+    type OverlayPlaneHandle: OverlayPlaneHandle;
     fn new(resources: &Path) -> Result<Self>;
     fn load_config(&self, config: &CleKeyConfig) -> Result<()>;
     fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) -> Result<()>;
-    fn set_texture_impl(&self, texture: GLuint, handle: usize) -> Result<()>;
+    fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle;
     fn stick_pos(&self, hand: LeftRight) -> Result<Vec2>;
     fn trigger_status(&self, hand: LeftRight) -> Result<bool>;
     fn play_haptics(
@@ -34,8 +35,31 @@ trait OvrImpl : Sized {
     fn click_started(&self, button: ButtonKind) -> Result<bool>;
 }
 
+trait OverlayPlaneHandle {
+    fn set_texture(&self, texture: GLuint) -> Result<()>;
+    fn is_visible(&self) -> bool;
+    fn show_overlay(&self) -> Result<()>;
+    fn hide_overlay(&self) -> Result<()>;
+}
+
 pub struct OVRController {
     main: ovr::OVRController,
+}
+
+#[derive(Copy, Clone)]
+pub enum OverlayPlane {
+    Left,
+    Right,
+    Center,
+}
+
+impl From<LeftRight> for OverlayPlane {
+    fn from(side: LeftRight) -> Self {
+        match side {
+            LeftRight::Left => OverlayPlane::Left,
+            LeftRight::Right => OverlayPlane::Right,
+        }
+    }
 }
 
 impl OVRController {
@@ -76,13 +100,20 @@ impl OVRController {
         Ok(())
     }
 
-
-    pub fn set_texture(&self, texture: GLuint, side: LeftRight) -> Result<()> {
-        self.main.set_texture_impl(texture, side as usize)
+    pub fn show_overlay(&self, plane: OverlayPlane) -> Result<()> {
+        Ok(self.main.plane_handle(plane).show_overlay()?)
     }
 
-    pub fn set_center_texture(&self, texture: GLuint) -> Result<()> {
-        self.main.set_texture_impl(texture, 3)
+    pub fn hide_overlay(&self, plane: OverlayPlane) -> Result<()> {
+        Ok(self.main.plane_handle(plane).hide_overlay()?)
+    }
+
+    pub fn draw_if_visible(&self, plane: OverlayPlane, renderer: impl FnOnce() -> GLuint) -> Result<()> {
+        let handle = self.main.plane_handle(plane);
+        if handle.is_visible() {
+            handle.set_texture(renderer())?;
+        }
+        Ok(())
     }
 }
 
