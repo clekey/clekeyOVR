@@ -8,6 +8,8 @@ use std::path::Path;
 mod mock;
 #[cfg(not(feature = "openvr"))]
 use mock as ovr;
+use crate::input_method::HardKeyButton;
+
 #[cfg(feature = "openvr")]
 mod ovr;
 
@@ -31,8 +33,8 @@ trait OvrImpl : Sized {
     ) -> Result<()>;
     fn hide_overlays(&self) -> Result<()>;
     fn close_center_overlay(&self) -> Result<()>;
-    fn button_status(&self, button: ButtonKind) -> Result<bool>;
-    fn click_started(&self, button: ButtonKind) -> Result<bool>;
+    fn button_status(&self, button: ButtonKind) -> bool;
+    fn click_started(&self, button: HardKeyButton) -> bool;
 }
 
 trait OverlayPlaneHandle {
@@ -51,6 +53,14 @@ pub enum OverlayPlane {
     Left,
     Right,
     Center,
+}
+
+impl OverlayPlane {
+    pub const VALUES: [OverlayPlane; 3] = [
+        OverlayPlane::Left,
+        OverlayPlane::Right,
+        OverlayPlane::Center,
+    ];
 }
 
 impl From<LeftRight> for OverlayPlane {
@@ -148,8 +158,8 @@ impl OVRController {
             frequency: f32,
             amplitude: f32,
         ) -> Result<()>;
-        pub fn button_status(&self, button: ButtonKind) -> Result<bool>;
-        pub fn click_started(&self, button: ButtonKind) -> Result<bool>;
+        pub fn button_status(&self, button: ButtonKind) -> bool;
+        pub fn click_started(&self, button: HardKeyButton) -> bool;
     }
 }
 
@@ -163,7 +173,7 @@ pub enum ActionSetKind {
     Suspender,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ButtonKind {
     BeginInput,
     SuspendInput,

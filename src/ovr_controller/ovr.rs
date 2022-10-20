@@ -148,9 +148,9 @@ impl OvrImpl for OVRController {
             )?;
             Ok(())
         }
-        load(&self.overlay_handles[0], &config.left_ring.position);
-        load(&self.overlay_handles[1], &config.right_ring.position);
-        load(&self.overlay_handles[2], &config.completion.position);
+        load(&self.overlay_handles[0], &config.left_ring.position)?;
+        load(&self.overlay_handles[1], &config.right_ring.position)?;
+        load(&self.overlay_handles[2], &config.completion.position)?;
         Ok(())
     }
 
@@ -261,29 +261,30 @@ impl OvrImpl for OVRController {
             .map_err(Into::into)
     }
 
-    fn button_status(&self, button: ButtonKind) -> Result<bool> {
+    fn button_status(&self, button: ButtonKind) -> bool {
         let action = match button {
             ButtonKind::BeginInput => self.action_waiting_begin_input,
             ButtonKind::SuspendInput => self.action_suspender_suspender,
         };
-        let  data=         self.context
+        self.context
             .input()
             .expect("inputs")
-            .get_digital_action_data(action, 0)?;
-        Ok(data.bState)
+            .get_digital_action_data(action, 0)
+            .unwrap_or_else(|e| panic!("getting button status {:?}: {:?}", button, e))
+            .bState
     }
 
 
-    fn click_started(&self, button: ButtonKind) -> Result<bool> {
+    fn click_started(&self, button: HardKeyButton) -> bool {
         let action = match button {
-            ButtonKind::BeginInput => self.action_waiting_begin_input,
-            ButtonKind::SuspendInput => self.action_suspender_suspender,
+            HardKeyButton::CloseButton => self.action_waiting_begin_input,
         };
-        let  data=         self.context
+        let data = self.context
             .input()
             .expect("inputs")
-            .get_digital_action_data(action, 0)?;
-        Ok(data.bState && data.bChanged)
+            .get_digital_action_data(action, 0)
+            .unwrap_or_else(|e| panic!("getting button status {:?}: {:?}", button, e));
+        data.bState && data.bChanged
     }
 }
 

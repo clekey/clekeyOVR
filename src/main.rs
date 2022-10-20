@@ -9,8 +9,8 @@ mod utils;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::draw_ring;
-use crate::input_method::IInputMethod;
-use crate::ovr_controller::{OverlayPlane, OVRController};
+use crate::input_method::{HardKeyButton, IInputMethod};
+use crate::ovr_controller::{ActionSetKind, ButtonKind, OverlayPlane, OVRController};
 use gl::types::GLuint;
 use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
@@ -19,6 +19,7 @@ use skia_safe::gpu::{BackendRenderTarget, BackendTexture, Mipmapped, SurfaceOrig
 use skia_safe::{gpu, AlphaType, ColorType, Image, Paint, Rect, SamplingOptions, Surface};
 use std::collections::VecDeque;
 use std::ptr::null;
+use std::rc::Rc;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -93,13 +94,21 @@ fn main() {
     println!("{:#?}", config);
 
     let ovr_controller = OVRController::new(".".as_ref()).expect("ovr controller");
+    ovr_controller.load_config(&config).expect("loading config on ovr");
 
     let kbd = KeyboardManager::new(&ovr_controller, &config);
+
+    let mut app = Application {
+        ovr_controller: &ovr_controller,
+        kbd: &kbd,
+        status: Rc::new(Waiting),
+    };
 
     // gl initialiation
 
     let mut left_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
     let mut right_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
+    let mut center_field = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT / 8);
 
     //frame.clear_color();
 
@@ -108,6 +117,8 @@ fn main() {
         for (_, event) in glfw::flush_messages(&events) {}
 
         // TODO: openvr tick
+
+        app.status.clone().tick(&mut app);
 
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             draw_ring(
@@ -170,6 +181,40 @@ fn main() {
         window.swap_buffers();
     }
     println!("Hello, world!");
+}
+
+struct Application<'a> {
+    ovr_controller: &'a OVRController,
+    kbd: &'a KeyboardManager<'a>,
+    status: Rc<dyn ApplicationStatus>,
+}
+
+trait ApplicationStatus {
+    fn tick(&self, app: &mut Application);
+}
+
+struct Waiting;
+
+impl ApplicationStatus for Waiting {
+    fn tick(&self, app: &mut Application) {
+        app.ovr_controller.set_active_action_set([ActionSetKind::Waiting])
+            .expect("setting active action set");
+
+        for x in OverlayPlane::VALUES {
+            app.ovr_controller.hide_overlay(x).expect("hiding overlay");
+        }
+
+        if app.ovr_controller.click_started(HardKeyButton::CloseButton) {
+            app.status = Rc::new(Inputting);
+        }
+    }
+}
+
+struct Inputting;
+
+impl ApplicationStatus for Inputting {
+    fn tick(&self, app: &mut Application) {
+    }
 }
 
 struct SurfaceInfo {
@@ -304,6 +349,13 @@ impl<'ovr> KeyboardManager<'ovr> {
                 right: HandInfo::new(),
                 method: Box::new(JapaneseInput::new()),
             },
+        }
+    }
+
+    pub fn flush(&mut self) {
+        let buffer = self.methods.front_mut().unwrap().get_and_clear_buffer();
+        if !buffer.is_empty() {
+            
         }
     }
 }

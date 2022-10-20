@@ -1,6 +1,7 @@
 use crate::utils::ToTuple;
 use glam::UVec2;
 
+#[derive(Copy, Clone, Debug)]
 pub enum HardKeyButton {
     CloseButton,
 }

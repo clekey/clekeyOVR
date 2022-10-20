@@ -69,15 +69,15 @@ impl OvrImpl for OVRController {
         Ok(())
     }
 
-    fn button_status(&self, button: ButtonKind) -> Result<bool> {
+    fn button_status(&self, button: ButtonKind) -> bool {
         assume_used!(button);
-        Ok(false)
+        false
     }
 
 
-    fn click_started(&self, button: ButtonKind) -> Result<bool> {
+    fn click_started(&self, button: HardKeyButton) -> bool {
         assume_used!(button);
-        Ok(false)
+        false
     }
 }
 
