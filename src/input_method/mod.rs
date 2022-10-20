@@ -7,9 +7,7 @@ pub enum HardKeyButton {
 }
 
 impl HardKeyButton {
-    pub const VALUES: [HardKeyButton; 1] = [
-        HardKeyButton::CloseButton,
-    ];
+    pub const VALUES: [HardKeyButton; 1] = [HardKeyButton::CloseButton];
 }
 
 pub struct InputNextAction {

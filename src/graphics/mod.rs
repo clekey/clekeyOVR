@@ -1,4 +1,4 @@
-use crate::config::{RingOverlayConfig};
+use crate::config::RingOverlayConfig;
 use crate::utils::ToTuple;
 use crate::{KeyboardStatus, LeftRight};
 use skia_safe::colors::TRANSPARENT;

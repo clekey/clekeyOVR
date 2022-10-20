@@ -135,6 +135,7 @@ merging_serde! {
     }
 }
 
+#[allow(dead_code)]
 mod serialize_color4f_4f {
     use super::OptionalValue;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

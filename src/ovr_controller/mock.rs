@@ -1,12 +1,12 @@
-use std::fmt::{Display, Formatter};
-use std::path::Path;
+use super::*;
+use crate::{CleKeyConfig, LeftRight};
 use gl::types::GLuint;
 use glam::Vec2;
-use crate::{CleKeyConfig, LeftRight};
-use super::*;
+use std::fmt::{Display, Formatter};
+use std::path::Path;
 
-pub(in super) struct OVRController {
-    _unused: ()
+pub(super) struct OVRController {
+    _unused: (),
 }
 
 macro_rules! assume_used {
@@ -15,13 +15,13 @@ macro_rules! assume_used {
     };
 }
 
-pub(in super) struct MockHandle;
+pub(super) struct MockHandle;
 
 impl OvrImpl for OVRController {
     type OverlayPlaneHandle = MockHandle;
 
     fn new(_resources: &Path) -> Result<OVRController> {
-        Ok(Self {_unused: ()})
+        Ok(Self { _unused: () })
     }
 
     fn load_config(&self, config: &CleKeyConfig) -> Result<()> {
@@ -65,7 +65,13 @@ impl OvrImpl for OVRController {
         frequency: f32,
         amplitude: f32,
     ) -> Result<()> {
-        assume_used!(hand, start_seconds_from_now, duration_seconds, frequency, amplitude);
+        assume_used!(
+            hand,
+            start_seconds_from_now,
+            duration_seconds,
+            frequency,
+            amplitude
+        );
         Ok(())
     }
 
@@ -73,7 +79,6 @@ impl OvrImpl for OVRController {
         assume_used!(button);
         false
     }
-
 
     fn click_started(&self, button: HardKeyButton) -> bool {
         assume_used!(button);

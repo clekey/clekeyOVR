@@ -6,16 +6,16 @@ use std::path::Path;
 
 #[cfg(not(feature = "openvr"))]
 mod mock;
+use crate::input_method::HardKeyButton;
 #[cfg(not(feature = "openvr"))]
 use mock as ovr;
-use crate::input_method::HardKeyButton;
 
 #[cfg(feature = "openvr")]
 mod ovr;
 
 pub type Result<T> = core::result::Result<T, OVRError>;
 
-trait OvrImpl : Sized {
+trait OvrImpl: Sized {
     type OverlayPlaneHandle: OverlayPlaneHandle;
     fn new(resources: &Path) -> Result<Self>;
     fn load_config(&self, config: &CleKeyConfig) -> Result<()>;
@@ -79,8 +79,7 @@ impl OVRController {
 
         fn compute_angle(vec: Vec2) -> i8 {
             let a: f32 = vec.y.atan2(vec.x) * (4.0 / PI);
-            let mut angle = a.round() as i8;
-            return (angle + 2) & 7;
+            return ((a.round() as i8) + 2) & 7;
         }
 
         const LOWER_BOUND: f32 = 0.75 * 0.75;
@@ -125,7 +124,11 @@ impl OVRController {
         Ok(())
     }
 
-    pub fn draw_if_visible(&self, plane: OverlayPlane, renderer: impl FnOnce() -> GLuint) -> Result<()> {
+    pub fn draw_if_visible(
+        &self,
+        plane: OverlayPlane,
+        renderer: impl FnOnce() -> GLuint,
+    ) -> Result<()> {
         let handle = self.main.plane_handle(plane);
         if handle.is_visible() {
             handle.set_texture(renderer())?;
@@ -149,7 +152,9 @@ macro_rules! trait_wrap {
 impl OVRController {
     // trait wrappers
     pub fn new(resources: &Path) -> Result<OVRController> {
-        Ok(Self { main: ovr::OVRController::new(resources)? })
+        Ok(Self {
+            main: ovr::OVRController::new(resources)?,
+        })
     }
 
     trait_wrap! {
@@ -190,7 +195,10 @@ pub struct OVRError {
     main: ovr::OVRError,
 }
 
-impl <T> From<T> for OVRError where ovr::OVRError: From<T> {
+impl<T> From<T> for OVRError
+where
+    ovr::OVRError: From<T>,
+{
     fn from(t: T) -> Self {
         Self { main: t.into() }
     }

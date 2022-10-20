@@ -1,3 +1,4 @@
+use super::*;
 use crate::config::OverlayPositionConfig;
 use crate::utils::{IntoStringLossy, ToCString};
 use crate::{CleKeyConfig, HandInfo, KeyboardStatus, LeftRight, Vec2};
@@ -5,16 +6,15 @@ use gl::types::GLuint;
 use glam::Vec3;
 use openvr::overlay::OwnedInVROverlay;
 use openvr::{
-    cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t,
-    VRActionSetHandle_t, VRActiveActionSet_t, VRContext,
+    cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
+    VRActiveActionSet_t, VRContext,
 };
 use std::f32::consts::PI;
 use std::ffi::c_void;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use super::*;
 
-pub(in super) struct OVRController {
+pub(super) struct OVRController {
     // input
     action_input_left_stick: VRActionHandle_t,
     action_input_left_click: VRActionHandle_t,
@@ -154,10 +154,7 @@ impl OvrImpl for OVRController {
         Ok(())
     }
 
-    fn set_active_action_set(
-        &self,
-        kinds: impl IntoIterator<Item = ActionSetKind>,
-    ) -> Result<()> {
+    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) -> Result<()> {
         fn as_vr_action_set(c: &OVRController, kind: ActionSetKind) -> VRActiveActionSet_t {
             match kind {
                 ActionSetKind::Input => VRActiveActionSet_t {
@@ -215,7 +212,8 @@ impl OvrImpl for OVRController {
             LeftRight::Left => self.action_input_left_stick,
             LeftRight::Right => self.action_input_right_stick,
         };
-        let data = self.context
+        let data = self
+            .context
             .input()
             .expect("inputs")
             .get_analog_action_data(action, 0)?;
@@ -227,7 +225,8 @@ impl OvrImpl for OVRController {
             LeftRight::Left => self.action_input_left_click,
             LeftRight::Right => self.action_input_right_click,
         };
-        let  data=         self.context
+        let data = self
+            .context
             .input()
             .expect("inputs")
             .get_digital_action_data(action, 0)?;
@@ -256,7 +255,7 @@ impl OvrImpl for OVRController {
                 duration_seconds,
                 frequency,
                 amplitude,
-                0
+                0,
             )
             .map_err(Into::into)
     }
@@ -274,12 +273,12 @@ impl OvrImpl for OVRController {
             .bState
     }
 
-
     fn click_started(&self, button: HardKeyButton) -> bool {
         let action = match button {
             HardKeyButton::CloseButton => self.action_waiting_begin_input,
         };
-        let data = self.context
+        let data = self
+            .context
             .input()
             .expect("inputs")
             .get_digital_action_data(action, 0)

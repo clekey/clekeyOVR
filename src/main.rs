@@ -10,15 +10,16 @@ mod utils;
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::draw_ring;
 use crate::input_method::{HardKeyButton, IInputMethod, InputNextAction, InputNextMoreAction};
-use crate::ovr_controller::{ActionSetKind, ButtonKind, OverlayPlane, OVRController};
+use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
 use glam::{UVec2, Vec2};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
-use skia_safe::gpu::gl::{Format, TextureInfo};
-use skia_safe::gpu::{BackendRenderTarget, BackendTexture, Mipmapped, SurfaceOrigin};
-use skia_safe::{gpu, AlphaType, ColorType, Image, Paint, Rect, SamplingOptions, Surface};
+use skia_safe::gpu::gl::TextureInfo;
+use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
+use skia_safe::{gpu, AlphaType, ColorType, Image, Surface};
+#[cfg(feature = "debug_window")]
+use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
-use std::os::macos::raw::stat;
 use std::ptr::null;
 use std::rc::Rc;
 
@@ -95,7 +96,9 @@ fn main() {
     println!("{:#?}", config);
 
     let ovr_controller = OVRController::new(".".as_ref()).expect("ovr controller");
-    ovr_controller.load_config(&config).expect("loading config on ovr");
+    ovr_controller
+        .load_config(&config)
+        .expect("loading config on ovr");
 
     let mut kbd = KeyboardManager::new(&ovr_controller, &config);
 
@@ -109,44 +112,54 @@ fn main() {
 
     let mut left_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
     let mut right_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    let mut center_field = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT / 8);
+    let mut center_field = create_surface(
+        &mut skia_ctx.clone().into(),
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT / 8,
+    );
 
     //frame.clear_color();
 
     while !window.should_close() {
         glfw.poll_events();
-        for (_, event) in glfw::flush_messages(&events) {}
+        for (_, _) in glfw::flush_messages(&events) {}
 
         // TODO: openvr tick
 
         app.status.clone().tick(&mut app);
 
-        ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-            draw_ring(
-                &app.keyboard.status,
-                LeftRight::Left,
-                true,
-                &config.left_ring,
-                &mut left_ring.surface,
-            );
-            left_ring.gl_tex_id
-        }).expect("drawing / updating left");
+        ovr_controller
+            .draw_if_visible(LeftRight::Left.into(), || {
+                draw_ring(
+                    &app.keyboard.status,
+                    LeftRight::Left,
+                    true,
+                    &config.left_ring,
+                    &mut left_ring.surface,
+                );
+                left_ring.gl_tex_id
+            })
+            .expect("drawing / updating left");
 
-        ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-            draw_ring(
-                &app.keyboard.status,
-                LeftRight::Right,
-                true,
-                &config.right_ring,
-                &mut right_ring.surface,
-            );
-            right_ring.gl_tex_id
-        }).expect("drawing / updating right");
+        ovr_controller
+            .draw_if_visible(LeftRight::Right.into(), || {
+                draw_ring(
+                    &app.keyboard.status,
+                    LeftRight::Right,
+                    true,
+                    &config.right_ring,
+                    &mut right_ring.surface,
+                );
+                right_ring.gl_tex_id
+            })
+            .expect("drawing / updating right");
 
-        ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-            // TODO rendering
-            center_field.gl_tex_id
-        }).expect("drawing / updating center");
+        ovr_controller
+            .draw_if_visible(OverlayPlane::Center, || {
+                // TODO rendering
+                center_field.gl_tex_id
+            })
+            .expect("drawing / updating center");
 
         #[cfg(feature = "debug_window")]
         {
@@ -198,10 +211,13 @@ struct Waiting;
 
 impl ApplicationStatus for Waiting {
     fn tick(&self, app: &mut Application) {
-        app.ovr_controller.set_active_action_set([ActionSetKind::Waiting])
+        app.ovr_controller
+            .set_active_action_set([ActionSetKind::Waiting])
             .expect("setting active action set");
 
-        app.ovr_controller.hide_all_overlay().expect("hiding overlay");
+        app.ovr_controller
+            .hide_all_overlay()
+            .expect("hiding overlay");
 
         if app.ovr_controller.click_started(HardKeyButton::CloseButton) {
             app.status = Rc::new(Inputting);
@@ -213,15 +229,31 @@ struct Inputting;
 
 impl ApplicationStatus for Inputting {
     fn tick(&self, app: &mut Application) {
-        app.ovr_controller.set_active_action_set([ActionSetKind::Suspender, ActionSetKind::Input, ActionSetKind::Waiting]).expect("set_active_action_set");
-        app.ovr_controller.update_status(&mut app.keyboard.status).expect("updating");
+        app.ovr_controller
+            .set_active_action_set([
+                ActionSetKind::Suspender,
+                ActionSetKind::Input,
+                ActionSetKind::Waiting,
+            ])
+            .expect("set_active_action_set");
+        app.ovr_controller
+            .update_status(&mut app.keyboard.status)
+            .expect("updating");
 
-        app.ovr_controller.show_overlay(OverlayPlane::Left).expect("show overlay");
-        app.ovr_controller.show_overlay(OverlayPlane::Right).expect("show overlay");
+        app.ovr_controller
+            .show_overlay(OverlayPlane::Left)
+            .expect("show overlay");
+        app.ovr_controller
+            .show_overlay(OverlayPlane::Right)
+            .expect("show overlay");
         if !app.keyboard.status.method.buffer().is_empty() {
-            app.ovr_controller.show_overlay(OverlayPlane::Center).expect("show overlay");
+            app.ovr_controller
+                .show_overlay(OverlayPlane::Center)
+                .expect("show overlay");
         } else {
-            app.ovr_controller.hide_overlay(OverlayPlane::Center).expect("show overlay");
+            app.ovr_controller
+                .hide_overlay(OverlayPlane::Center)
+                .expect("show overlay");
         }
 
         if app.keyboard.tick() {
@@ -238,7 +270,9 @@ struct Suspending;
 
 impl ApplicationStatus for Suspending {
     fn tick(&self, app: &mut Application) {
-        app.ovr_controller.set_active_action_set([ActionSetKind::Suspender]).expect("set_active_action_set");
+        app.ovr_controller
+            .set_active_action_set([ActionSetKind::Suspender])
+            .expect("set_active_action_set");
         app.ovr_controller.hide_all_overlay().expect("hide overlay");
         if !app.ovr_controller.button_status(ButtonKind::SuspendInput) {
             app.status = Rc::new(Inputting)
@@ -382,9 +416,15 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub(crate) fn tick(&mut self) -> bool {
-        if self.status.left.click_started() || self.status.right.click_started()
-            && self.status.left.selection != -1 && self.status.right.selection != -1 {
-            let action = self.status.method.on_input(UVec2::new(self.status.left.selection as u32, self.status.right.selection as u32));
+        if self.status.left.click_started()
+            || self.status.right.click_started()
+                && self.status.left.selection != -1
+                && self.status.right.selection != -1
+        {
+            let action = self.status.method.on_input(UVec2::new(
+                self.status.left.selection as u32,
+                self.status.right.selection as u32,
+            ));
             if self.do_input_action(action) {
                 return true;
             }
@@ -430,9 +470,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                 // TODO: enter delete char
                 false
             }
-            InputNextMoreAction::CloseKeyboard => {
-                true
-            }
+            InputNextMoreAction::CloseKeyboard => true,
             InputNextMoreAction::NewLine => {
                 // TODO: enter 'enter' key
                 false
