@@ -21,7 +21,6 @@ use std::collections::VecDeque;
 use std::os::macos::raw::stat;
 use std::ptr::null;
 use std::rc::Rc;
-use crate::ButtonKind::SuspendInput;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -229,7 +228,7 @@ impl ApplicationStatus for Inputting {
             app.status = Rc::new(Waiting);
         }
 
-        if app.ovr_controller.button_status(SuspendInput) {
+        if app.ovr_controller.button_status(ButtonKind::SuspendInput) {
             app.status = Rc::new(Suspending)
         }
     }
@@ -239,6 +238,11 @@ struct Suspending;
 
 impl ApplicationStatus for Suspending {
     fn tick(&self, app: &mut Application) {
+        app.ovr_controller.set_active_action_set([ActionSetKind::Suspender]).expect("set_active_action_set");
+        app.ovr_controller.hide_all_overlay().expect("hide overlay");
+        if !app.ovr_controller.button_status(ButtonKind::SuspendInput) {
+            app.status = Rc::new(Inputting)
+        }
     }
 }
 
@@ -380,14 +384,16 @@ impl<'ovr> KeyboardManager<'ovr> {
     pub(crate) fn tick(&mut self) -> bool {
         if self.status.left.click_started() || self.status.right.click_started()
             && self.status.left.selection != -1 && self.status.right.selection != -1 {
-            if self.do_input_action(self.status.method.on_input(UVec2::new(self.status.left.selection as u32, self.status.right.selection as u32))) {
+            let action = self.status.method.on_input(UVec2::new(self.status.left.selection as u32, self.status.right.selection as u32));
+            if self.do_input_action(action) {
                 return true;
             }
         }
 
         for x in HardKeyButton::VALUES {
             if self.ovr_controller.click_started(x) {
-                if self.do_input_action(self.status.method.on_hard_input(x)) {
+                let action = self.status.method.on_hard_input(x);
+                if self.do_input_action(action) {
                     return true;
                 }
             }
