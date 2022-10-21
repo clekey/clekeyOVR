@@ -43,8 +43,11 @@ pub(super) struct OVRController {
     context: VRContext,
 }
 
+#[repr(transparent)]
+pub struct OverlayPlaneHandleWrapper(OwnedInVROverlay<'static>);
+
 impl OvrImpl for OVRController {
-    type OverlayPlaneHandle = OwnedInVROverlay<'static>;
+    type OverlayPlaneHandle = OverlayPlaneHandleWrapper;
 
     fn new(resources: &Path) -> Result<Self> {
         let context = openvr::init(openvr::ApplicationType::Overlay)?;
@@ -62,13 +65,13 @@ impl OvrImpl for OVRController {
         let action_input_left_click =
             input.get_action_handle(cstr!("/actions/input/in/left_click"))?;
         let action_input_left_haptic =
-            input.get_action_handle(cstr!("/actions/input/output/left_haptic"))?;
+            input.get_action_handle(cstr!("/actions/input/out/left_haptic"))?;
         let action_input_right_stick =
             input.get_action_handle(cstr!("/actions/input/in/right_stick"))?;
         let action_input_right_click =
             input.get_action_handle(cstr!("/actions/input/in/right_click"))?;
         let action_input_right_haptic =
-            input.get_action_handle(cstr!("/actions/input/output/right_haptic"))?;
+            input.get_action_handle(cstr!("/actions/input/out/right_haptic"))?;
         let action_set_input = input.get_action_handle(cstr!("/actions/input"))?;
 
         let action_waiting_begin_input =
@@ -193,7 +196,10 @@ impl OvrImpl for OVRController {
     }
 
     fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle {
-        &self.overlay_handles[plane as usize]
+        unsafe {
+            // SAFETY: OverlayPlaneHandleWrapper is transparent
+            std::mem::transmute(&self.overlay_handles[plane as usize])
+        }
     }
 
     fn stick_pos(&self, hand: LeftRight) -> Vec2 {
@@ -278,9 +284,9 @@ impl OvrImpl for OVRController {
     }
 }
 
-impl<'a> OverlayPlaneHandle for OwnedInVROverlay<'a> {
+impl OverlayPlaneHandle for OverlayPlaneHandleWrapper {
     fn set_texture(&self, texture: GLuint) {
-        self.set_overlay_texture(OverlayTexture {
+        self.0.set_overlay_texture(OverlayTexture {
             handle: texture as usize as *mut c_void,
             tex_type: TextureType::OpenGL,
             color_space: ColorSpace::Auto,
@@ -288,15 +294,15 @@ impl<'a> OverlayPlaneHandle for OwnedInVROverlay<'a> {
     }
 
     fn is_visible(&self) -> bool {
-        self.is_overlay_visible()
+        self.0.is_overlay_visible()
     }
 
     fn show_overlay(&self) {
-        self.show_overlay().expect("show_overlay")
+        self.0.show_overlay().expect("show_overlay")
     }
 
     fn hide_overlay(&self) {
-        self.hide_overlay().expect("hide_overlay")
+        self.0.hide_overlay().expect("hide_overlay")
     }
 }
 
