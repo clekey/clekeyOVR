@@ -76,7 +76,7 @@ impl OVRController {
         status.selection_old = status.selection;
 
         fn compute_angle(vec: Vec2) -> i8 {
-            let a: f32 = vec.y.atan2(vec.x) * (4.0 / PI);
+            let a: f32 = vec.y.atan2(vec.x) * (-4.0 / PI);
             return ((a.round() as i8) + 2) & 7;
         }
 

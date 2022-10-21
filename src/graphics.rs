@@ -8,6 +8,7 @@ use skia_safe::textlayout::{
 };
 use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
+use glam::Vec2;
 
 pub fn draw_background_ring(
     canvas: &mut Canvas,
@@ -66,9 +67,10 @@ pub fn draw_cursor_circle(
     canvas: &mut Canvas,
     center: Point,
     radius: f32,
-    stick: Point,
+    stick: Vec2,
     color: Color4f,
 ) {
+    let stick = Point::new(stick.x, -stick.y);
     canvas.draw_circle(
         center + stick * (radius / 3.0),
         radius / 4.0,
@@ -226,7 +228,7 @@ pub fn draw_ring(
         surface.canvas(),
         center,
         radius,
-        Point::from(stick_pos.to_tuple()),
+        stick_pos,
         Color4f::new(0.22, 0.22, 0.22, 1.0),
     );
 }
