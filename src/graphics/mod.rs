@@ -96,6 +96,7 @@ fn calc_offsets(size: scalar) -> [Point; 8] {
 fn render_ring_chars<'a>(
     canvas: &mut Canvas,
     fonts: &FontCollection,
+    font_families: &[impl AsRef<str>],
     center: Point,
     size: scalar,
     get_char: impl Fn(i8) -> (&'a str, Color4f),
@@ -110,7 +111,7 @@ fn render_ring_chars<'a>(
         let actual_font_size: scalar;
         {
             let mut paragraph = ParagraphBuilder::new(
-                ParagraphStyle::new().set_text_style(TextStyle::new().set_font_size(font_size)),
+                ParagraphStyle::new().set_text_style(TextStyle::new().set_font_size(font_size).set_font_families(font_families)),
                 fonts,
             )
             .add_text(&pair.0)
@@ -127,7 +128,8 @@ fn render_ring_chars<'a>(
                 .set_text_style(
                     TextStyle::new()
                         .set_color(pair.1.to_color())
-                        .set_font_size(actual_font_size),
+                        .set_font_size(actual_font_size)
+                        .set_font_families(font_families),
                 ),
             fonts,
         )
@@ -147,6 +149,7 @@ pub fn draw_ring(
     always_show_in_circle: bool,
     config: &RingOverlayConfig,
     fonts: &FontCollection,
+    font_families: &[impl AsRef<str>],
     surface: &mut Surface,
 ) {
     surface.canvas().clear(TRANSPARENT);
@@ -191,6 +194,7 @@ pub fn draw_ring(
             render_ring_chars(
                 surface.canvas(),
                 &fonts,
+                font_families,
                 offsets[pos as usize] + center,
                 ring_size,
                 |idx| {
@@ -206,6 +210,7 @@ pub fn draw_ring(
         render_ring_chars(
             surface.canvas(),
             &fonts,
+            font_families,
             center,
             radius,
             |idx| {
@@ -230,6 +235,7 @@ pub fn draw_center(
     status: &KeyboardStatus,
     config: &CompletionOverlayConfig,
     fonts: &FontCollection,
+    font_families: &[impl AsRef<str>],
     surface: &mut Surface,
 ) {
     surface.canvas().clear(config.background_color);
@@ -237,7 +243,7 @@ pub fn draw_center(
     let space = surface.height() as f32 * 0.15;
 
     ParagraphBuilder::new(&ParagraphStyle::new()
-        .set_text_style(TextStyle::new().set_color(config.inputting_char_color.to_color())),fonts)
+        .set_text_style(TextStyle::new().set_color(config.inputting_char_color.to_color()).set_font_families(font_families)),fonts)
         .add_text(status.method.buffer())
         .build()
         .paint(surface.canvas(), Point::new(space, space));

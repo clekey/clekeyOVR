@@ -49,7 +49,7 @@ impl OvrImpl for OVRController {
 
     fn stick_pos(&self, hand: LeftRight) -> Result<Vec2> {
         assume_used!(hand);
-        Ok(Vec2::default())
+        Ok(Vec2::new(1.0, 0.0))
     }
 
     fn trigger_status(&self, hand: LeftRight) -> Result<bool> {

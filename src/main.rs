@@ -15,12 +15,13 @@ use glam::{UVec2, Vec2};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
-use skia_safe::{gpu, AlphaType, ColorType, Image, Surface, FontMgr};
+use skia_safe::{gpu, AlphaType, ColorType, Image, Surface, FontMgr, FontStyle};
 #[cfg(feature = "debug_window")]
 use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
 use std::ptr::null;
 use std::rc::Rc;
+use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::textlayout::FontCollection;
 
 const WINDOW_HEIGHT: i32 = 1024;
@@ -92,8 +93,6 @@ fn main() {
     let mut config = CleKeyConfig::default();
 
     load_config(&mut config);
-    println!("{:?}", config);
-    println!("{:#?}", config);
 
     let ovr_controller = OVRController::new(".".as_ref()).expect("ovr controller");
     ovr_controller
@@ -109,17 +108,22 @@ fn main() {
     };
 
     let font_mgr = FontMgr::new();
+    let mut fonts = FontCollection::new();
+    let mut font_families = Vec::new();
 
     for e in global::get_resources_dir().join("fonts").read_dir().expect("read dir") {
         let e = e.expect("read dir");
         if e.path().extension() == Some("otf".as_ref()) || e.path().extension() == Some("ttf".as_ref()) {
-            font_mgr.new_from_data(&std::fs::read(e.path()).expect("read data"), None).expect("new from data");
+            let face = font_mgr.new_from_data(&std::fs::read(e.path()).expect("read data"), None).expect("new from data");
+            font_families.push(face.family_name());
+            println!("loaded: {:?}", face);
         }
     }
-    // println!("font families: {:?}", TextStyle::new().font_families().iter().collect::<Vec<_>>());
+    println!("font_families: {:?}", font_families);
 
-    let mut fonts = FontCollection::new();
-    fonts.set_default_font_manager(Some(font_mgr), Some("sans-serif"));
+    // TODO: find way to use Noto Sans in rendering instead of system fonts
+    fonts.set_default_font_manager(Some(font_mgr), None);
+    println!("find_typefaces: {:?}", fonts.find_typefaces(&font_families, FontStyle::new(Weight::MEDIUM, Width::NORMAL, Slant::Upright)));
 
     // gl initialiation
 
@@ -149,6 +153,7 @@ fn main() {
                     true,
                     &config.left_ring,
                     &fonts,
+                    &font_families,
                     &mut left_ring.surface,
                 );
                 left_ring.gl_tex_id
@@ -163,6 +168,7 @@ fn main() {
                     false,
                     &config.right_ring,
                     &fonts,
+                    &font_families,
                     &mut right_ring.surface,
                 );
                 right_ring.gl_tex_id
@@ -175,6 +181,7 @@ fn main() {
                     &app.keyboard.status,
                     &config.completion,
                     &fonts,
+                    &font_families,
                     &mut center_field.surface,
                 );
                 // TODO rendering
