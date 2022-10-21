@@ -105,7 +105,7 @@ impl OVRController {
 
     pub fn update_status(&self, status: &mut KeyboardStatus) -> Result<()> {
         self.update_hand_status(&mut status.left, LeftRight::Left)?;
-        self.update_hand_status(&mut status.left, LeftRight::Left)?;
+        self.update_hand_status(&mut status.right, LeftRight::Right)?;
         Ok(())
     }
 

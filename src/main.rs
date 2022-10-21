@@ -7,7 +7,7 @@ mod utils;
 mod os;
 
 use crate::config::{load_config, CleKeyConfig};
-use crate::graphics::draw_ring;
+use crate::graphics::{draw_center, draw_ring};
 use crate::input_method::{HardKeyButton, IInputMethod, InputNextAction, InputNextMoreAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
@@ -15,12 +15,13 @@ use glam::{UVec2, Vec2};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
-use skia_safe::{gpu, AlphaType, ColorType, Image, Surface};
+use skia_safe::{gpu, AlphaType, ColorType, Image, Surface, FontMgr};
 #[cfg(feature = "debug_window")]
 use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
 use std::ptr::null;
 use std::rc::Rc;
+use skia_safe::textlayout::FontCollection;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -56,7 +57,7 @@ fn main() {
     gl::load_with(|s| glfw.get_proc_address_raw(s));
 
     let mut skia_ctx =
-        skia_safe::gpu::DirectContext::new_gl(None, None).expect("skia gpu context creation");
+        gpu::DirectContext::new_gl(None, None).expect("skia gpu context creation");
 
     // debug block
     #[cfg(feature = "debug_window")]
@@ -69,7 +70,7 @@ fn main() {
             gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             let mut fboid: u32 = 0;
             gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut fboid as *mut u32 as *mut i32);
-            fbi = skia_safe::gpu::gl::FramebufferInfo {
+            fbi = gpu::gl::FramebufferInfo {
                 fboid,
                 format: gl::RGBA8,
             };
@@ -104,8 +105,21 @@ fn main() {
     let mut app = Application {
         ovr_controller: &ovr_controller,
         keyboard: &mut kbd,
-        status: Rc::new(Waiting),
+        status: Rc::new(Inputting),
     };
+
+    let font_mgr = FontMgr::new();
+
+    for e in global::get_resources_dir().join("fonts").read_dir().expect("read dir") {
+        let e = e.expect("read dir");
+        if e.path().extension() == Some("otf".as_ref()) || e.path().extension() == Some("ttf".as_ref()) {
+            font_mgr.new_from_data(&std::fs::read(e.path()).expect("read data"), None).expect("new from data");
+        }
+    }
+    // println!("font families: {:?}", TextStyle::new().font_families().iter().collect::<Vec<_>>());
+
+    let mut fonts = FontCollection::new();
+    fonts.set_default_font_manager(Some(font_mgr), Some("sans-serif"));
 
     // gl initialiation
 
@@ -134,6 +148,7 @@ fn main() {
                     LeftRight::Left,
                     true,
                     &config.left_ring,
+                    &fonts,
                     &mut left_ring.surface,
                 );
                 left_ring.gl_tex_id
@@ -145,8 +160,9 @@ fn main() {
                 draw_ring(
                     &app.keyboard.status,
                     LeftRight::Right,
-                    true,
+                    false,
                     &config.right_ring,
+                    &fonts,
                     &mut right_ring.surface,
                 );
                 right_ring.gl_tex_id
@@ -155,6 +171,12 @@ fn main() {
 
         ovr_controller
             .draw_if_visible(OverlayPlane::Center, || {
+                draw_center(
+                    &app.keyboard.status,
+                    &config.completion,
+                    &fonts,
+                    &mut center_field.surface,
+                );
                 // TODO rendering
                 center_field.gl_tex_id
             })
@@ -183,7 +205,7 @@ fn main() {
                 .draw_image_rect_with_sampling_options(
                     &center_field.image,
                     None,
-                    Rect::from_xywh(half_width, 0.0, width, width / 8.0),
+                    Rect::from_xywh(0.0, half_width, width, width / 8.0),
                     SamplingOptions::default(),
                     &Default::default(),
                 );

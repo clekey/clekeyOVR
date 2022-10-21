@@ -119,10 +119,10 @@ merging_serde! {
     #[derive(Debug)]
     pub struct CompletionOverlayConfig {
         pub position: OverlayPositionConfig,
-        #[serde(rename="backgroundColor")]
-        pub background_color: Vec3,
-        #[serde(rename="inputtingCharColor")]
-        pub inputting_char_color: Vec3,
+        #[serde(rename="backgroundColor", with="serialize_color4f_3f")]
+        pub background_color: Color4f,
+        #[serde(rename="inputtingCharColor", with="serialize_color4f_3f")]
+        pub inputting_char_color: Color4f,
     }
 
     #[derive(Debug)]
@@ -203,8 +203,8 @@ impl Default for CleKeyConfig {
                     width_radio: 0.333,
                     alpha: 1.0,
                 },
-                background_color: Vec3::new(0.188, 0.345, 0.749),
-                inputting_char_color: Vec3::new(1.0, 0.0, 0.0),
+                background_color: Color4f::new(0.188, 0.345, 0.749, 1.0),
+                inputting_char_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
             },
         }
     }

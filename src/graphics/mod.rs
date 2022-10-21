@@ -1,4 +1,4 @@
-use crate::config::RingOverlayConfig;
+use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
 use crate::utils::ToTuple;
 use crate::{KeyboardStatus, LeftRight};
 use skia_safe::colors::TRANSPARENT;
@@ -6,7 +6,7 @@ use skia_safe::paint::Style;
 use skia_safe::textlayout::{
     FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextStyle,
 };
-use skia_safe::{scalar, Canvas, Color4f, FontMgr, Paint, Point, Surface};
+use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
 pub fn draw_background_ring(
@@ -146,10 +146,9 @@ pub fn draw_ring(
     side: LeftRight,
     always_show_in_circle: bool,
     config: &RingOverlayConfig,
+    fonts: &FontCollection,
     surface: &mut Surface,
 ) {
-    let mut fonts = FontCollection::new();
-    fonts.set_default_font_manager(Some(FontMgr::default()), None);
     surface.canvas().clear(TRANSPARENT);
 
     let (current, opposite) = status.get_selecting(side);
@@ -202,6 +201,20 @@ pub fn draw_ring(
                 },
             )
         }
+    } else {
+        let line_origin = line_len * opposite as usize;
+        render_ring_chars(
+            surface.canvas(),
+            &fonts,
+            center,
+            radius,
+            |idx| {
+                (
+                    status.method.get_table()[line_origin + line_step * idx as usize],
+                    get_color(idx),
+                )
+            },
+        )
     }
 
     draw_cursor_circle(
@@ -211,4 +224,21 @@ pub fn draw_ring(
         Point::from(stick_pos.to_tuple()),
         Color4f::new(0.22, 0.22, 0.22, 1.0),
     );
+}
+
+pub fn draw_center(
+    status: &KeyboardStatus,
+    config: &CompletionOverlayConfig,
+    fonts: &FontCollection,
+    surface: &mut Surface,
+) {
+    surface.canvas().clear(config.background_color);
+
+    let space = surface.height() as f32 * 0.15;
+
+    ParagraphBuilder::new(&ParagraphStyle::new()
+        .set_text_style(TextStyle::new().set_color(config.inputting_char_color.to_color())),fonts)
+        .add_text(status.method.buffer())
+        .build()
+        .paint(surface.canvas(), Point::new(space, space));
 }
