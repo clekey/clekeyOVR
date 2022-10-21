@@ -1,0 +1,76 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "oculus_touch",
+      "binding_url": "bindings_oculus_touch.json"
+    },
+    {
+      "controller_type": "vive_controller",
+      "binding_url": "bindings_vive_controller.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/waiting/in/begin_input",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/input/in/left_stick",
+      "requirement": "mandatory",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/input/in/left_click",
+      "requirement": "optional",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/input/out/left_haptic",
+      "type": "vibration"
+    },
+    {
+      "name": "/actions/input/in/right_stick",
+      "requirement": "mandatory",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/input/in/right_click",
+      "requirement": "optional",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/input/out/right_haptic",
+      "type": "vibration"
+    },
+    {
+      "name": "/actions/suspender/in/suspender",
+      "type": "boolean",
+      "requirement": "optional"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/input",
+      "usage": "in inputting mode"
+    },
+    {
+      "name": "/actions/waiting",
+      "usage": "in waiting mode"
+    },
+    {
+      "name": "/actions/suspender",
+      "usage": "in inputting -> suspending"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_us",
+      "/actions/input/in/left_stick": "Left stick",
+      "/actions/input/in/left_click": "Left click",
+      "/actions/input/in/right_stick": "Right stick",
+      "/actions/input/in/right_click": "Right click",
+      "/actions/waiting/in/begin_input": "Begin input",
+      "/actions/suspender/in/suspender": "suspend input"
+    }
+  ]
+}
