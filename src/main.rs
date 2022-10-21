@@ -104,6 +104,9 @@ fn main() {
     let mut app = Application {
         ovr_controller: &ovr_controller,
         keyboard: &mut kbd,
+        #[cfg(feature = "openvr")]
+        status: Rc::new(Waiting),
+        #[cfg(not(feature = "openvr"))]
         status: Rc::new(Inputting),
     };
 
@@ -157,8 +160,7 @@ fn main() {
                     &mut left_ring.surface,
                 );
                 left_ring.gl_tex_id
-            })
-            .expect("drawing / updating left");
+            });
 
         ovr_controller
             .draw_if_visible(LeftRight::Right.into(), || {
@@ -172,8 +174,7 @@ fn main() {
                     &mut right_ring.surface,
                 );
                 right_ring.gl_tex_id
-            })
-            .expect("drawing / updating right");
+            });
 
         ovr_controller
             .draw_if_visible(OverlayPlane::Center, || {
@@ -184,10 +185,8 @@ fn main() {
                     &font_families,
                     &mut center_field.surface,
                 );
-                // TODO rendering
                 center_field.gl_tex_id
-            })
-            .expect("drawing / updating center");
+            });
 
         #[cfg(feature = "debug_window")]
         {
@@ -239,13 +238,10 @@ struct Waiting;
 
 impl ApplicationStatus for Waiting {
     fn tick(&self, app: &mut Application) {
-        app.ovr_controller
-            .set_active_action_set([ActionSetKind::Waiting])
-            .expect("setting active action set");
+        app.ovr_controller.set_active_action_set([ActionSetKind::Waiting]);
 
         app.ovr_controller
-            .hide_all_overlay()
-            .expect("hiding overlay");
+            .hide_all_overlay();
 
         if app.ovr_controller.click_started(HardKeyButton::CloseButton) {
             app.status = Rc::new(Inputting);
@@ -262,26 +258,16 @@ impl ApplicationStatus for Inputting {
                 ActionSetKind::Suspender,
                 ActionSetKind::Input,
                 ActionSetKind::Waiting,
-            ])
-            .expect("set_active_action_set");
+            ]);
         app.ovr_controller
-            .update_status(&mut app.keyboard.status)
-            .expect("updating");
+            .update_status(&mut app.keyboard.status);
 
-        app.ovr_controller
-            .show_overlay(OverlayPlane::Left)
-            .expect("show overlay");
-        app.ovr_controller
-            .show_overlay(OverlayPlane::Right)
-            .expect("show overlay");
+        app.ovr_controller.show_overlay(OverlayPlane::Left);
+        app.ovr_controller.show_overlay(OverlayPlane::Right);
         if !app.keyboard.status.method.buffer().is_empty() {
-            app.ovr_controller
-                .show_overlay(OverlayPlane::Center)
-                .expect("show overlay");
+            app.ovr_controller.show_overlay(OverlayPlane::Center);
         } else {
-            app.ovr_controller
-                .hide_overlay(OverlayPlane::Center)
-                .expect("show overlay");
+            app.ovr_controller.hide_overlay(OverlayPlane::Center);
         }
 
         if app.keyboard.tick() {
@@ -298,10 +284,8 @@ struct Suspending;
 
 impl ApplicationStatus for Suspending {
     fn tick(&self, app: &mut Application) {
-        app.ovr_controller
-            .set_active_action_set([ActionSetKind::Suspender])
-            .expect("set_active_action_set");
-        app.ovr_controller.hide_all_overlay().expect("hide overlay");
+        app.ovr_controller.set_active_action_set([ActionSetKind::Suspender]);
+        app.ovr_controller.hide_all_overlay();
         if !app.ovr_controller.button_status(ButtonKind::SuspendInput) {
             app.status = Rc::new(Inputting)
         }

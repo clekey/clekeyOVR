@@ -29,9 +29,8 @@ impl OvrImpl for OVRController {
         Ok(())
     }
 
-    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) -> Result<()> {
+    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) {
         assume_used!(kinds);
-        Ok(())
     }
 
     fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle {
@@ -39,22 +38,14 @@ impl OvrImpl for OVRController {
         &MockHandle
     }
 
-    fn hide_overlays(&self) -> Result<()> {
-        Ok(())
-    }
-
-    fn close_center_overlay(&self) -> Result<()> {
-        Ok(())
-    }
-
-    fn stick_pos(&self, hand: LeftRight) -> Result<Vec2> {
+    fn stick_pos(&self, hand: LeftRight) -> Vec2 {
         assume_used!(hand);
-        Ok(Vec2::new(1.0, 0.0))
+        Vec2::new(1.0, 0.0)
     }
 
-    fn trigger_status(&self, hand: LeftRight) -> Result<bool> {
+    fn trigger_status(&self, hand: LeftRight) -> bool {
         assume_used!(hand);
-        Ok(false)
+        false
     }
 
     fn play_haptics(
@@ -64,7 +55,7 @@ impl OvrImpl for OVRController {
         duration_seconds: f32,
         frequency: f32,
         amplitude: f32,
-    ) -> Result<()> {
+    ) {
         assume_used!(
             hand,
             start_seconds_from_now,
@@ -72,7 +63,6 @@ impl OvrImpl for OVRController {
             frequency,
             amplitude
         );
-        Ok(())
     }
 
     fn button_status(&self, button: ButtonKind) -> bool {
@@ -87,21 +77,18 @@ impl OvrImpl for OVRController {
 }
 
 impl OverlayPlaneHandle for MockHandle {
-    fn set_texture(&self, texture: GLuint) -> Result<()> {
+    fn set_texture(&self, texture: GLuint) {
         assume_used!(texture);
-        Ok(())
     }
 
     fn is_visible(&self) -> bool {
         true
     }
 
-    fn show_overlay(&self) -> Result<()> {
-        Ok(())
+    fn show_overlay(&self) {
     }
 
-    fn hide_overlay(&self) -> Result<()> {
-        Ok(())
+    fn hide_overlay(&self) {
     }
 }
 

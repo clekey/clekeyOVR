@@ -154,7 +154,7 @@ impl OvrImpl for OVRController {
         Ok(())
     }
 
-    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) -> Result<()> {
+    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) {
         fn as_vr_action_set(c: &OVRController, kind: ActionSetKind) -> VRActiveActionSet_t {
             match kind {
                 ActionSetKind::Input => VRActiveActionSet_t {
@@ -188,26 +188,15 @@ impl OvrImpl for OVRController {
         self.context
             .input()
             .expect("input")
-            .update_action_state(&sets)?;
-        Ok(())
+            .update_action_state(&sets)
+            .expect("update_action_state");
     }
 
     fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle {
         &self.overlay_handles[plane as usize]
     }
 
-    fn hide_overlays(&self) -> Result<()> {
-        for x in &self.overlay_handles {
-            x.hide_overlay()?
-        }
-        Ok(())
-    }
-
-    fn close_center_overlay(&self) -> Result<()> {
-        Ok(self.overlay_handles[3].hide_overlay()?)
-    }
-
-    fn stick_pos(&self, hand: LeftRight) -> Result<Vec2> {
+    fn stick_pos(&self, hand: LeftRight) -> Vec2 {
         let action = match hand {
             LeftRight::Left => self.action_input_left_stick,
             LeftRight::Right => self.action_input_right_stick,
@@ -216,11 +205,12 @@ impl OvrImpl for OVRController {
             .context
             .input()
             .expect("inputs")
-            .get_analog_action_data(action, 0)?;
-        Ok(Vec2::new(data.x, data.y))
+            .get_analog_action_data(action, 0)
+            .expect("get_analog_action_data");
+        Vec2::new(data.x, data.y)
     }
 
-    fn trigger_status(&self, hand: LeftRight) -> Result<bool> {
+    fn trigger_status(&self, hand: LeftRight) -> bool {
         let action = match hand {
             LeftRight::Left => self.action_input_left_click,
             LeftRight::Right => self.action_input_right_click,
@@ -229,8 +219,9 @@ impl OvrImpl for OVRController {
             .context
             .input()
             .expect("inputs")
-            .get_digital_action_data(action, 0)?;
-        Ok(data.bState)
+            .get_digital_action_data(action, 0)
+            .expect("get_digital_action_data");
+        data.bState
     }
 
     fn play_haptics(
@@ -240,7 +231,7 @@ impl OvrImpl for OVRController {
         duration_seconds: f32,
         frequency: f32,
         amplitude: f32,
-    ) -> Result<()> {
+    ) -> () {
         let action = match hand {
             LeftRight::Left => self.action_input_left_haptic,
             LeftRight::Right => self.action_input_right_haptic,
@@ -257,7 +248,7 @@ impl OvrImpl for OVRController {
                 amplitude,
                 0,
             )
-            .map_err(Into::into)
+            .expect("trigger_haptic_vibration_action")
     }
 
     fn button_status(&self, button: ButtonKind) -> bool {
@@ -288,25 +279,24 @@ impl OvrImpl for OVRController {
 }
 
 impl<'a> OverlayPlaneHandle for OwnedInVROverlay<'a> {
-    fn set_texture(&self, texture: GLuint) -> Result<()> {
+    fn set_texture(&self, texture: GLuint) {
         self.set_overlay_texture(OverlayTexture {
             handle: texture as usize as *mut c_void,
             tex_type: TextureType::OpenGL,
             color_space: ColorSpace::Auto,
-        })?;
-        Ok(())
+        }).expect("set_overlay_texture")
     }
 
     fn is_visible(&self) -> bool {
         self.is_overlay_visible()
     }
 
-    fn show_overlay(&self) -> Result<()> {
-        Ok(self.show_overlay()?)
+    fn show_overlay(&self) {
+        self.show_overlay().expect("show_overlay")
     }
 
-    fn hide_overlay(&self) -> Result<()> {
-        Ok(self.hide_overlay()?)
+    fn hide_overlay(&self) {
+        self.hide_overlay().expect("hide_overlay")
     }
 }
 

@@ -19,10 +19,10 @@ trait OvrImpl: Sized {
     type OverlayPlaneHandle: OverlayPlaneHandle;
     fn new(resources: &Path) -> Result<Self>;
     fn load_config(&self, config: &CleKeyConfig) -> Result<()>;
-    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) -> Result<()>;
+    fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>);
     fn plane_handle(&self, plane: OverlayPlane) -> &Self::OverlayPlaneHandle;
-    fn stick_pos(&self, hand: LeftRight) -> Result<Vec2>;
-    fn trigger_status(&self, hand: LeftRight) -> Result<bool>;
+    fn stick_pos(&self, hand: LeftRight) -> Vec2;
+    fn trigger_status(&self, hand: LeftRight) -> bool;
     fn play_haptics(
         &self,
         hand: LeftRight,
@@ -30,18 +30,16 @@ trait OvrImpl: Sized {
         duration_seconds: f32,
         frequency: f32,
         amplitude: f32,
-    ) -> Result<()>;
-    fn hide_overlays(&self) -> Result<()>;
-    fn close_center_overlay(&self) -> Result<()>;
+    );
     fn button_status(&self, button: ButtonKind) -> bool;
     fn click_started(&self, button: HardKeyButton) -> bool;
 }
 
 trait OverlayPlaneHandle {
-    fn set_texture(&self, texture: GLuint) -> Result<()>;
+    fn set_texture(&self, texture: GLuint);
     fn is_visible(&self) -> bool;
-    fn show_overlay(&self) -> Result<()>;
-    fn hide_overlay(&self) -> Result<()>;
+    fn show_overlay(&self);
+    fn hide_overlay(&self);
 }
 
 pub struct OVRController {
@@ -73,8 +71,8 @@ impl From<LeftRight> for OverlayPlane {
 }
 
 impl OVRController {
-    fn update_hand_status(&self, status: &mut HandInfo, hand: LeftRight) -> Result<()> {
-        status.stick = self.stick_pos(hand)?;
+    fn update_hand_status(&self, status: &mut HandInfo, hand: LeftRight) {
+        status.stick = self.stick_pos(hand);
         status.selection_old = status.selection;
 
         fn compute_angle(vec: Vec2) -> i8 {
@@ -95,51 +93,47 @@ impl OVRController {
         };
 
         if status.selection != status.selection_old {
-            self.play_haptics(hand, 0.0, 0.05, 1.0, 0.5)?;
+            self.play_haptics(hand, 0.0, 0.05, 1.0, 0.5);
         }
 
         status.clicking_old = status.clicking;
-        status.clicking = self.trigger_status(hand)?;
-        Ok(())
+        status.clicking = self.trigger_status(hand);
     }
 
-    pub fn update_status(&self, status: &mut KeyboardStatus) -> Result<()> {
-        self.update_hand_status(&mut status.left, LeftRight::Left)?;
-        self.update_hand_status(&mut status.right, LeftRight::Right)?;
-        Ok(())
+    pub fn update_status(&self, status: &mut KeyboardStatus) {
+        self.update_hand_status(&mut status.left, LeftRight::Left);
+        self.update_hand_status(&mut status.right, LeftRight::Right);
     }
 
-    pub fn show_overlay(&self, plane: OverlayPlane) -> Result<()> {
-        Ok(self.main.plane_handle(plane).show_overlay()?)
+    pub fn show_overlay(&self, plane: OverlayPlane) {
+        self.main.plane_handle(plane).show_overlay();
     }
 
-    pub fn hide_overlay(&self, plane: OverlayPlane) -> Result<()> {
-        Ok(self.main.plane_handle(plane).hide_overlay()?)
+    pub fn hide_overlay(&self, plane: OverlayPlane) {
+        self.main.plane_handle(plane).hide_overlay();
     }
 
-    pub fn hide_all_overlay(&self) -> Result<()> {
+    pub fn hide_all_overlay(&self) {
         for x in OverlayPlane::VALUES {
-            self.hide_overlay(x)?;
+            self.hide_overlay(x);
         }
-        Ok(())
     }
 
     pub fn draw_if_visible(
         &self,
         plane: OverlayPlane,
         renderer: impl FnOnce() -> GLuint,
-    ) -> Result<()> {
+    ) {
         let handle = self.main.plane_handle(plane);
         if handle.is_visible() {
-            handle.set_texture(renderer())?;
+            handle.set_texture(renderer());
         }
-        Ok(())
     }
 }
 
 macro_rules! trait_wrap {
-    ($vis: vis fn $name: ident(&self, $($arg_n: ident: $arg_ty: ty),* $(,)?) -> $returns: ty; $($tt:tt)*) => {
-        $vis fn $name(&self, $($arg_n: $arg_ty),*) -> $returns {
+    ($vis: vis fn $name: ident(&self, $($arg_n: ident: $arg_ty: ty),* $(,)?)$( -> $returns: ty)?; $($tt:tt)*) => {
+        $vis fn $name(&self, $($arg_n: $arg_ty),*)$( -> $returns)? {
             self.main.$name($($arg_n),*)
         }
         trait_wrap!{$($tt)*}
@@ -159,9 +153,9 @@ impl OVRController {
 
     trait_wrap! {
         pub fn load_config(&self, config: &CleKeyConfig) -> Result<()>;
-        pub fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>) -> Result<()>;
-        pub fn stick_pos(&self, hand: LeftRight) -> Result<Vec2>;
-        pub fn trigger_status(&self, hand: LeftRight) -> Result<bool>;
+        pub fn set_active_action_set(&self, kinds: impl IntoIterator<Item = ActionSetKind>);
+        pub fn stick_pos(&self, hand: LeftRight) -> Vec2;
+        pub fn trigger_status(&self, hand: LeftRight) -> bool;
         pub fn play_haptics(
             &self,
             hand: LeftRight,
@@ -169,7 +163,7 @@ impl OVRController {
             duration_seconds: f32,
             frequency: f32,
             amplitude: f32,
-        ) -> Result<()>;
+        ) -> ();
         pub fn button_status(&self, button: ButtonKind) -> bool;
         pub fn click_started(&self, button: HardKeyButton) -> bool;
     }
