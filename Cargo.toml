@@ -35,9 +35,11 @@ features = [
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"
 
+[target."cfg(windows)".features]
+default = ["openvr"]
+
 [features]
 # by build.rs, 
 #  - debug_window is enabled in default on debug build (cfg(debug_assertions))
-#  - debug_window is openvr in default on windows
 default = []
 debug_window = []
