@@ -5,9 +5,15 @@
 #ifndef CLEKEY_OVR_GLUTIL_H
 #define CLEKEY_OVR_GLUTIL_H
 
-#include "GL/glew.h"
-#include "oglwrap/oglwrap.h"
+//#include "oglwrap/oglwrap.h"
+#include <include/core/SkColor.h>
+#include "glm/glm.hpp"
 
+#include <iostream>
+
+#include "../opengl.h"
+
+#if 0
 inline gl::Program compile_shader_program(const char *vertex_shader_src, const char *fragment_shader_src) {
   gl::Shader vertex(gl::kVertexShader);
   gl::Shader fragment(gl::kFragmentShader);
@@ -19,6 +25,7 @@ inline gl::Program compile_shader_program(const char *vertex_shader_src, const c
   program.link();
   return program;
 }
+#endif
 
 #define check_gl_err(func) check_gl_err_impl(__LINE__, func)
 
@@ -31,6 +38,14 @@ inline void check_gl_err_impl(int line, const char *func) {
     }
     std::cerr << ": 0x" << std::hex << err << std::dec << ": " << gluErrorString(err) << std::endl;
   }
+}
+
+inline SkColor4f Color4fFromVec4(glm::vec4 color) {
+  return SkColor4f{color.r, color.g, color.b, color.a};
+}
+
+inline SkColor4f Color4fFromVec3(glm::vec3 color) {
+  return SkColor4f{color.r, color.g, color.b, 1.0f};
 }
 
 #endif //CLEKEY_OVR_GLUTIL_H

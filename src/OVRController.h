@@ -11,12 +11,14 @@
 
 #endif
 
-#include "GL/glew.h"
+//#include "GL/glew.h"
 #include "glm/vec2.hpp"
 #include "AppStatus.h"
 #include "Config.h"
 #include "input_method/HardKeyButton.h"
 #include <vector>
+
+typedef unsigned int GLuint;
 
 bool init_ovr();
 

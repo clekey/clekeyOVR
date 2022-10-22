@@ -6,22 +6,24 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <vector>
 #include "bmp_export.h"
 
-void export_as_bmp(gl::Texture2D &texture, GLint level) {
+void export_as_bmp(GLuint texture, GLint level) {
   const size_t header_size = 14 + 40;
 
   static int index = 0;
 
-  gl::Bind(texture);
-  GLint w = texture.width(level);
-  GLint h = texture.height(level);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  check_gl_err("export_as_bmp: bind");
+  GLint w, h;
+  glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_WIDTH, &w);
+  glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_HEIGHT, &h);
+  check_gl_err("export_as_bmp: get param");
 
   std::vector<uint8_t> bmp_data(w * h * 4 + header_size);
 
-  texture.getTexImage(level,
-                GL_RGBA, GL_UNSIGNED_BYTE,
-                &bmp_data[header_size]);
+  glGetTexImage(GL_TEXTURE_2D, level, GL_RGBA, GL_UNSIGNED_BYTE, &bmp_data[header_size]);
   check_gl_err(__func__);
 
   // file header

@@ -1,17 +1,26 @@
 #include <iostream>
 #include <SDL.h>
-#include <GL/glew.h>
-#include <oglwrap/oglwrap.h>
 
 #include "OVRController.h"
 #include "graphics/MainGuiRenderer.h"
-#include "graphics/DesktopGuiRenderer.h"
-#include "graphics/bmp_export.h"
 #include "input_method/JapaneseInput.h"
 #include "input_method/SignsInput.h"
 #include "input_method/EnglishInput.h"
 #include "Config.h"
 
+//// skia
+#include <include/gpu/GrBackendSurface.h>
+#include <include/gpu/GrDirectContext.h>
+#include <include/gpu/gl/GrGLInterface.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkColorSpace.h>
+#include <include/core/SkSurface.h>
+#include <include/core/SkFont.h>
+#include <src/gpu/ganesh/gl/GrGLDefines_impl.h>
+////
+#include "opengl.h"
+//#include "graphics/bmp_export.h"
+#include "graphics/glutil.h"
 #define WINDOW_CAPTION "clekeyOVR"
 #define WINDOW_HEIGHT 1024
 #define WINDOW_WIDTH 1024
@@ -31,7 +40,6 @@ SDL_Window *init_SDL() {
     return nullptr;
   }
 
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   Uint32 windowFlags = SDL_WINDOW_OPENGL;
 #ifdef NDEBUG
   windowFlags |= SDL_WINDOW_HIDDEN;
@@ -46,12 +54,25 @@ SDL_Window *init_SDL() {
     return nullptr;
   }
 
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+  SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
+  SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 
   return window;
 }
+
+GrDirectContext* grContext;
+#ifndef NODEBUG
+sk_sp<SkSurface> windowSurface;
+#endif
 
 bool init_gl(SDL_Window *window) {
   SDL_GLContext context = SDL_GL_CreateContext(window);
@@ -60,10 +81,33 @@ bool init_gl(SDL_Window *window) {
     return false;
   }
 
-  glewExperimental = true;
-  glewInit();
+  grContext = GrDirectContext::MakeGL().release();
+  if (!grContext) {
+    std::cerr << "GrContext creation failed" << std::endl;
+    return false;
+  }
 
-  gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+#ifndef NODEBUG
+  int success =  SDL_GL_MakeCurrent(window, context);
+  if (success != 0) {
+    std::cerr << "SDL GL make current failed: " << SDL_GetError() << std::endl;
+    return false;
+  }
+
+  // init opengl for window
+  glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+  glClearColor(1, 1, 1, 1);
+  glClearStencil(0);
+  glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  GrGLFramebufferInfo bufferInfo;
+  glGetIntegerv(GR_GL_FRAMEBUFFER_BINDING, (GLint *)&bufferInfo.fFBOID);
+  bufferInfo.fFormat = GL_RGBA8;
+  auto target = GrBackendRenderTarget(WINDOW_WIDTH, WINDOW_HEIGHT, 0, 8, bufferInfo);
+  windowSurface = SkSurface::MakeFromBackendRenderTarget(
+      grContext, target,
+      kBottomLeft_GrSurfaceOrigin, kRGBA_8888_SkColorType,
+      nullptr, nullptr);
+#endif
 
   return true;
 }
@@ -107,15 +151,18 @@ KeyboardManager::KeyboardManager(OVRController *ovr_controller) :
   status.method = methods[index].get();
 }
 
+struct GlTextureSurface {
+  GLuint glId;
+  sk_sp<SkSurface> surface;
+  sk_sp<SkImage> image;
+};
+
 class Application {
   CleKeyConfig config;
   std::unique_ptr<MainGuiRenderer> main_renderer;
-#ifndef NDEBUG
-  std::unique_ptr<DesktopGuiRenderer> desktop_renderer;
-#endif
   std::unique_ptr<OVRController> ovr_controller;
-  gl::Texture2D circleTextures[2];
-  gl::Texture2D centerTexture;
+  GlTextureSurface circleTextures[2];
+  GlTextureSurface centerTexture;
   KeyboardManager keyboard;
   AppStatus status;
 
@@ -135,31 +182,52 @@ public:
   bool tick();
 };
 
-gl::Texture2D makeTexture(GLsizei width, GLsizei height) {
-  gl::Texture2D centerTexture;
-  gl::Bind(centerTexture);
-  centerTexture.upload(
-      gl::kRgba8, width, height,
-      gl::kRgb, gl::kUnsignedByte, nullptr
+GlTextureSurface makeSurface(GLsizei width, GLsizei height) {
+  GrGLTextureInfo texInfo;
+  texInfo.fTarget = GL_TEXTURE_2D;
+  glGenTextures(1, &texInfo.fID);
+  texInfo.fFormat = GL_RGBA8;
+  glBindTexture(GL_TEXTURE_2D, texInfo.fID);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  check_gl_err("create surface texture");
+
+  GrBackendTexture backendTexture(width, height, GrMipmapped::kNo, texInfo);
+  auto surface = SkSurface::MakeFromBackendTexture(
+      grContext, backendTexture,
+      kBottomLeft_GrSurfaceOrigin, 0,
+      kRGBA_8888_SkColorType, nullptr, nullptr
   );
-  centerTexture.magFilter(gl::kLinear);
-  centerTexture.minFilter(gl::kLinear);
-  return std::move(centerTexture);
+  auto image = SkImage::MakeFromTexture(
+      grContext, backendTexture,
+      kBottomLeft_GrSurfaceOrigin, kRGBA_8888_SkColorType,
+      kOpaque_SkAlphaType, nullptr);
+
+  if (!surface)
+    abort();
+
+  return GlTextureSurface {texInfo.fID, surface, image};
 }
 
 Application::Application() :
     config(),
     main_renderer(MainGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
-#ifndef NDEBUG
-    desktop_renderer(DesktopGuiRenderer::create({WINDOW_WIDTH, WINDOW_HEIGHT})),
-#endif
     ovr_controller(new OVRController()),
-    circleTextures{makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT), makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT)},
-    centerTexture(makeTexture(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
+    circleTextures{makeSurface(WINDOW_WIDTH, WINDOW_HEIGHT), makeSurface(WINDOW_WIDTH, WINDOW_HEIGHT)},
+    centerTexture(makeSurface(WINDOW_WIDTH, WINDOW_HEIGHT / 8)),
     keyboard(ovr_controller.get()),
-    status(AppStatus::Waiting) {
+#if defined(WITH_OPEN_VR)
+    status(AppStatus::Waiting)
+#else
+    status(AppStatus::Inputting)
+#endif
+{
   loadConfig(config);
   ovr_controller->loadConfig(config);
+  std::cout << "left tex id:   " << circleTextures[0].glId << std::endl;
+  std::cout << "right tex id:  " << circleTextures[1].glId << std::endl;
+  std::cout << "center tex id: " << centerTexture.glId << std::endl;
 }
 
 bool Application::tick() {
@@ -206,26 +274,48 @@ void Application::inputtingTick() {
   ovr_controller->setActiveActionSet({ActionSetKind::Suspender, ActionSetKind::Input, ActionSetKind::Waiting});
   ovr_controller->update_status(keyboard.status);
 
-  main_renderer->drawRing(keyboard.status, LeftRight::Left, true, config.leftRing, circleTextures[LeftRight::Left]);
-  ovr_controller->set_texture(circleTextures[LeftRight::Left].expose(), LeftRight::Left);
-
-  main_renderer->drawRing(keyboard.status, LeftRight::Right, false, config.rightRing, circleTextures[LeftRight::Right]);
-  ovr_controller->set_texture(circleTextures[LeftRight::Right].expose(), LeftRight::Right);
+  main_renderer->drawRing(keyboard.status, LeftRight::Left, true, config.leftRing, *circleTextures[LeftRight::Left].surface);
+  main_renderer->drawRing(keyboard.status, LeftRight::Right, false, config.rightRing, *circleTextures[LeftRight::Right].surface);
 
   if (keyboard.status.method->getBuffer().length()) {
-    main_renderer->drawCenter(keyboard.status, config.completion, centerTexture);
-    ovr_controller->setCenterTexture(centerTexture.expose());
+    main_renderer->drawCenter(keyboard.status, config.completion, *centerTexture.surface);
+  }
+
+  check_gl_err("inputtingTick; after flush&submit");
+
+  ovr_controller->set_texture(circleTextures[LeftRight::Left].glId, LeftRight::Left);
+  ovr_controller->set_texture(circleTextures[LeftRight::Right].glId, LeftRight::Right);
+  if (keyboard.status.method->getBuffer().length()) {
+    ovr_controller->setCenterTexture(centerTexture.glId);
   } else {
     ovr_controller->closeCenterOverlay();
   }
 
-  //export_as_bmp(main_renderer.dest_texture, 0);
+  check_gl_err("inputtingTick; after set texture");
+
+  //export_as_bmp(circleTextures[LeftRight::Left].glId, 0);
+  //export_as_bmp(circleTextures[LeftRight::Right].glId, 0);
 
 #ifndef NDEBUG
-  desktop_renderer->preDraw();
-  desktop_renderer->drawTexture(circleTextures[LeftRight::Left], {-1, 0}, {1, 1});
-  desktop_renderer->drawTexture(circleTextures[LeftRight::Right], {0, 0}, {1, 1});
-  desktop_renderer->drawTexture(centerTexture, {-1, -.25}, {2, .25});
+  // draw debug desktop
+  {
+    SkCanvas *canvas = windowSurface->getCanvas();
+    canvas->clear(SK_ColorTRANSPARENT);
+    canvas->drawImageRect(
+        circleTextures[LeftRight::Left].image,
+        SkRect::MakeXYWH(0, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f),
+        SkSamplingOptions());
+
+    canvas->drawImageRect(
+        circleTextures[LeftRight::Right].image,
+        SkRect::MakeXYWH(WINDOW_WIDTH / 2.0f, 0, WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f),
+        SkSamplingOptions());
+
+    canvas->drawImageRect(
+        centerTexture.image,
+        SkRect::MakeXYWH(0, WINDOW_HEIGHT / 2.0f, WINDOW_WIDTH, WINDOW_HEIGHT / 8.0f),
+        SkSamplingOptions());
+  }
 #endif
 
   if (keyboard.tick()) {
@@ -313,8 +403,14 @@ int glmain(SDL_Window *window) {
   static Uint32 nextTime = SDL_GetTicks() + interval;
 
   for (;;) {
+#ifndef NDEBUG
+    windowSurface->getCanvas()->clear(SK_ColorTRANSPARENT);
+#endif
     if (application.tick())
       return 0;
+
+    grContext->flush();
+    grContext->submit();
 
 #ifndef NDEBUG
     SDL_GL_SwapWindow(window);

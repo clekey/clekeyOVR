@@ -6,6 +6,8 @@
 #include "glutil.h"
 
 std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(glm::ivec2 size) {
+  return std::make_unique<DesktopGuiRenderer>();
+#if 0
   gl::Unbind(gl::kFramebuffer);
   gl::Program shader_program = std::move(compile_shader_program(
       "#version 330 core\n"
@@ -66,9 +68,11 @@ std::unique_ptr<DesktopGuiRenderer> DesktopGuiRenderer::create(glm::ivec2 size) 
       .vertex_buffer = std::move(vertex_buffer),
   };
   return std::unique_ptr<DesktopGuiRenderer>(res);
+#endif
 }
 
 void DesktopGuiRenderer::preDraw() {
+#if 0
   // スクリーンに描画する。
   gl::Unbind(gl::kFramebuffer);
   gl::Disable(gl::kBlend);
@@ -76,8 +80,10 @@ void DesktopGuiRenderer::preDraw() {
   glViewport(0, 0, size.x, size.y);
   gl::ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   gl::Clear().Color().Depth();
+#endif
 }
 
+#if 0
 void DesktopGuiRenderer::drawTexture(const gl::Texture2D &texture, glm::vec2 bottomLeft, glm::vec2 size) {
   // スクリーンに描画する。
   gl::Unbind(gl::kFramebuffer);
@@ -94,3 +100,4 @@ void DesktopGuiRenderer::drawTexture(const gl::Texture2D &texture, glm::vec2 bot
 
   check_gl_err("drawing desktop gui");
 }
+#endif

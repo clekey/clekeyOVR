@@ -6,26 +6,21 @@
 #define CLEKEY_OVR_CURSORCIRCLERENDERER_H
 
 
-#include <GL/glew.h>
-#include "oglwrap/oglwrap.h"
+#include <include/core/SkCanvas.h>
+#include <memory>
+#include <glm/glm.hpp>
 
 class CursorCircleRenderer {
 public:
   static std::unique_ptr<CursorCircleRenderer> create();
 
   void draw(
+      SkCanvas *canvas,
+      SkPoint center,
+      float radius,
       glm::vec2 stick,
       glm::vec4 color = glm::vec4(0.22, 0.22, 0.22, 1.0)
   );
-
-  gl::Program program;
-  gl::VertexAttrib vertexPositionAttrib;
-  gl::VertexArray vertexArray;
-  gl::ArrayBuffer vertexBuffer;
-
-  // colors
-  gl::Uniform<glm::vec4> uStickColor;
-  gl::Uniform<glm::vec2> uStickPos;
 };
 
 

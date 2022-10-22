@@ -6,24 +6,21 @@
 #define CLEKEY_OVR_BACKGROUNDRINGRENDERER_H
 
 
-#include <GL/glew.h>
-#include "oglwrap/oglwrap.h"
+//#include <GL/glew.h>
+#include <include/core/SkSurface.h>
+#include <glm/glm.hpp>
 
 class BackgroundRingRenderer {
 public:
   static std::unique_ptr<BackgroundRingRenderer> create();
 
-  void draw(glm::vec4 centerColor, glm::vec4 backgroundColor, glm::vec4 edgeColor);
-
-  gl::Program program;
-  gl::VertexAttrib vertexPositionAttrib;
-  gl::VertexArray vertexArray;
-  gl::ArrayBuffer vertexBuffer;
-
-  // colors
-  gl::Uniform<glm::vec4> uCenterColor;
-  gl::Uniform<glm::vec4> uBackgroundColor;
-  gl::Uniform<glm::vec4> uEdgeColor;
+  void draw(
+      SkCanvas *canvas,
+      SkPoint center,
+      float radius,
+      glm::vec4 centerColor,
+      glm::vec4 backgroundColor,
+      glm::vec4 edgeColor);
 };
 
 
