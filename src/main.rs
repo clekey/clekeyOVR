@@ -428,8 +428,7 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub(crate) fn tick(&mut self) -> bool {
-        if self.status.left.click_started()
-            || self.status.right.click_started()
+        if (self.status.left.click_started() || self.status.right.click_started())
                 && self.status.left.selection != -1
                 && self.status.right.selection != -1
         {
