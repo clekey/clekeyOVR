@@ -75,10 +75,12 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str) {
             eprintln!("error in GlobalAlloc: {:?}", std::io::Error::last_os_error());
             return
         }
+        let allocated_slice = std::slice::from_raw_parts_mut(allocated as *mut u16, encoded.len());
+        allocated_slice.copy_from_slice(&encoded);
         let allocated = HANDLE(allocated);
         match SetClipboardData(CF_UNICODETEXT.0, allocated) {
             Ok(_) => {},
-            Err(e) => {
+            Err(_) => {
                 eprintln!("error in SetClipboardData: {:?}", std::io::Error::last_os_error());
                 GlobalFree(allocated.0);
                 return;
