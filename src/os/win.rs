@@ -37,7 +37,6 @@ pub fn enter_char(c: char) {
         // fallback to copy & paste
         copy_text_and_enter_paste_shortcut(&c.to_string());
     }
-    todo!()
 }
 
 pub fn enter_backspace() {
