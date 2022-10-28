@@ -256,6 +256,14 @@ impl IInputMethod for JapaneseInput {
         &self.table
     }
 
+    fn buffer(&self) -> &str {
+        &self.buffer
+    }
+
+    fn get_and_clear_buffer(&mut self) -> String {
+        std::mem::take(&mut self.buffer)
+    }
+
     fn on_input(&mut self, stick: UVec2) -> InputNextAction {
         match stick.to_tuple() {
             (4, 5) => {
