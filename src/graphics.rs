@@ -72,7 +72,7 @@ pub fn draw_cursor_circle(
 ) {
     let stick = Point::new(stick.x, -stick.y);
     canvas.draw_circle(
-        center + stick * (radius / 3.0),
+        center + stick * (radius / 4.0),
         radius / 4.0,
         Paint::new(color, None)
             .set_anti_alias(true)
