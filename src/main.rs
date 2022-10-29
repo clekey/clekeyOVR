@@ -463,6 +463,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                 if self.is_sign {
                     // if current is sign, back to zero
                     std::mem::swap(&mut self.sign_input, &mut self.status.method);
+                    self.is_sign = false
                 }
                 // rotate
                 std::mem::swap(&mut self.status.method, self.methods.front_mut().unwrap());
@@ -471,6 +472,7 @@ impl<'ovr> KeyboardManager<'ovr> {
             }
             InputNextMoreAction::MoveToSignPlane => {
                 std::mem::swap(&mut self.sign_input, &mut self.status.method);
+                self.is_sign = !self.is_sign;
                 false
             }
             InputNextMoreAction::EnterChar(c) => {
@@ -493,7 +495,6 @@ impl<'ovr> KeyboardManager<'ovr> {
         let buffer = self.status.method.get_and_clear_buffer();
         if !buffer.is_empty() {
             os::copy_text_and_enter_paste_shortcut(&buffer);
-            // TODO: flush
         }
     }
 }
