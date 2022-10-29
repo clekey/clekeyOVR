@@ -205,7 +205,7 @@ pub fn draw_ring(
                 |idx| {
                     (
                         status.method.get_table()[col_origin + line_len * idx as usize],
-                        ring_color,
+                        if idx == opposite { config.selecting_char_in_ring_color } else { ring_color },
                         if idx == opposite { 1.1 } else { 1.0 },
                     )
                 },

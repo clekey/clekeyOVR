@@ -114,6 +114,8 @@ merging_serde! {
         pub un_selecting_char_color: Color4f,
         #[serde(rename="selectingCharColor", with="serialize_color4f_3f")]
         pub selecting_char_color: Color4f,
+        #[serde(rename="selectingCharInRingColor", with="serialize_color4f_3f")]
+        pub selecting_char_in_ring_color: Color4f,
     }
 
     #[derive(Debug)]
@@ -226,6 +228,7 @@ impl Default for RingOverlayConfig {
             normal_char_color: Color4f::new(0.0, 0.0, 0.0, 1.0),
             un_selecting_char_color: Color4f::new(0.5, 0.5, 0.5, 1.0),
             selecting_char_color: Color4f::new(0.0, 0.0, 0.0, 1.0),
+            selecting_char_in_ring_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
         }
     }
 }
