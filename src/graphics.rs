@@ -101,7 +101,7 @@ fn render_ring_chars<'a>(
     font_families: &[impl AsRef<str>],
     center: Point,
     size: scalar,
-    get_char: impl Fn(i8) -> (&'a str, Color4f),
+    get_char: impl Fn(i8) -> (&'a str, Color4f, scalar),
 ) {
     let font_size = size * 0.4;
     let offsets = calc_offsets(size);
@@ -110,8 +110,7 @@ fn render_ring_chars<'a>(
         let pair = get_char(i);
 
         // first, compute actual font size
-        let actual_font_size: scalar;
-        {
+        let computed_font_size: scalar = {
             let mut paragraph = ParagraphBuilder::new(
                 ParagraphStyle::new().set_text_style(TextStyle::new().set_font_size(font_size).set_font_families(font_families)),
                 fonts,
@@ -121,8 +120,11 @@ fn render_ring_chars<'a>(
             paragraph.layout(10000 as _);
             let width = paragraph.max_intrinsic_width() + 1.0;
             let computed_font_size = font_size * font_size / width;
-            actual_font_size = computed_font_size.min(font_size);
-        }
+            computed_font_size.min(font_size)
+        };
+
+        let width = (font_size + 10.0) * pair.2;
+        let actual_font_size = computed_font_size * pair.2;
 
         let mut paragraph = ParagraphBuilder::new(
             ParagraphStyle::new()
@@ -137,10 +139,11 @@ fn render_ring_chars<'a>(
         )
         .add_text(&pair.0)
         .build();
-        paragraph.layout(font_size + 10.0);
+
+        paragraph.layout(width);
         let text_center_pos = center + offsets[i as usize];
         let text_pos =
-            text_center_pos - Point::new((font_size + 10.0) / 2.0, paragraph.height() / 2.0);
+            text_center_pos - Point::new(width / 2.0, paragraph.height() / 2.0);
         paragraph.paint(canvas, text_pos);
     }
 }
@@ -203,6 +206,7 @@ pub fn draw_ring(
                     (
                         status.method.get_table()[col_origin + line_len * idx as usize],
                         ring_color,
+                        if idx == opposite { 1.1 } else { 1.0 },
                     )
                 },
             )
@@ -219,6 +223,7 @@ pub fn draw_ring(
                 (
                     status.method.get_table()[line_origin + line_step * idx as usize],
                     get_color(idx),
+                    if idx == current { 1.1 } else { 1.0 },
                 )
             },
         )
