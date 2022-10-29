@@ -19,7 +19,7 @@ pub fn get_config_dir() -> &'static Path {
 pub fn enter_char(c: char) {
     if '0' <= c && c <= '9' || 'a' <= c && c <= 'z' {
         // simple input.
-        let c = c as u8 - b'a' + b'A';
+        let c = c.to_ascii_uppercase() as u8;
         unsafe {
             keybd_event(c, 0, KEYBD_EVENT_FLAGS::default(), 0);
             keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
