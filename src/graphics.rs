@@ -6,7 +6,7 @@ use skia_safe::paint::Style;
 use skia_safe::textlayout::{
     FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextStyle,
 };
-use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface};
+use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface, Color};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 use glam::Vec2;
 
@@ -242,11 +242,16 @@ pub fn draw_center(
 ) {
     surface.canvas().clear(config.background_color);
 
-    let space = surface.height() as f32 * 0.15;
+    let space = surface.height() as scalar * 0.15;
 
-    ParagraphBuilder::new(&ParagraphStyle::new()
-        .set_text_style(TextStyle::new().set_color(config.inputting_char_color.to_color()).set_font_families(font_families)),fonts)
+    let mut paragraph = ParagraphBuilder::new(&ParagraphStyle::new()
+        .set_text_align(TextAlign::Left)
+        .set_text_style(TextStyle::new()
+            .set_color(config.inputting_char_color.to_color())
+            .set_font_families(font_families)
+            .set_font_size(surface.height() as scalar * 0.5)),fonts)
         .add_text(status.method.buffer())
-        .build()
-        .paint(surface.canvas(), Point::new(space, space));
+        .build();
+    paragraph.layout(surface.width() as scalar - space - space);
+    paragraph.paint(surface.canvas(), Point::new(space, space));
 }
