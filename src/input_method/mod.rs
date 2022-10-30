@@ -10,68 +10,21 @@ impl HardKeyButton {
     pub const VALUES: [HardKeyButton; 1] = [HardKeyButton::CloseButton];
 }
 
-pub struct InputNextAction {
-    flush: bool,
-    action: InputNextMoreAction,
-}
-
 impl InputNextAction {
-    fn new(flush: bool, action: InputNextMoreAction) -> Self {
-        Self { flush, action }
-    }
-
     /// nothing to do
-    pub fn nop(flush: bool) -> Self {
-        Self::new(flush, InputNextMoreAction::Nop)
-    }
-
-    /// move to next plane
-    pub fn move_to_next_plane(flush: bool) -> Self {
-        Self::new(flush, InputNextMoreAction::MoveToNextPlane)
-    }
-
-    /// move to sign plane
-    /// this will be used to back to char plane in sign plane
-    pub fn move_to_sign_plane(flush: bool) -> Self {
-        Self::new(flush, InputNextMoreAction::MoveToSignPlane)
+    pub fn nop() -> Self {
+        InputNextAction::Nop
     }
 
     /// enter additional char
-    pub fn enter_char(flush: bool, char: char) -> Self {
-        Self::new(flush, InputNextMoreAction::EnterChar(char))
-    }
-
-    /// enter delete key
-    pub fn remove_last_char(flush: bool) -> Self {
-        Self::new(flush, InputNextMoreAction::RemoveLastChar)
-    }
-
-    /// close clekey
-    pub fn close_keyboard(flush: bool) -> Self {
-        Self::new(flush, InputNextMoreAction::CloseKeyboard)
-    }
-
-    /// enter new line
-    pub fn new_line(flush: bool) -> Self {
-        Self::new(flush, InputNextMoreAction::NewLine)
-    }
-
-    pub fn flush(&self) -> bool {
-        self.flush
-    }
-    pub fn action(&self) -> &InputNextMoreAction {
-        &self.action
+    pub fn enter_char(char: char) -> Self {
+        InputNextAction::EnterChar(char)
     }
 }
 
-pub enum InputNextMoreAction {
+pub enum InputNextAction {
     Nop,
-    MoveToNextPlane,
-    MoveToSignPlane,
     EnterChar(char),
-    RemoveLastChar,
-    CloseKeyboard,
-    NewLine,
 }
 
 macro_rules! get_table_str {
@@ -90,19 +43,12 @@ pub trait IInputMethod {
     #[must_use]
     fn get_table(&self) -> &[&str; 8 * 8];
 
-    #[must_use]
-    fn buffer(&self) -> &str {
-        ""
-    }
-
-    #[must_use]
-    fn get_and_clear_buffer(&mut self) -> String {
-        String::new()
-    }
-
-    fn on_input(&mut self, stick: UVec2) -> InputNextAction;
+    fn on_input(&mut self, stick: UVec2, buffer: &mut String) -> InputNextAction;
 
     fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction;
+
+    fn set_inputted_table(&mut self);
+    fn set_inputting_table(&mut self);
 }
 
 pub fn stick_index(stick: UVec2) -> u8 {
@@ -116,113 +62,128 @@ const SIGNS_ICON: &str = "#+=";
 const RETURN_ICON: &str = "⏎";
 
 pub struct SignsInput {
-    _reserved: (),
+    table: [&'static str; 8 * 8],
 }
 
 impl SignsInput {
     pub fn new() -> Self {
-        Self { _reserved: () }
+        Self {
+            #[rustfmt::skip]
+            table: [
+                "(", ")", "[", "]", "{", "}", "<", ">",
+                "/", "\\", ";",  ":", "-", "+", "_", "=",
+                "\"", "'", "#", "1", "2", "3", "4", "5",
+                ".", ",", "!", "6", "7", "8", "9", "0",
+                "&", "*", "¥", "€", "^", "%", "!", "?",
+                "~", "`", "@", "|", "", "", "Close", RETURN_ICON,
+                "", "", "", "", "", "", BACKSPACE_ICON, SPACE_ICON,
+                "", "", "", "", "", "", SIGNS_ICON, NEXT_PLANE_ICON,
+            ],
+        }
     }
 }
 
 impl IInputMethod for SignsInput {
-    #[rustfmt::skip]
     fn get_table(&self) -> &[&str; 8 * 8] {
-        return &[
-            "(", ")", "[", "]", "{", "}", "<", ">",
-            "/", "\\", ";",  ":", "-", "+", "_", "=",
-            "\"", "'", "#", "1", "2", "3", "4", "5",
-            ".", ",", "!", "6", "7", "8", "9", "0",
-            "&", "*", "¥", "€", "^", "%", "!", "?",
-            "~", "`", "@", "|", "", "", "Close", RETURN_ICON,
-            "", "", "", "", "", "", BACKSPACE_ICON, SPACE_ICON,
-            "", "", "", "", "", "", SIGNS_ICON, NEXT_PLANE_ICON,
-        ];
+        &self.table
     }
 
-    fn on_input(&mut self, stick: UVec2) -> InputNextAction {
+    fn on_input(&mut self, stick: UVec2, _: &mut String) -> InputNextAction {
         match stick.to_tuple() {
-            (5, 6) => InputNextAction::close_keyboard(false),
-            (5, 7) => InputNextAction::new_line(false),
-            (6, 6) => InputNextAction::remove_last_char(false),
-            (6, 7) => InputNextAction::enter_char(false, ' '),
-            (7, 6) => InputNextAction::move_to_sign_plane(false),
-            (7, 7) => InputNextAction::move_to_next_plane(false),
+            (l @ (5 | 6 | 7), r @ (6 | 7)) => unreachable!("intrinsic keys: {}, {}", l, r),
             (0..=4, _) | (5, 0..=3) => {
-                InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
+                InputNextAction::enter_char(get_table_char!(self.get_table(), stick))
             }
-            (0..=7, 0..=7) => InputNextAction::nop(false),
-            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => unreachable!(),
+            (0..=7, 0..=7) => InputNextAction::nop(),
+            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => {
+                unreachable!("invalid keys: {}, {}", stick.x, stick.y)
+            }
         }
     }
 
     fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction {
         match button {
-            HardKeyButton::CloseButton => InputNextAction::close_keyboard(false),
+            HardKeyButton::CloseButton => unreachable!("intrinsic keys"),
         }
+    }
+
+    fn set_inputted_table(&mut self) {
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "Close";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
+    }
+
+    fn set_inputting_table(&mut self) {
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
     }
 }
 
 pub struct EnglishInput {
-    _reserved: (),
+    table: [&'static str; 8 * 8],
 }
 
 impl EnglishInput {
     pub fn new() -> Self {
-        Self { _reserved: () }
+        Self {
+            #[rustfmt::skip]
+            table: [
+                "a", "A", "b", "B", "c", "C", "d", "D",
+                "e", "E", "f", "F", "g", "G", "h", "H",
+                "i", "I", "j", "J", "k", "K", "l", "L",
+                "m", "M", "n", "N", "o", "O", "p", "P",
+                "q", "Q", "r", "R", "s", "S", "?", "!",
+                "t", "T", "u", "U", "v", "V", "Close", RETURN_ICON,
+                "w", "W", "x", "X", "y", "Y", BACKSPACE_ICON, SPACE_ICON,
+                "z", "Z", "\"", ".", "\'", ",", SIGNS_ICON, NEXT_PLANE_ICON,
+            ],
+        }
     }
 }
 
 impl IInputMethod for EnglishInput {
-    #[rustfmt::skip]
     fn get_table(&self) -> &[&str; 8 * 8] {
-        return &[
-            "a", "A", "b", "B", "c", "C", "d", "D",
-            "e", "E", "f", "F", "g", "G", "h", "H",
-            "i", "I", "j", "J", "k", "K", "l", "L",
-            "m", "M", "n", "N", "o", "O", "p", "P",
-            "q", "Q", "r", "R", "s", "S", "?", "!",
-            "t", "T", "u", "U", "v", "V", "Close", RETURN_ICON,
-            "w", "W", "x", "X", "y", "Y", BACKSPACE_ICON, SPACE_ICON,
-            "z", "Z", "\"", ".", "\'", ",", SIGNS_ICON, NEXT_PLANE_ICON,
-        ];
+        &self.table
     }
 
-    fn on_input(&mut self, stick: UVec2) -> InputNextAction {
+    fn on_input(&mut self, stick: UVec2, _: &mut String) -> InputNextAction {
         match stick.to_tuple() {
-            (5, 6) => InputNextAction::close_keyboard(false),
-            (5, 7) => InputNextAction::new_line(false),
-            (6, 6) => InputNextAction::remove_last_char(false),
-            (6, 7) => InputNextAction::enter_char(false, ' '),
-            (7, 6) => InputNextAction::move_to_sign_plane(false),
-            (7, 7) => InputNextAction::move_to_next_plane(false),
+            (l @ (5 | 6 | 7), r @ (6 | 7)) => unreachable!("intrinsic keys: {}, {}", l, r),
             (0..=7, 0..=7) => InputNextAction::enter_char(
-                false,
                 self.get_table()[stick_index(stick) as usize]
                     .chars()
                     .next()
                     .unwrap(),
             ),
-            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => unreachable!(),
+            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => {
+                unreachable!("invalid key: {}, {}", stick.x, stick.y)
+            }
         }
     }
 
     fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction {
         match button {
-            HardKeyButton::CloseButton => InputNextAction::close_keyboard(false),
+            HardKeyButton::CloseButton => unreachable!("intrinsic keys"),
         }
+    }
+
+    fn set_inputted_table(&mut self) {
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "Close";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
+    }
+
+    fn set_inputting_table(&mut self) {
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
     }
 }
 
 pub struct JapaneseInput {
-    buffer: String,
     table: [&'static str; 8 * 8],
 }
 
 impl JapaneseInput {
     pub fn new() -> Self {
         Self {
-            buffer: String::new(),
             #[rustfmt::skip]
             table: [
                 "あ", "い", "う", "え", "お", "よ", "ゆ", "や",
@@ -236,16 +197,6 @@ impl JapaneseInput {
             ],
         }
     }
-
-    fn set_inputted_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "閉じる";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
-    }
-
-    fn set_inputting_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
-    }
 }
 
 const DAKUTEN_ICON: &'static str = "\u{2B1A}\u{3099}";
@@ -256,20 +207,13 @@ impl IInputMethod for JapaneseInput {
         &self.table
     }
 
-    fn buffer(&self) -> &str {
-        &self.buffer
-    }
-
-    fn get_and_clear_buffer(&mut self) -> String {
-        std::mem::take(&mut self.buffer)
-    }
-
-    fn on_input(&mut self, stick: UVec2) -> InputNextAction {
+    fn on_input(&mut self, stick: UVec2, buffer: &mut String) -> InputNextAction {
         match stick.to_tuple() {
+            (l @ (5 | 6 | 7), r @ (6 | 7)) => unreachable!("intrinsic keys: {}, {}", l, r),
             (4, 5) => {
                 // small char
-                if let Some(c) = self.buffer.pop() {
-                    self.buffer.push(match c {
+                if let Some(c) = buffer.pop() {
+                    buffer.push(match c {
                         'あ' | 'い' | 'う' | 'え' | 'お' | 'つ' | 'や' | 'ゆ' | 'よ' | 'わ' =>
                         unsafe { char::from_u32_unchecked(c as u32 - 1) },
                         'ぁ' | 'ぃ' | 'ぅ' | 'ぇ' | 'ぉ' | 'っ' | 'ゃ' | 'ゅ' | 'ょ' | 'ゎ' =>
@@ -281,12 +225,12 @@ impl IInputMethod for JapaneseInput {
                         other => other,
                     })
                 }
-                InputNextAction::nop(false)
+                InputNextAction::nop()
             }
             (4, 6) => {
                 // add Dakuten
-                if let Some(c) = self.buffer.pop() {
-                    self.buffer.push(match c {
+                if let Some(c) = buffer.pop() {
+                    buffer.push(match c {
                         'か' | 'き' | 'く' | 'け' | 'こ' | 'さ' | 'し' | 'す' | 'せ' | 'そ'
                         | 'た' | 'ち' | 'つ' | 'て' | 'と' | 'は' | 'ひ' | 'ふ' | 'へ' | 'ほ' =>
                         unsafe { char::from_u32_unchecked(c as u32 + 1) },
@@ -298,12 +242,12 @@ impl IInputMethod for JapaneseInput {
                         other => other,
                     })
                 }
-                InputNextAction::nop(false)
+                InputNextAction::nop()
             }
             (4, 7) => {
                 // add Handakuten
-                if let Some(c) = self.buffer.pop() {
-                    self.buffer.push(match c {
+                if let Some(c) = buffer.pop() {
+                    buffer.push(match c {
                         'は' | 'ひ' | 'ふ' | 'へ' | 'ほ' => unsafe {
                             char::from_u32_unchecked(c as u32 + 2)
                         },
@@ -315,66 +259,34 @@ impl IInputMethod for JapaneseInput {
                         other => other,
                     })
                 }
-                InputNextAction::nop(false)
+                InputNextAction::nop()
             }
-            (5, 5) => InputNextAction::nop(false),
+            (5, 5) => InputNextAction::nop(),
             ////////////
-            (5, 6) => {
-                if self.buffer.is_empty() {
-                    InputNextAction::close_keyboard(false)
-                } else {
-                    InputNextAction::nop(false)
-                }
-            }
-            (5, 7) => {
-                if self.buffer.is_empty() {
-                    InputNextAction::new_line(true)
-                } else {
-                    InputNextAction::nop(true)
-                }
-            }
-            (6, 6) => {
-                if let Some(_) = self.buffer.pop() {
-                    if self.buffer.is_empty() {
-                        self.set_inputted_table();
-                    }
-                    InputNextAction::nop(false)
-                } else {
-                    InputNextAction::remove_last_char(false)
-                }
-            }
-            (6, 7) => {
-                if self.buffer.is_empty() {
-                    InputNextAction::enter_char(true, ' ')
-                } else {
-                    self.buffer.push(' ');
-                    InputNextAction::nop(false)
-                }
-            }
-            (7, 6) => InputNextAction::move_to_sign_plane(true),
-            (7, 7) => InputNextAction::move_to_next_plane(true),
             ////////////
             (2 | 3, 5 | 6 | 7) | (6 | 7, 5) => {
-                if self.buffer.is_empty() {
-                    InputNextAction::enter_char(false, get_table_char!(self.get_table(), stick))
-                } else {
-                    self.buffer.push_str(&get_table_str!(self.table, stick));
-                    self.set_inputting_table();
-                    InputNextAction::nop(false)
-                }
+                InputNextAction::enter_char(get_table_char!(self.get_table(), stick))
             }
-            (0..=7, 0..=7) => {
-                self.buffer.push_str(&get_table_str!(self.table, stick));
-                self.set_inputting_table();
-                InputNextAction::nop(false)
+            (0..=7, 0..=7) => InputNextAction::enter_char(get_table_char!(self.table, stick)),
+            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => {
+                unreachable!("invalid key: {}, {}", stick.x, stick.y)
             }
-            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => unreachable!(),
         }
     }
 
     fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction {
         match button {
-            HardKeyButton::CloseButton => InputNextAction::close_keyboard(false),
+            HardKeyButton::CloseButton => unreachable!("intrinsic keys"),
         }
+    }
+
+    fn set_inputted_table(&mut self) {
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "閉じる";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
+    }
+
+    fn set_inputting_table(&mut self) {
+        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
+        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
     }
 }

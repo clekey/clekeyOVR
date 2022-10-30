@@ -119,11 +119,7 @@ impl OVRController {
         }
     }
 
-    pub fn draw_if_visible(
-        &self,
-        plane: OverlayPlane,
-        renderer: impl FnOnce() -> GLuint,
-    ) {
+    pub fn draw_if_visible(&self, plane: OverlayPlane, renderer: impl FnOnce() -> GLuint) {
         let handle = self.main.plane_handle(plane);
         if handle.is_visible() {
             handle.set_texture(renderer());
@@ -181,7 +177,7 @@ pub enum ActionSetKind {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ButtonKind {
-    BeginInput,
+    //BeginInput,
     SuspendInput,
 }
 

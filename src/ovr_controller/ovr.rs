@@ -259,7 +259,7 @@ impl OvrImpl for OVRController {
 
     fn button_status(&self, button: ButtonKind) -> bool {
         let action = match button {
-            ButtonKind::BeginInput => self.action_waiting_begin_input,
+            //ButtonKind::BeginInput => self.action_waiting_begin_input,
             ButtonKind::SuspendInput => self.action_suspender_suspender,
         };
         self.context
@@ -286,11 +286,13 @@ impl OvrImpl for OVRController {
 
 impl OverlayPlaneHandle for OverlayPlaneHandleWrapper {
     fn set_texture(&self, texture: GLuint) {
-        self.0.set_overlay_texture(OverlayTexture {
-            handle: texture as usize as *mut c_void,
-            tex_type: TextureType::OpenGL,
-            color_space: ColorSpace::Auto,
-        }).expect("set_overlay_texture")
+        self.0
+            .set_overlay_texture(OverlayTexture {
+                handle: texture as usize as *mut c_void,
+                tex_type: TextureType::OpenGL,
+                color_space: ColorSpace::Auto,
+            })
+            .expect("set_overlay_texture")
     }
 
     fn is_visible(&self) -> bool {

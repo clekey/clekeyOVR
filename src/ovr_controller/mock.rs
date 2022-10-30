@@ -85,11 +85,9 @@ impl OverlayPlaneHandle for MockHandle {
         true
     }
 
-    fn show_overlay(&self) {
-    }
+    fn show_overlay(&self) {}
 
-    fn hide_overlay(&self) {
-    }
+    fn hide_overlay(&self) {}
 }
 
 #[derive(Debug)]

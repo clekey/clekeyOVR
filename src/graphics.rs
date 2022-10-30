@@ -1,14 +1,13 @@
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
-use crate::utils::ToTuple;
 use crate::{KeyboardStatus, LeftRight};
+use glam::Vec2;
 use skia_safe::colors::TRANSPARENT;
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
     FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextStyle,
 };
-use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface, Color};
+use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
-use glam::Vec2;
 
 pub fn draw_background_ring(
     canvas: &mut Canvas,
@@ -112,7 +111,11 @@ fn render_ring_chars<'a>(
         // first, compute actual font size
         let computed_font_size: scalar = {
             let mut paragraph = ParagraphBuilder::new(
-                ParagraphStyle::new().set_text_style(TextStyle::new().set_font_size(font_size).set_font_families(font_families)),
+                ParagraphStyle::new().set_text_style(
+                    TextStyle::new()
+                        .set_font_size(font_size)
+                        .set_font_families(font_families),
+                ),
                 fonts,
             )
             .add_text(&pair.0)
@@ -142,8 +145,7 @@ fn render_ring_chars<'a>(
 
         paragraph.layout(width);
         let text_center_pos = center + offsets[i as usize];
-        let text_pos =
-            text_center_pos - Point::new(width / 2.0, paragraph.height() / 2.0);
+        let text_pos = text_center_pos - Point::new(width / 2.0, paragraph.height() / 2.0);
         paragraph.paint(canvas, text_pos);
     }
 }
@@ -205,8 +207,16 @@ pub fn draw_ring(
                 |idx| {
                     (
                         status.method.get_table()[col_origin + line_len * idx as usize],
-                        if pos == current && idx == opposite { config.selecting_char_in_ring_color } else { ring_color },
-                        if pos == current && idx == opposite { 1.2 } else { 1.0 },
+                        if pos == current && idx == opposite {
+                            config.selecting_char_in_ring_color
+                        } else {
+                            ring_color
+                        },
+                        if pos == current && idx == opposite {
+                            1.2
+                        } else {
+                            1.0
+                        },
                     )
                 },
             )
@@ -249,14 +259,19 @@ pub fn draw_center(
 
     let space = surface.height() as scalar * 0.15;
 
-    let mut paragraph = ParagraphBuilder::new(&ParagraphStyle::new()
-        .set_text_align(TextAlign::Left)
-        .set_text_style(TextStyle::new()
-            .set_color(config.inputting_char_color.to_color())
-            .set_font_families(font_families)
-            .set_font_size(surface.height() as scalar * 0.5)),fonts)
-        .add_text(status.method.buffer())
-        .build();
+    let mut paragraph = ParagraphBuilder::new(
+        &ParagraphStyle::new()
+            .set_text_align(TextAlign::Left)
+            .set_text_style(
+                TextStyle::new()
+                    .set_color(config.inputting_char_color.to_color())
+                    .set_font_families(font_families)
+                    .set_font_size(surface.height() as scalar * 0.5),
+            ),
+        fonts,
+    )
+    .add_text(&status.buffer)
+    .build();
     paragraph.layout(surface.width() as scalar - space - space);
     paragraph.paint(surface.canvas(), Point::new(space, space));
 }
