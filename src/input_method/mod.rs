@@ -237,6 +237,9 @@ impl IInputMethod for JapaneseInput {
                         'が' | 'ぎ' | 'ぐ' | 'げ' | 'ご' | 'ざ' | 'じ' | 'ず' | 'ぜ' | 'ぞ'
                         | 'だ' | 'ぢ' | 'づ' | 'で' | 'ど' | 'ば' | 'び' | 'ぶ' | 'べ' | 'ぼ' =>
                         unsafe { char::from_u32_unchecked(c as u32 - 1) },
+                        'ぱ' | 'ぴ' | 'ぷ' | 'ぺ' | 'ぽ' => unsafe {
+                            char::from_u32_unchecked(c as u32 - 1)
+                        },
                         'う' => 'ゔ',
                         'ゔ' => 'う',
                         other => other,
@@ -253,6 +256,9 @@ impl IInputMethod for JapaneseInput {
                         },
                         'ぱ' | 'ぴ' | 'ぷ' | 'ぺ' | 'ぽ' => unsafe {
                             char::from_u32_unchecked(c as u32 - 2)
+                        },
+                        'ば' | 'び' | 'ぶ' | 'べ' | 'ぼ' => unsafe {
+                            char::from_u32_unchecked(c as u32 + 1)
                         },
                         'う' => 'ゔ',
                         'ゔ' => 'う',
