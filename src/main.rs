@@ -510,7 +510,10 @@ impl<'ovr> KeyboardManager<'ovr> {
     fn do_input_action(&mut self, action: InputNextAction) {
         match action {
             InputNextAction::Nop => (),
-            InputNextAction::EnterChar(c) => os::enter_char(c),
+            InputNextAction::EnterChar(c) => {
+                self.status.buffer.push(c);
+                self.status.method.set_inputting_table();
+            }
         }
     }
 
@@ -532,6 +535,7 @@ impl<'ovr> KeyboardManager<'ovr> {
 
     pub fn flush(&mut self) {
         let buffer = std::mem::take(&mut self.status.buffer);
+        self.status.method.set_inputted_table();
         if !buffer.is_empty() {
             os::copy_text_and_enter_paste_shortcut(&buffer);
         }
