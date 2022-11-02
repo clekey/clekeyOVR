@@ -386,8 +386,13 @@ impl HandInfo {
         }
     }
 
+    #[allow(dead_code)]
     fn click_started(&self) -> bool {
         return self.clicking && !self.clicking_old;
+    }
+
+    fn click_stopped(&self) -> bool {
+        return !self.clicking && self.clicking_old;
     }
 }
 
@@ -447,7 +452,7 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub(crate) fn tick(&mut self) -> bool {
-        if (self.status.left.click_started() || self.status.right.click_started())
+        if (self.status.left.click_stopped() || self.status.right.click_stopped())
             && self.status.left.selection != -1
             && self.status.right.selection != -1
         {
