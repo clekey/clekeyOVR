@@ -206,7 +206,7 @@ pub fn draw_ring(
                 ring_size,
                 |idx| {
                     (
-                        status.method.get_table()[col_origin + line_len * idx as usize],
+                        status.method.table[col_origin + line_len * idx as usize].0.first().map(|x| x.shows).unwrap_or(""),
                         if pos == current && idx == opposite {
                             config.selecting_char_in_ring_color
                         } else {
@@ -231,7 +231,7 @@ pub fn draw_ring(
             radius,
             |idx| {
                 (
-                    status.method.get_table()[line_origin + line_step * idx as usize],
+                    status.method.table[line_origin + line_step * idx as usize].0.first().map(|x| x.shows).unwrap_or(""),
                     get_color(idx),
                     if idx == current { 1.1 } else { 1.0 },
                 )

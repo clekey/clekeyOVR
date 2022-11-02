@@ -1,17 +1,18 @@
+#[macro_use]
+mod utils;
 mod config;
 mod global;
 mod graphics;
 mod input_method;
 mod os;
 mod ovr_controller;
-mod utils;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::{draw_center, draw_ring};
-use crate::input_method::{HardKeyButton, IInputMethod, InputNextAction};
+use crate::input_method::{CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
-use glam::{UVec2, Vec2};
+use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
@@ -393,7 +394,7 @@ impl HandInfo {
 pub struct KeyboardStatus {
     left: HandInfo,
     right: HandInfo,
-    method: Box<dyn IInputMethod>,
+    method: CleKeyInputTable<'static>,
     buffer: String,
 }
 
@@ -415,8 +416,8 @@ impl KeyboardStatus {
 
 struct KeyboardManager<'ovr> {
     ovr_controller: &'ovr OVRController,
-    sign_input: Box<dyn IInputMethod>,
-    methods: VecDeque<Box<dyn IInputMethod>>,
+    sign_input: &'static CleKeyInputTable<'static>,
+    methods: VecDeque<&'static CleKeyInputTable<'static>>,
     is_sign: bool,
     status: KeyboardStatus,
 }
@@ -424,18 +425,25 @@ struct KeyboardManager<'ovr> {
 impl<'ovr> KeyboardManager<'ovr> {
     pub fn new(ovr: &'ovr OVRController, _config: &CleKeyConfig) -> Self {
         use input_method::*;
-        Self {
+        let mut result = Self {
             ovr_controller: ovr,
-            sign_input: Box::new(SignsInput::new()),
-            methods: VecDeque::from([Box::new(EnglishInput::new()) as Box<dyn IInputMethod>]),
+            sign_input: SIGNS_TABLE,
+            methods: VecDeque::from([JAPANESE_INPUT, ENGLISH_TABLE]),
             is_sign: false,
             status: KeyboardStatus {
                 left: HandInfo::new(),
                 right: HandInfo::new(),
-                method: Box::new(JapaneseInput::new()),
+                method: CleKeyInputTable {
+                    starts_ime: false,
+                    table: [CleKeyButton::empty(); 8 * 8],
+                },
                 buffer: String::new(),
             },
-        }
+        };
+
+        result.set_plane(result.methods.front().unwrap());
+
+        result
     }
 
     pub(crate) fn tick(&mut self) -> bool {
@@ -465,7 +473,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                     // backspace
                     if let Some(_) = self.status.buffer.pop() {
                         if self.status.buffer.is_empty() {
-                            self.status.method.set_inputted_table();
+                            self.set_inputted_table();
                         }
                     } else {
                         os::enter_backspace();
@@ -482,11 +490,9 @@ impl<'ovr> KeyboardManager<'ovr> {
                 (7, 6) => self.move_to_next_plane(),
                 (7, 7) => self.swap_sign_oplane(),
                 (l @ 0..=7, r @ 0..=7) => {
-                    let action = self
-                        .status
-                        .method
-                        .on_input(UVec2::new(l as u32, r as u32), &mut self.status.buffer);
-                    self.do_input_action(action)
+                    if let Some(action) = self.status.method.table[(l * 8 + r) as usize].0.first().map(|x| &x.action) {
+                        self.do_input_action(action)
+                    }
                 }
                 (l, r) => unreachable!("{}, {}", l, r),
             }
@@ -497,9 +503,10 @@ impl<'ovr> KeyboardManager<'ovr> {
                 match x {
                     HardKeyButton::CloseButton => return true,
                     #[allow(unreachable_patterns)]
-                    x => {
-                        let action = self.status.method.on_hard_input(x);
-                        self.do_input_action(action)
+                    _ => {
+                        todo!()
+                        //let action = self.status.method.on_hard_input(x);
+                        //self.do_input_action(action)
                     }
                 }
             }
@@ -507,37 +514,83 @@ impl<'ovr> KeyboardManager<'ovr> {
         return false;
     }
 
-    fn do_input_action(&mut self, action: InputNextAction) {
+    fn do_input_action(&mut self, action: &InputNextAction) {
         match action {
-            InputNextAction::Nop => (),
             InputNextAction::EnterChar(c) => {
-                self.status.buffer.push(c);
-                self.status.method.set_inputting_table();
+                if self.status.method.starts_ime || !self.status.buffer.is_empty() {
+                    self.status.buffer.push(*c);
+                    self.set_inputting_table();
+                } else {
+                    os::enter_char(*c)
+                }
             }
+            InputNextAction::Extra(f) => f(&mut self.status.buffer),
         }
     }
 
     fn move_to_next_plane(&mut self) {
-        if self.is_sign {
-            // if current is sign, back to zero
-            std::mem::swap(&mut self.sign_input, &mut self.status.method);
-            self.is_sign = false
-        }
+        self.is_sign = false;
         // rotate
-        std::mem::swap(&mut self.status.method, self.methods.front_mut().unwrap());
         self.methods.rotate_left(1);
+        // and clear
+        self.set_plane(self.methods.front().unwrap());
     }
 
     fn swap_sign_oplane(&mut self) {
-        std::mem::swap(&mut self.sign_input, &mut self.status.method);
-        self.is_sign = !self.is_sign;
+        if self.is_sign {
+            self.is_sign = false;
+            self.set_plane(self.methods.front().unwrap());
+        } else { 
+            self.is_sign = true;
+            self.set_plane(self.sign_input);
+        }
     }
 
     pub fn flush(&mut self) {
         let buffer = std::mem::take(&mut self.status.buffer);
-        self.status.method.set_inputted_table();
+        self.set_inputted_table();
         if !buffer.is_empty() {
             os::copy_text_and_enter_paste_shortcut(&buffer);
         }
+    }
+}
+
+macro_rules! builtin_button {
+    ($char: literal) => {
+        CleKeyButton(&[CleKeyButtonAction {
+            shows: $char,
+            action: InputNextAction::Extra(|_| ()),
+        }])
+    };
+}
+
+impl<'ovr> KeyboardManager<'ovr> {
+    fn set_plane(&mut self, table: &CleKeyInputTable<'static>) {
+        use input_method::*;
+        self.status.method.clone_from(table);
+
+        self.status.method.table[6 * 8 + 6] = builtin_button!("⌫");
+        self.status.method.table[6 * 8 + 7] = builtin_button!("␣");
+
+        self.status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}");// 🌐
+        self.status.method.table[7 * 8 + 7] = builtin_button!("#+=");
+
+        if !self.status.buffer.is_empty() {
+            self.set_inputted_table();
+        } else {
+            self.set_inputting_table();
+        }
+    }
+
+    fn set_inputted_table(&mut self) {
+        use input_method::*;
+        self.status.method.table[5 * 8 + 6] = builtin_button!("Close");
+        self.status.method.table[5 * 8 + 7] = builtin_button!("⏎");
+    }
+
+    fn set_inputting_table(&mut self) {
+        use input_method::*;
+        self.status.method.table[5 * 8 + 6] = builtin_button!("変換");
+        self.status.method.table[5 * 8 + 7] = builtin_button!("確定");
     }
 }
