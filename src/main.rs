@@ -479,7 +479,7 @@ impl<'ovr> KeyboardManager<'ovr> {
             if button.0.len() != 0 {
                 let dur = Instant::now().duration_since(self.click_started);
                 println!("dur: {dur:?}");
-                self.status.button_idx = ((dur.as_millis() / 250) % button.0.len() as u128) as usize;
+                self.status.button_idx = ((dur.as_millis() / 150) % button.0.len() as u128) as usize;
             } else {
                 self.status.button_idx = 0;
             }
