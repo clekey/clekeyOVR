@@ -470,14 +470,18 @@ impl<'ovr> KeyboardManager<'ovr> {
 
     pub(crate) fn tick(&mut self) -> bool {
         if self.status.is_selecting() &&
-            (self.status.left.click_started() || self.status.right.click_started()) &&
-            (self.status.left.selection_changed() || self.status.right.selection_changed()) {
+            (self.status.left.click_started() || self.status.right.click_started()
+            || self.status.left.selection_changed() || self.status.right.selection_changed()) {
             self.click_started = Instant::now();
             self.status.button_idx = 0
         } else if self.status.is_selecting() && (self.status.left.clicking || self.status.right.clicking) {
             let button = self.status.method.table[(self.status.left.selection * 8 + self.status.right.selection) as usize];
             if button.0.len() != 0 {
-                self.status.button_idx = ((Instant::now().duration_since(self.click_started).as_millis() / 250) % button.0.len() as u128) as usize;
+                let dur = Instant::now().duration_since(self.click_started);
+                println!("dur: {dur:?}");
+                self.status.button_idx = ((dur.as_millis() / 250) % button.0.len() as u128) as usize;
+            } else {
+                self.status.button_idx = 0;
             }
         }
         if (self.status.left.click_stopped() || self.status.right.click_stopped())
@@ -528,6 +532,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                 }
                 (l, r) => unreachable!("{}, {}", l, r),
             }
+            self.status.button_idx = 0;
         }
 
         for x in HardKeyButton::VALUES {
