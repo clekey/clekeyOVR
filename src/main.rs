@@ -24,6 +24,7 @@ use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
 use std::ptr::null;
 use std::rc::Rc;
+use std::time::Instant;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -376,6 +377,12 @@ pub struct HandInfo {
 }
 
 impl HandInfo {
+    pub(crate) fn selection_changed(&self) -> bool {
+        self.selection != self.selection_old
+    }
+}
+
+impl HandInfo {
     pub fn new() -> Self {
         Self {
             stick: Vec2::new(0.0, 0.0),
@@ -400,7 +407,14 @@ pub struct KeyboardStatus {
     left: HandInfo,
     right: HandInfo,
     method: CleKeyInputTable<'static>,
+    button_idx: usize,
     buffer: String,
+}
+
+impl KeyboardStatus {
+    pub(crate) fn is_selecting(&self) -> bool {
+        self.left.selection != -1 && self.right.selection != -1
+    }
 }
 
 impl KeyboardStatus {
@@ -425,6 +439,7 @@ struct KeyboardManager<'ovr> {
     methods: VecDeque<&'static CleKeyInputTable<'static>>,
     is_sign: bool,
     status: KeyboardStatus,
+    click_started: Instant,
 }
 
 impl<'ovr> KeyboardManager<'ovr> {
@@ -442,8 +457,10 @@ impl<'ovr> KeyboardManager<'ovr> {
                     starts_ime: false,
                     table: [CleKeyButton::empty(); 8 * 8],
                 },
+                button_idx: 0,
                 buffer: String::new(),
             },
+            click_started: Instant::now(), 
         };
 
         result.set_plane(result.methods.front().unwrap());
@@ -452,10 +469,19 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub(crate) fn tick(&mut self) -> bool {
+        if self.status.is_selecting() &&
+            (self.status.left.click_started() || self.status.right.click_started()) &&
+            (self.status.left.selection_changed() || self.status.right.selection_changed()) {
+            self.click_started = Instant::now();
+            self.status.button_idx = 0
+        } else if self.status.is_selecting() && (self.status.left.clicking || self.status.right.clicking) {
+            let button = self.status.method.table[(self.status.left.selection * 8 + self.status.right.selection) as usize];
+            if button.0.len() != 0 {
+                self.status.button_idx = ((Instant::now().duration_since(self.click_started).as_millis() / 250) % button.0.len() as u128) as usize;
+            }
+        }
         if (self.status.left.click_stopped() || self.status.right.click_stopped())
-            && self.status.left.selection != -1
-            && self.status.right.selection != -1
-        {
+            && self.status.is_selecting() {
             match (self.status.left.selection, self.status.right.selection) {
                 (5, 6) => {
                     if self.status.buffer.is_empty() {
@@ -495,7 +521,8 @@ impl<'ovr> KeyboardManager<'ovr> {
                 (7, 6) => self.move_to_next_plane(),
                 (7, 7) => self.swap_sign_oplane(),
                 (l @ 0..=7, r @ 0..=7) => {
-                    if let Some(action) = self.status.method.table[(l * 8 + r) as usize].0.first().map(|x| &x.action) {
+                    let button = &self.status.method.table[(l * 8 + r) as usize];
+                    if let Some(action) = button.0.get(self.status.button_idx).map(|x| &x.action) {
                         self.do_input_action(action)
                     }
                 }

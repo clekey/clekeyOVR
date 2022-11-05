@@ -206,7 +206,14 @@ pub fn draw_ring(
                 ring_size,
                 |idx| {
                     (
-                        status.method.table[col_origin + line_len * idx as usize].0.first().map(|x| x.shows).unwrap_or(""),
+                        {
+                            let key = status.method.table[col_origin + line_len * idx as usize].0;
+                            if pos == current && idx == opposite {
+                                key[status.button_idx].shows
+                            } else {
+                                key.first().map(|x| x.shows).unwrap_or("")
+                            }
+                        },
                         if pos == current && idx == opposite {
                             config.selecting_char_in_ring_color
                         } else {
