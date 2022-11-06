@@ -150,6 +150,7 @@ dependencies = [
  "openvr",
  "serde",
  "serde_json",
+ "simple_logger",
  "skia-safe",
  "windows",
 ]
@@ -161,6 +162,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8ad8cef104ac57b68b89df3208164d228503abbdce70f6880ffa3d970e7443a"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "colored"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3616f750b84d8f0de8a58bda93e08e2a81ad3f523089b05f1dffecab48c6cbd"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi",
 ]
 
 [[package]]
@@ -206,7 +218,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "redox_syscall",
- "windows-sys",
+ "windows-sys 0.36.1",
 ]
 
 [[package]]
@@ -438,6 +450,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_threads"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -630,6 +651,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
 
 [[package]]
+name = "simple_logger"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e190a521c2044948158666916d9e872cbb9984f755e9bb3b5b75a836205affcd"
+dependencies = [
+ "atty",
+ "colored",
+ "log",
+ "time",
+ "windows-sys 0.42.0",
+]
+
+[[package]]
 name = "skia-bindings"
 version = "0.55.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -706,6 +740,35 @@ name = "textwrap"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "949517c0cf1bf4ee812e2e07e08ab448e3ae0d23472aee8a06c985f0c8815b16"
+
+[[package]]
+name = "time"
+version = "0.3.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a561bf4617eebd33bca6434b988f39ed798e527f51a1e797d0ee4f61c0a38376"
+dependencies = [
+ "itoa",
+ "libc",
+ "num_threads",
+ "serde",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
+
+[[package]]
+name = "time-macros"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d967f99f534ca7e495c575c62638eebc2898a8c84c119b89e250477bc4ba16b2"
+dependencies = [
+ "time-core",
+]
 
 [[package]]
 name = "tinyvec"
@@ -937,6 +1000,21 @@ dependencies = [
  "windows_i686_msvc 0.36.1",
  "windows_x86_64_gnu 0.36.1",
  "windows_x86_64_msvc 0.36.1",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a3e1820f08b8513f676f7ab6c1f99ff312fb97b553d30ff4dd86f9f15728aa7"
+dependencies = [
+ "windows_aarch64_gnullvm",
+ "windows_aarch64_msvc 0.42.0",
+ "windows_i686_gnu 0.42.0",
+ "windows_i686_msvc 0.42.0",
+ "windows_x86_64_gnu 0.42.0",
+ "windows_x86_64_gnullvm",
+ "windows_x86_64_msvc 0.42.0",
 ]
 
 [[package]]

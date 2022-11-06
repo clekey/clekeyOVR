@@ -34,6 +34,7 @@ pub enum LeftRight {
 }
 
 fn main() {
+    simple_logger::init().unwrap();
     // glfw initialization
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw.window_hint(WindowHint::DoubleBuffer(true));
