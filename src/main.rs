@@ -486,7 +486,7 @@ impl<'ovr> KeyboardManager<'ovr> {
         }
         if (self.status.left.click_stopped() || self.status.right.click_stopped())
             && self.status.is_selecting() {
-            match (self.status.left.selection, self.status.right.selection) {
+            match (self.status.left.selection_old, self.status.right.selection_old) {
                 (5, 6) => {
                     if self.status.buffer.is_empty() {
                         // close keyboard
