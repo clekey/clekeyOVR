@@ -1,4 +1,4 @@
-use crate::global::get_config_dir;
+use crate::global::get_appdata_dir;
 use glam::{Vec3, Vec4};
 use skia_safe::Color4f;
 use std::fs::File;
@@ -236,7 +236,7 @@ impl Default for RingOverlayConfig {
 //CleKeyConfig loadConfig(CleKeyConfig &config);
 
 fn get_config_path() -> PathBuf {
-    return get_config_dir().join("config.json");
+    return get_appdata_dir().join("config.json");
 }
 
 fn do_load_config(config: &mut CleKeyConfig) -> io::Result<()> {

@@ -2,9 +2,10 @@ use std::path::{Path, PathBuf};
 use once_cell::sync::Lazy;
 
 #[cfg(not(windows))]
-pub fn get_config_dir() -> &'static Path {
+pub fn get_appdata_dir() -> &'static Path {
     static VALUE: Lazy<PathBuf> = Lazy::new(|| {
         std::env::current_dir().expect("cwd")
+            .join("appdata")
     });
     return &*VALUE;
 }

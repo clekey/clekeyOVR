@@ -13,4 +13,4 @@ pub fn get_resources_dir() -> PathBuf {
     get_exe_dir().join("resources")
 }
 
-pub use crate::os::get_config_dir;
+pub use crate::os::get_appdata_dir;
