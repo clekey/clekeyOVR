@@ -2,7 +2,7 @@ use crate::global::get_appdata_dir;
 use glam::{Vec3, Vec4};
 use skia_safe::Color4f;
 use std::fs::File;
-use std::io;
+use std::{fs, io};
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -248,6 +248,7 @@ fn do_load_config(config: &mut CleKeyConfig) -> io::Result<()> {
 }
 
 fn write_config(config: &CleKeyConfig) -> io::Result<()> {
+    fs::create_dir_all(get_config_path().parent().unwrap())?;
     let mut writing = File::create(get_config_path())?;
     serde_json::to_writer_pretty(&mut writing, config)?;
     writing.flush()?;
