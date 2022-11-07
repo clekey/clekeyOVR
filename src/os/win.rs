@@ -9,7 +9,7 @@ use windows::Win32::System::Memory::{GlobalAlloc, GlobalFree, GMEM_FIXED};
 use windows::Win32::System::SystemServices::CF_UNICODETEXT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_BACK, VK_LCONTROL, VK_LSHIFT};
 
-pub fn get_config_dir() -> &'static Path {
+pub fn get_appdata_dir() -> &'static Path {
     static VALUE: Lazy<PathBuf> = Lazy::new(|| {
         PathBuf::from(std::env::var_os("APPDATA").expect("no APPDATA found")).join("clekey_ovr")
     });
