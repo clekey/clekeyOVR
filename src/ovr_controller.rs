@@ -71,13 +71,44 @@ impl From<LeftRight> for OverlayPlane {
 }
 
 impl OVRController {
-    fn update_hand_status(&self, status: &mut HandInfo, hand: LeftRight) {
+    fn update_hand_status(&self, status: &mut HandInfo, hand: LeftRight, clicking: bool) {
         status.stick = self.stick_pos(hand);
         status.selection_old = status.selection;
 
-        fn compute_angle(vec: Vec2) -> i8 {
-            let a: f32 = vec.y.atan2(vec.x) * (-4.0 / PI);
-            return ((a.round() as i8) + 2) & 7;
+        fn compute_angle(vec: Vec2, selecting: i8, clicking: bool) -> i8 {
+            let mut a: f32 = vec.y.atan2(vec.x);
+            // (-pi, pi]
+            a *= -4.0 / PI;
+            // [-4, 4)
+            a += 2.5;
+            // [-1.5, 6.5)
+            if a < 0.0 {
+                a += 8.0
+            }
+            // [0, 8)
+
+            if clicking && selecting != -1 {
+                let selecting_center_angle = selecting as f32 + 0.5f32;
+                let selecting_lower = selecting_center_angle - 1.0;
+                let selecting_upper = selecting_center_angle + 1.0;
+                if selecting_lower < 0.0 {
+                    let selecting_lower = selecting_lower + 8.0;
+                    if a < selecting_upper || selecting_lower < a {
+                        return selecting
+                    }
+                } else if selecting_upper > 8.0 {
+                    let selecting_upper = selecting_upper - 8.0;
+                    if a < selecting_upper || selecting_lower < a {
+                        return selecting
+                    }
+                } else {
+                    if selecting_lower < a && a < selecting_upper {
+                        return selecting
+                    }
+                }
+            }
+
+            return a.floor() as i8;
         }
 
         const LOWER_BOUND: f32 = 0.75 * 0.75;
@@ -85,9 +116,9 @@ impl OVRController {
 
         let len_sqrt = status.stick.length_squared();
         status.selection = if len_sqrt >= UPPER_BOUND {
-            compute_angle(status.stick)
+            compute_angle(status.stick, status.selection, clicking)
         } else if len_sqrt >= LOWER_BOUND && status.selection != -1 {
-            compute_angle(status.stick)
+            compute_angle(status.stick, status.selection, clicking)
         } else {
             -1
         };
@@ -101,8 +132,9 @@ impl OVRController {
     }
 
     pub fn update_status(&self, status: &mut KeyboardStatus) {
-        self.update_hand_status(&mut status.left, LeftRight::Left);
-        self.update_hand_status(&mut status.right, LeftRight::Right);
+        let clicking = status.clicking();
+        self.update_hand_status(&mut status.left, LeftRight::Left, clicking);
+        self.update_hand_status(&mut status.right, LeftRight::Right, clicking);
     }
 
     pub fn show_overlay(&self, plane: OverlayPlane) {
