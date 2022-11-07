@@ -574,7 +574,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                     os::enter_char(*c)
                 }
             }
-            InputNextAction::Extra(f) => f(&mut self.status.buffer),
+            InputNextAction::Extra(f) => f(&mut self.status),
         }
     }
 

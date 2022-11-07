@@ -1,3 +1,5 @@
+use crate::KeyboardStatus;
+
 #[derive(Copy, Clone, Debug)]
 pub enum HardKeyButton {
     CloseButton,
@@ -9,7 +11,7 @@ impl HardKeyButton {
 
 pub(crate) enum InputNextAction {
     EnterChar(char),
-    Extra(fn(&mut String)),
+    Extra(fn(&mut KeyboardStatus)),
 }
 
 #[derive(Clone)]
@@ -64,9 +66,9 @@ macro_rules! single_extra_action {
 
 macro_rules! replace_last_char {
     ($vis: vis fn $name: ident { $($tt:tt)* }) => {
-        $vis fn $name(buf: &mut String) {
-            if let Some(c) = buf.pop() {
-                buf.push({
+        $vis fn $name(status: &mut KeyboardStatus) {
+            if let Some(c) = status.buffer.pop() {
+                status.buffer.push({
                     static MAPPING: [char; 6 * 16] = {
                         let mut init = ['\0'; 6 * 16];
                         replace_last_char!(@first_init_0 init; 0, 1, 2, 3, 4, 5);
