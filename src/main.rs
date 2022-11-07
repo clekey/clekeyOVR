@@ -10,7 +10,7 @@ mod resources;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::{draw_center, draw_ring};
-use crate::input_method::{CleKeyInputTable, HardKeyButton, InputNextAction};
+use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
 use glam::Vec2;
@@ -433,6 +433,14 @@ impl KeyboardStatus {
     pub(crate) fn clicking(&self) -> bool {
         self.left.clicking && self.right.clicking
     }
+
+    pub(crate) fn selecting_button(&self) -> Option<CleKeyButton<'static>> {
+        if self.is_selecting() {
+            Some(self.method.table[(self.left.selection * 8 + self.right.selection) as usize])
+        } else {
+            None
+        }
+    }
 }
 
 impl KeyboardStatus {
@@ -488,29 +496,23 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub(crate) fn tick(&mut self) -> bool {
-        if self.status.is_selecting() && (self.status.click_started() || self.status.selection_changed()) {
-            self.click_started = Instant::now();
-            self.status.button_idx = 0
-        } else if self.status.is_selecting() && self.status.clicking() {
-            let button = self.status.method.table[(self.status.left.selection * 8 + self.status.right.selection) as usize];
-            if button.0.len() != 0 {
-                let dur = Instant::now().duration_since(self.click_started);
-                self.status.button_idx = ((dur.as_millis() / 150) % button.0.len() as u128) as usize;
-            } else {
+        if let Some(button) = self.status.selecting_button() {
+            if self.status.click_started() || self.status.selection_changed() {
+                self.click_started = Instant::now();
+                self.status.button_idx = 0
+            } else if self.status.clicking() {
+                if button.0.len() != 0 {
+                    let dur = Instant::now().duration_since(self.click_started);
+                    self.status.button_idx = ((dur.as_millis() / 150) % button.0.len() as u128) as usize;
+                } else {
+                    self.status.button_idx = 0;
+                }
+            } else if self.status.click_stopped() {
+                if let Some(action) = button.0.get(self.status.button_idx).map(|x| &x.action) {
+                    self.do_input_action(action)
+                }
                 self.status.button_idx = 0;
             }
-        }
-        if self.status.click_stopped() && self.status.is_selecting() {
-            match (self.status.left.selection_old, self.status.right.selection_old) {
-                (l @ 0..=7, r @ 0..=7) => {
-                    let button = &self.status.method.table[(l * 8 + r) as usize];
-                    if let Some(action) = button.0.get(self.status.button_idx).map(|x| &x.action) {
-                        self.do_input_action(action)
-                    }
-                }
-                (l, r) => unreachable!("{}, {}", l, r),
-            }
-            self.status.button_idx = 0;
         }
 
         for x in HardKeyButton::VALUES {
