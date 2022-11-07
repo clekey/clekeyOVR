@@ -625,7 +625,7 @@ impl<'ovr> KeyboardManager<'ovr> {
         self.status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}");// 🌐
         self.status.method.table[7 * 8 + 7] = builtin_button!("#+=");
 
-        if !self.status.buffer.is_empty() {
+        if self.status.buffer.is_empty() {
             self.set_inputted_table();
         } else {
             self.set_inputting_table();
