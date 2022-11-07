@@ -392,15 +392,6 @@ impl HandInfo {
             clicking_old: false,
         }
     }
-
-    #[allow(dead_code)]
-    fn click_started(&self) -> bool {
-        return self.clicking && !self.clicking_old;
-    }
-
-    fn click_stopped(&self) -> bool {
-        return !self.clicking && self.clicking_old;
-    }
 }
 
 pub struct KeyboardStatus {
@@ -414,6 +405,28 @@ pub struct KeyboardStatus {
 impl KeyboardStatus {
     pub(crate) fn is_selecting(&self) -> bool {
         self.left.selection != -1 && self.right.selection != -1
+    }
+
+    pub(crate) fn click_started(&self) -> bool {
+        // prev: both not clicking
+        // now: either clicking
+        (!self.left.clicking_old && !self.right.clicking_old) 
+            && (self.left.clicking || self.right.clicking)
+    }
+
+    pub(crate) fn click_stopped(&self) -> bool {
+        // prev: either clicking
+        // now: both not clicking
+        (self.left.clicking_old || self.right.clicking_old)
+            && (!self.left.clicking && !self.right.clicking)
+    }
+
+    pub(crate) fn selection_changed(&self) -> bool {
+        self.left.selection_changed() || self.right.selection_changed()
+    }
+
+    pub(crate) fn clicking(&self) -> bool {
+        self.left.clicking && self.right.clicking
     }
 }
 
@@ -469,12 +482,10 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub(crate) fn tick(&mut self) -> bool {
-        if self.status.is_selecting() &&
-            (self.status.left.click_started() || self.status.right.click_started()
-            || self.status.left.selection_changed() || self.status.right.selection_changed()) {
+        if self.status.is_selecting() && (self.status.click_started() || self.status.selection_changed()) {
             self.click_started = Instant::now();
             self.status.button_idx = 0
-        } else if self.status.is_selecting() && (self.status.left.clicking || self.status.right.clicking) {
+        } else if self.status.is_selecting() && self.status.clicking() {
             let button = self.status.method.table[(self.status.left.selection * 8 + self.status.right.selection) as usize];
             if button.0.len() != 0 {
                 let dur = Instant::now().duration_since(self.click_started);
@@ -483,8 +494,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                 self.status.button_idx = 0;
             }
         }
-        if (self.status.left.click_stopped() || self.status.right.click_stopped())
-            && self.status.is_selecting() {
+        if self.status.click_stopped() && self.status.is_selecting() {
             match (self.status.left.selection_old, self.status.right.selection_old) {
                 (5, 6) => {
                     if self.status.buffer.is_empty() {
