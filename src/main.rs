@@ -5,6 +5,7 @@ mod input_method;
 mod os;
 mod ovr_controller;
 mod utils;
+mod resources;
 
 use crate::config::{load_config, CleKeyConfig};
 use crate::graphics::{draw_center, draw_ring};
@@ -35,6 +36,8 @@ pub enum LeftRight {
 
 fn main() {
     simple_logger::init().unwrap();
+    // resource initialization
+    resources::init();
     // glfw initialization
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw.window_hint(WindowHint::DoubleBuffer(true));
