@@ -159,17 +159,23 @@ const _: () = {
     #[derive(serde::Deserialize)]
     struct Partial {
         #[serde(rename="uiMode")]
+        #[serde(default)]
         pub ui_mode: OptionalValue<UIMode>,
         #[serde(rename="twoRing")]
+        #[serde(default)]
         pub two_ring: OptionalValue<TwoRingMode>,
         #[serde(rename="oneRing")]
+        #[serde(default)]
         pub one_ring: OptionalValue<OneRingMode>,
 
         // old config
         #[serde(rename="leftRing")]
+        #[serde(default)]
         pub left_ring: OptionalValue<RingOverlayConfig>,
         #[serde(rename="rightRing")]
+        #[serde(default)]
         pub right_ring: OptionalValue<RingOverlayConfig>,
+        #[serde(default)]
         pub completion: OptionalValue<CompletionOverlayConfig>,
     }
 
