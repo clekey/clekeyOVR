@@ -248,7 +248,7 @@ impl Default for TwoRingMode {
                     yaw: 6.0885,
                     pitch: -18.3379,
                     distance: 0.75,
-                    width_radio: 1.2,
+                    width_radio: 0.2,
                     alpha: 1.0,
                 },
                 ..Default::default()
@@ -258,7 +258,7 @@ impl Default for TwoRingMode {
                     yaw: -6.0885,
                     pitch: -18.3379,
                     distance: 0.75,
-                    width_radio: 1.2,
+                    width_radio: 0.2,
                     alpha: 1.0,
                 },
                 ..Default::default()
