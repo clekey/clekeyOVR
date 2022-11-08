@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::OverlayPositionConfig;
+use crate::config::{OverlayPositionConfig, UIMode};
 use crate::utils::{IntoStringLossy, ToCString};
 use crate::{CleKeyConfig, HandInfo, KeyboardStatus, LeftRight, Vec2};
 use gl::types::GLuint;
@@ -151,9 +151,18 @@ impl OvrImpl for OVRController {
             )?;
             Ok(())
         }
-        load(&self.overlay_handles[0], &config.left_ring.position)?;
-        load(&self.overlay_handles[1], &config.right_ring.position)?;
-        load(&self.overlay_handles[2], &config.completion.position)?;
+
+        match config.ui_mode {
+            UIMode::TwoRing => {
+                load(&self.overlay_handles[0], &config.two_ring.left_ring.position)?;
+                load(&self.overlay_handles[1], &config.two_ring.right_ring.position)?;
+                load(&self.overlay_handles[2], &config.two_ring.completion.position)?;
+            }
+            UIMode::OneRing => {
+                load(&self.overlay_handles[0], &config.one_ring.ring.position)?;
+                load(&self.overlay_handles[2], &config.one_ring.completion.position)?;
+            }
+        }
         Ok(())
     }
 
