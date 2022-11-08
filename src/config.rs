@@ -5,6 +5,7 @@ use std::fs::File;
 use std::{fs, io};
 use std::io::Write;
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
 trait MergeSerialize {
     type PartialType;
@@ -128,13 +129,72 @@ merging_serde! {
     }
 
     #[derive(Debug)]
-    pub struct CleKeyConfig {
+    pub struct TwoRingMode {
         #[serde(rename="leftRing")]
         pub left_ring: RingOverlayConfig,
         #[serde(rename="rightRing")]
         pub right_ring: RingOverlayConfig,
         pub completion: CompletionOverlayConfig,
     }
+
+    #[derive(Debug)]
+    pub struct OneRingMode {
+        pub ring: RingOverlayConfig,
+        pub completion: CompletionOverlayConfig,
+    }
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct CleKeyConfig {
+    #[serde(rename="uiMode")]
+    pub ui_mode: UIMode,
+    #[serde(rename="twoRing")]
+    pub two_ring: TwoRingMode,
+    #[serde(rename="oneRing")]
+    pub one_ring: OneRingMode,
+}
+
+#[doc(hidden)]
+const _: () = {
+    #[derive(serde::Deserialize)]
+    struct Partial {
+        #[serde(rename="uiMode")]
+        pub ui_mode: OptionalValue<UIMode>,
+        #[serde(rename="twoRing")]
+        pub two_ring: OptionalValue<TwoRingMode>,
+        #[serde(rename="oneRing")]
+        pub one_ring: OptionalValue<OneRingMode>,
+
+        // old config
+        #[serde(rename="leftRing")]
+        pub left_ring: OptionalValue<RingOverlayConfig>,
+        #[serde(rename="rightRing")]
+        pub right_ring: OptionalValue<RingOverlayConfig>,
+        pub completion: OptionalValue<CompletionOverlayConfig>,
+    }
+
+    impl MergeSerialize for CleKeyConfig {
+        type PartialType = Partial;
+
+        fn merge(&mut self, partial: Self::PartialType) {
+            // first parse old config to allow override with new config
+            partial.left_ring.merge_value(&mut self.two_ring.left_ring);
+            partial.right_ring.merge_value(&mut self.two_ring.right_ring);
+            partial.completion.merge_value(&mut self.two_ring.completion);
+
+            // then, new config format
+            partial.ui_mode.merge_value(&mut self.ui_mode);
+            partial.two_ring.merge_value(&mut self.two_ring);
+            partial.one_ring.merge_value(&mut self.one_ring);
+        }
+    }
+};
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub enum UIMode {
+    #[default]
+    TwoRing,
+    OneRing,
 }
 
 #[allow(dead_code)]
@@ -174,14 +234,14 @@ mod serialize_color4f_3f {
     }
 }
 
-impl Default for CleKeyConfig {
+impl Default for TwoRingMode {
     fn default() -> Self {
         Self {
             left_ring: RingOverlayConfig {
                 position: OverlayPositionConfig {
                     yaw: 6.0885,
                     pitch: -18.3379,
-                    distance: 1.75,
+                    distance: 0.75,
                     width_radio: 1.2,
                     alpha: 1.0,
                 },
@@ -191,7 +251,7 @@ impl Default for CleKeyConfig {
                 position: OverlayPositionConfig {
                     yaw: -6.0885,
                     pitch: -18.3379,
-                    distance: 1.75,
+                    distance: 0.75,
                     width_radio: 1.2,
                     alpha: 1.0,
                 },
@@ -201,6 +261,34 @@ impl Default for CleKeyConfig {
                 position: OverlayPositionConfig {
                     yaw: 0.0,
                     pitch: -26.565,
+                    distance: 0.75,
+                    width_radio: 0.333,
+                    alpha: 1.0,
+                },
+                background_color: Color4f::new(0.188, 0.345, 0.749, 1.0),
+                inputting_char_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
+            },
+        }
+    }
+}
+
+impl Default for OneRingMode {
+    fn default() -> Self {
+        Self {
+            ring: RingOverlayConfig {
+                position: OverlayPositionConfig {
+                    yaw: 0.0,
+                    pitch: -18.3379,
+                    distance: 0.75,
+                    width_radio: 0.3,
+                    alpha: 1.0,
+                },
+                ..Default::default()
+            },
+            completion: CompletionOverlayConfig {
+                position: OverlayPositionConfig {
+                    yaw: 0.0,
+                    pitch: -30.565,
                     distance: 0.75,
                     width_radio: 0.333,
                     alpha: 1.0,
@@ -292,5 +380,6 @@ impl MergeSerializePrimitive for Vec3 {}
 impl MergeSerializePrimitive for Vec4 {}
 impl MergeSerializePrimitive for String {}
 impl MergeSerializePrimitive for Color4f {}
+impl MergeSerializePrimitive for UIMode {}
 
 ////////////////////////////////////////

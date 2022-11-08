@@ -8,7 +8,7 @@ mod os;
 mod ovr_controller;
 mod resources;
 
-use crate::config::{load_config, CleKeyConfig};
+use crate::config::{load_config, CleKeyConfig, UIMode};
 use crate::graphics::{draw_center, draw_ring};
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
@@ -113,6 +113,7 @@ fn main() {
         status: Rc::new(Waiting),
         #[cfg(not(feature = "openvr"))]
         status: Rc::new(Inputting),
+        config: &config,
     };
 
     let font_mgr = FontMgr::new();
@@ -167,42 +168,71 @@ fn main() {
 
         app.status.clone().tick(&mut app);
 
-        ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-            draw_ring(
-                &app.keyboard.status,
-                LeftRight::Left,
-                true,
-                &config.left_ring,
-                &fonts,
-                &font_families,
-                &mut left_ring.surface,
-            );
-            left_ring.gl_tex_id
-        });
+        match config.ui_mode {
+            UIMode::TwoRing => {
+                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+                    draw_ring(
+                        &app.keyboard.status,
+                        LeftRight::Left,
+                        true,
+                        &config.two_ring.left_ring,
+                        &fonts,
+                        &font_families,
+                        &mut left_ring.surface,
+                    );
+                    left_ring.gl_tex_id
+                });
 
-        ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-            draw_ring(
-                &app.keyboard.status,
-                LeftRight::Right,
-                false,
-                &config.right_ring,
-                &fonts,
-                &font_families,
-                &mut right_ring.surface,
-            );
-            right_ring.gl_tex_id
-        });
+                ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
+                    draw_ring(
+                        &app.keyboard.status,
+                        LeftRight::Right,
+                        false,
+                        &config.two_ring.right_ring,
+                        &fonts,
+                        &font_families,
+                        &mut right_ring.surface,
+                    );
+                    right_ring.gl_tex_id
+                });
 
-        ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-            draw_center(
-                &app.keyboard.status,
-                &config.completion,
-                &fonts,
-                &font_families,
-                &mut center_field.surface,
-            );
-            center_field.gl_tex_id
-        });
+                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+                    draw_center(
+                        &app.keyboard.status,
+                        &config.two_ring.completion,
+                        &fonts,
+                        &font_families,
+                        &mut center_field.surface,
+                    );
+                    center_field.gl_tex_id
+                });
+            }
+            UIMode::OneRing => {
+                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+                    draw_ring(
+                        &app.keyboard.status,
+                        LeftRight::Left,
+                        true,
+                        &config.one_ring.ring,
+                        &fonts,
+                        &font_families,
+                        &mut left_ring.surface,
+                    );
+                    left_ring.gl_tex_id
+                });
+
+                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+                    draw_center(
+                        &app.keyboard.status,
+                        &config.one_ring.completion,
+                        &fonts,
+                        &font_families,
+                        &mut center_field.surface,
+                    );
+                    center_field.gl_tex_id
+                });
+            }
+        }
 
         #[cfg(feature = "debug_window")]
         {
@@ -244,6 +274,7 @@ struct Application<'a> {
     ovr_controller: &'a OVRController,
     keyboard: &'a mut KeyboardManager<'a>,
     status: Rc<dyn ApplicationStatus>,
+    config: &'a CleKeyConfig,
 }
 
 trait ApplicationStatus {
@@ -276,8 +307,15 @@ impl ApplicationStatus for Inputting {
         ]);
         app.ovr_controller.update_status(&mut app.keyboard.status);
 
-        app.ovr_controller.show_overlay(OverlayPlane::Left);
-        app.ovr_controller.show_overlay(OverlayPlane::Right);
+        match app.config.ui_mode {
+            UIMode::TwoRing => {
+                app.ovr_controller.show_overlay(OverlayPlane::Left);
+                app.ovr_controller.show_overlay(OverlayPlane::Right);
+            }
+            UIMode::OneRing => {
+                app.ovr_controller.show_overlay(OverlayPlane::Left);
+            }
+        }
         if !app.keyboard.status.buffer.is_empty() {
             app.ovr_controller.show_overlay(OverlayPlane::Center);
         } else {
