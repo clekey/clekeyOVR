@@ -431,7 +431,7 @@ impl KeyboardStatus {
     }
 
     pub(crate) fn clicking(&self) -> bool {
-        self.left.clicking && self.right.clicking
+        self.left.clicking || self.right.clicking
     }
 
     pub(crate) fn selecting_button(&self) -> Option<CleKeyButton<'static>> {
@@ -588,7 +588,7 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     fn kakutei_key(mgr: &mut KeyboardManager) {
-        debug_assert!(mgr.status.buffer.is_empty());
+        debug_assert!(!mgr.status.buffer.is_empty());
         mgr.flush()
     }
 
