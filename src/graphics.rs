@@ -218,7 +218,7 @@ pub fn draw_ring(
                                 key.first().map(|x| x.shows).unwrap_or("")
                             }
                         },
-                        if pos == current && idx == opposite {
+                        if pos == current && (idx == opposite || opposite == -1) {
                             config.selecting_char_in_ring_color
                         } else {
                             ring_color
