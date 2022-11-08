@@ -1,5 +1,4 @@
-use crate::utils::ToTuple;
-use glam::UVec2;
+use crate::{KeyboardManager, KeyboardStatus};
 
 #[derive(Copy, Clone, Debug)]
 pub enum HardKeyButton {
@@ -10,289 +9,340 @@ impl HardKeyButton {
     pub const VALUES: [HardKeyButton; 1] = [HardKeyButton::CloseButton];
 }
 
-impl InputNextAction {
-    /// nothing to do
-    pub fn nop() -> Self {
-        InputNextAction::Nop
-    }
-
-    /// enter additional char
-    pub fn enter_char(char: char) -> Self {
-        InputNextAction::EnterChar(char)
-    }
-}
-
-pub enum InputNextAction {
-    Nop,
+pub(crate) enum InputNextAction {
     EnterChar(char),
+    Extra(fn(&mut KeyboardStatus)),
+    Intrinsic(fn(&mut KeyboardManager)),
 }
 
-macro_rules! get_table_str {
-    ($table: expr, $stick: expr) => {
-        $table[stick_index($stick) as usize]
+#[derive(Clone)]
+pub(crate) struct CleKeyInputTable<'a> {
+    pub starts_ime: bool,
+    pub table: [CleKeyButton<'a>; 8 * 8],
+}
+
+#[derive(Copy, Clone)]
+pub(crate) struct CleKeyButton<'a>(pub &'a [CleKeyButtonAction<'a>]);
+
+pub(crate) struct CleKeyButtonAction<'a> {
+    pub shows: &'a str,
+    pub action: InputNextAction,
+}
+
+impl<'a> CleKeyButton<'a> {
+    #[allow(dead_code)]
+    pub(crate) const fn empty() -> CleKeyButton<'a> {
+        CleKeyButton(&[])
+    }
+
+    #[allow(dead_code)]
+    pub(crate) const fn todo() -> CleKeyButton<'a> {
+        CleKeyButton(&[])
+    }
+
+    pub(crate) const fn builtin() -> CleKeyButton<'a> {
+        CleKeyButton(&[])
+    }
+}
+
+macro_rules! char_button {
+    (
+        $($char: expr),+ $(,)*
+    ) => {
+        CleKeyButton(&[$(CleKeyButtonAction{
+            shows: $crate::char_to_str!($char),
+            action: InputNextAction::EnterChar($char),
+        },)*])
     };
 }
 
-macro_rules! get_table_char {
-    ($table: expr, $stick: expr) => {
-        get_table_str!($table, $stick).chars().next().unwrap()
+macro_rules! single_extra_action {
+    ($shows: expr => $action: expr) => {
+        CleKeyButton(&[CleKeyButtonAction {
+            shows: $shows,
+            action: InputNextAction::Extra($action),
+        }])
     };
 }
 
-pub trait IInputMethod {
-    #[must_use]
-    fn get_table(&self) -> &[&str; 8 * 8];
+macro_rules! replace_last_char {
+    ($vis: vis fn $name: ident { $($tt:tt)* }) => {
+        $vis fn $name(status: &mut KeyboardStatus) {
+            if let Some(c) = status.buffer.pop() {
+                status.buffer.push({
+                    static MAPPING: [char; 6 * 16] = {
+                        let mut init = ['\0'; 6 * 16];
+                        replace_last_char!(@first_init_0 init; 0, 1, 2, 3, 4, 5);
+                        replace_last_char!(@init init; $($tt)*);
+                        init
+                    };
 
-    fn on_input(&mut self, stick: UVec2, buffer: &mut String) -> InputNextAction;
-
-    fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction;
-
-    fn set_inputted_table(&mut self);
-    fn set_inputting_table(&mut self);
-}
-
-pub fn stick_index(stick: UVec2) -> u8 {
-    (stick.x * 8 + stick.y) as u8
-}
-
-const BACKSPACE_ICON: &str = "⌫";
-const SPACE_ICON: &str = "␣";
-const NEXT_PLANE_ICON: &str = "\u{1F310}"; // 🌐
-const SIGNS_ICON: &str = "#+=";
-const RETURN_ICON: &str = "⏎";
-
-pub struct SignsInput {
-    table: [&'static str; 8 * 8],
-}
-
-impl SignsInput {
-    pub fn new() -> Self {
-        Self {
-            #[rustfmt::skip]
-            table: [
-                "(", ")", "[", "]", "{", "}", "<", ">",
-                "/", "\\", ";",  ":", "-", "+", "_", "=",
-                "\"", "'", "#", "1", "2", "3", "4", "5",
-                ".", ",", "!", "6", "7", "8", "9", "0",
-                "&", "*", "¥", "€", "^", "%", "!", "?",
-                "~", "`", "@", "|", "", "", "Close", RETURN_ICON,
-                "", "", "", "", "", "", BACKSPACE_ICON, SPACE_ICON,
-                "", "", "", "", "", "", SIGNS_ICON, NEXT_PLANE_ICON,
-            ],
-        }
-    }
-}
-
-impl IInputMethod for SignsInput {
-    fn get_table(&self) -> &[&str; 8 * 8] {
-        &self.table
-    }
-
-    fn on_input(&mut self, stick: UVec2, _: &mut String) -> InputNextAction {
-        match stick.to_tuple() {
-            (l @ (5 | 6 | 7), r @ (6 | 7)) => unreachable!("intrinsic keys: {}, {}", l, r),
-            (0..=4, _) | (5, 0..=3) => {
-                InputNextAction::enter_char(get_table_char!(self.get_table(), stick))
-            }
-            (0..=7, 0..=7) => InputNextAction::nop(),
-            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => {
-                unreachable!("invalid keys: {}, {}", stick.x, stick.y)
+                    if matches!(c as u32, 0x3040..=0x309F) {
+                        MAPPING[(c as u32 - 0x3040) as usize]
+                    } else {
+                        c
+                    }
+                })
             }
         }
-    }
+    };
 
-    fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction {
-        match button {
-            HardKeyButton::CloseButton => unreachable!("intrinsic keys"),
-        }
-    }
+    (@first_init_0 $init: expr; $($e: expr),*) => {
+        $( replace_last_char!(@first_init_1 $init; $e; 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15); )*
+    };
+    (@first_init_1 $init: expr; $b: expr; $($e: expr),*) => {
+        $( replace_last_char!(@first_init_set $init; $b * 16 + $e); )*
+    };
+    (@first_init_set $init: expr; $v: expr) => {
+        // unstable
+        //$init[$v] = unsafe { std::char::from_u32_unchecked($v + 0x3040) };
+        $init[$v] = unsafe { std::mem::transmute::<u32, char>($v + 0x3040) };
+    };
 
-    fn set_inputted_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "Close";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
-    }
-
-    fn set_inputting_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
-    }
+    (@init $init: expr; $a: literal <=> $b: literal , $($tt:tt)*) => {
+        $init[($a as u32 - 0x3040) as usize] = $b;
+        $init[($b as u32 - 0x3040) as usize] = $a;
+        replace_last_char!(@init $init; $($tt)*);
+    };
+    (@init $init: expr; $a: literal => $b: literal , $($tt:tt)*) => {
+        $init[($a as u32 - 0x3040) as usize] = $b;
+        replace_last_char!(@init $init; $($tt)*);
+    };
+    (@init $init: expr;) => {};
 }
 
-pub struct EnglishInput {
-    table: [&'static str; 8 * 8],
-}
+pub(crate) static SIGNS_TABLE: &CleKeyInputTable = &CleKeyInputTable {
+    starts_ime: false,
+    table: [
+        char_button!('('),
+        char_button!(')'),
+        char_button!('['),
+        char_button!(']'),
+        char_button!('{'),
+        char_button!('}'),
+        char_button!('<'),
+        char_button!('>'),
+        char_button!('/'),
+        char_button!('\\'),
+        char_button!(';'),
+        char_button!(':'),
+        char_button!('-'),
+        char_button!('+'),
+        char_button!('_'),
+        char_button!('='),
+        char_button!('"'),
+        char_button!('\''),
+        char_button!('#'),
+        char_button!('1'),
+        char_button!('2'),
+        char_button!('3'),
+        char_button!('4'),
+        char_button!('5'),
+        char_button!('.'),
+        char_button!(','),
+        char_button!('!'),
+        char_button!('6'),
+        char_button!('7'),
+        char_button!('8'),
+        char_button!('9'),
+        char_button!('0'),
+        char_button!('&'),
+        char_button!('*'),
+        char_button!('¥'),
+        char_button!('€'),
+        char_button!('^'),
+        char_button!('%'),
+        char_button!('!'),
+        char_button!('?'),
+        char_button!('~'),
+        char_button!('`'),
+        char_button!('@'),
+        char_button!('|'),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::empty(),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+    ],
+};
 
-impl EnglishInput {
-    pub fn new() -> Self {
-        Self {
-            #[rustfmt::skip]
-            table: [
-                "a", "A", "b", "B", "c", "C", "d", "D",
-                "e", "E", "f", "F", "g", "G", "h", "H",
-                "i", "I", "j", "J", "k", "K", "l", "L",
-                "m", "M", "n", "N", "o", "O", "p", "P",
-                "q", "Q", "r", "R", "s", "S", "?", "!",
-                "t", "T", "u", "U", "v", "V", "Close", RETURN_ICON,
-                "w", "W", "x", "X", "y", "Y", BACKSPACE_ICON, SPACE_ICON,
-                "z", "Z", "\"", ".", "\'", ",", SIGNS_ICON, NEXT_PLANE_ICON,
-            ],
-        }
+pub(crate) static ENGLISH_TABLE: &CleKeyInputTable = &CleKeyInputTable {
+    starts_ime: false,
+    table: [
+        char_button!('a'),
+        char_button!('A'),
+        char_button!('b'),
+        char_button!('B'),
+        char_button!('c'),
+        char_button!('C'),
+        char_button!('d'),
+        char_button!('D'),
+        char_button!('e'),
+        char_button!('E'),
+        char_button!('f'),
+        char_button!('F'),
+        char_button!('g'),
+        char_button!('G'),
+        char_button!('h'),
+        char_button!('H'),
+        char_button!('i'),
+        char_button!('I'),
+        char_button!('j'),
+        char_button!('J'),
+        char_button!('k'),
+        char_button!('K'),
+        char_button!('l'),
+        char_button!('L'),
+        char_button!('m'),
+        char_button!('M'),
+        char_button!('n'),
+        char_button!('N'),
+        char_button!('o'),
+        char_button!('O'),
+        char_button!('p'),
+        char_button!('P'),
+        char_button!('q'),
+        char_button!('Q'),
+        char_button!('r'),
+        char_button!('R'),
+        char_button!('s'),
+        char_button!('S'),
+        char_button!('?'),
+        char_button!('!'),
+        char_button!('t'),
+        char_button!('T'),
+        char_button!('u'),
+        char_button!('U'),
+        char_button!('v'),
+        char_button!('V'),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+        char_button!('w'),
+        char_button!('W'),
+        char_button!('x'),
+        char_button!('X'),
+        char_button!('y'),
+        char_button!('Y'),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+        char_button!('z'),
+        char_button!('Z'),
+        char_button!('"'),
+        char_button!('.'),
+        char_button!('\''),
+        char_button!(','),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+    ],
+};
+
+pub(crate) static JAPANESE_INPUT: &CleKeyInputTable = &CleKeyInputTable {
+    starts_ime: true,
+    table: [
+        char_button!('あ', 'ぁ'),
+        char_button!('い', 'ぃ'),
+        char_button!('う', 'ぅ', 'ゔ'),
+        char_button!('え', 'ぇ'),
+        char_button!('お', 'ぉ'),
+        char_button!('よ', 'ょ'),
+        char_button!('ゆ', 'ゅ'),
+        char_button!('や', 'ゃ'),
+        char_button!('か', 'が', 'ゕ'),
+        char_button!('き', 'ぎ'),
+        char_button!('く', 'ぐ'),
+        char_button!('け', 'げ', 'ゖ'),
+        char_button!('こ', 'ご'),
+        char_button!('ん'),
+        char_button!('を'),
+        char_button!('わ'),
+        char_button!('さ', 'ざ'),
+        char_button!('し', 'じ'),
+        char_button!('す', 'ず'),
+        char_button!('せ', 'ぜ'),
+        char_button!('そ', 'ぞ'),
+        char_button!('「'),
+        char_button!('。'),
+        char_button!('?'),
+        char_button!('た', 'だ'),
+        char_button!('ち', 'ぢ'),
+        char_button!('つ', 'づ', 'っ'),
+        char_button!('て', 'で'),
+        char_button!('と', 'ど'),
+        char_button!('」'),
+        char_button!('、'),
+        char_button!('!'),
+        char_button!('な'),
+        char_button!('に'),
+        char_button!('ぬ'),
+        char_button!('ね'),
+        char_button!('の'),
+        single_extra_action!("小" => jp_small),
+        single_extra_action!("\u{2B1A}\u{3099}" => jp_dakuten),
+        single_extra_action!("\u{2B1A}\u{309a}" => jp_handakuten),
+        char_button!('は', 'ば', 'ぱ'),
+        char_button!('ひ', 'び', 'ぴ'),
+        char_button!('ふ', 'ぶ', 'ぷ'),
+        char_button!('へ', 'べ', 'ぺ'),
+        char_button!('ほ', 'ぼ', 'ぽ'),
+        CleKeyButton::empty(),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+        char_button!('ま'),
+        char_button!('み'),
+        char_button!('む'),
+        char_button!('め'),
+        char_button!('も'),
+        char_button!('ー'),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+        char_button!('ら'),
+        char_button!('り'),
+        char_button!('る'),
+        char_button!('れ'),
+        char_button!('ろ'),
+        char_button!('〜'),
+        CleKeyButton::builtin(),
+        CleKeyButton::builtin(),
+    ],
+};
+
+replace_last_char!(
+    fn jp_small {
+        'あ' <=> 'ぁ', 'い' <=> 'ぃ', 'う' <=> 'ぅ', 'え' <=> 'ぇ', 'お' <=> 'ぉ',
+        'や' <=> 'ゃ', 'ゆ' <=> 'ゅ', 'よ' <=> 'ょ',
+        'つ' <=> 'っ', 'わ' <=> 'ゎ', 'か' <=> 'ゕ', 'け' <=> 'ゖ',
     }
-}
+);
 
-impl IInputMethod for EnglishInput {
-    fn get_table(&self) -> &[&str; 8 * 8] {
-        &self.table
+replace_last_char!(
+    fn jp_dakuten {
+        'か' <=> 'が', 'き' <=> 'ぎ', 'く' <=> 'ぐ', 'け' <=> 'げ', 'こ' <=> 'ご',
+        'さ' <=> 'ざ', 'し' <=> 'じ', 'す' <=> 'ず', 'せ' <=> 'ぜ', 'そ' <=> 'ぞ',
+        'た' <=> 'だ', 'ち' <=> 'ぢ', 'つ' <=> 'づ', 'て' <=> 'で', 'と' <=> 'ど',
+        'は' <=> 'ば', 'ひ' <=> 'び', 'ふ' <=> 'ぶ', 'へ' <=> 'べ', 'ほ' <=> 'ぼ',
+        'う' <=> 'ゔ',
+        'ぱ' => 'ば', 'ぴ' => 'び', 'ぷ' => 'ぶ', 'ぺ' => 'べ', 'ぽ' => 'ぼ',
     }
+);
 
-    fn on_input(&mut self, stick: UVec2, _: &mut String) -> InputNextAction {
-        match stick.to_tuple() {
-            (l @ (5 | 6 | 7), r @ (6 | 7)) => unreachable!("intrinsic keys: {}, {}", l, r),
-            (0..=7, 0..=7) => InputNextAction::enter_char(
-                self.get_table()[stick_index(stick) as usize]
-                    .chars()
-                    .next()
-                    .unwrap(),
-            ),
-            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => {
-                unreachable!("invalid key: {}, {}", stick.x, stick.y)
-            }
-        }
+replace_last_char!(
+    fn jp_handakuten {
+        'は' <=> 'ぱ', 'ひ' <=> 'ぴ', 'ふ' <=> 'ぷ', 'へ' <=> 'ぺ', 'ほ' <=> 'ぽ',
+        'ば' => 'ぱ', 'び' => 'ぴ', 'ぶ' => 'ぷ', 'べ' => 'ぺ', 'ぼ' => 'ぽ',
     }
-
-    fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction {
-        match button {
-            HardKeyButton::CloseButton => unreachable!("intrinsic keys"),
-        }
-    }
-
-    fn set_inputted_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "Close";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
-    }
-
-    fn set_inputting_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
-    }
-}
-
-pub struct JapaneseInput {
-    table: [&'static str; 8 * 8],
-}
-
-impl JapaneseInput {
-    pub fn new() -> Self {
-        Self {
-            #[rustfmt::skip]
-            table: [
-                "あ", "い", "う", "え", "お", "よ", "ゆ", "や",
-                "か", "き", "く", "け", "こ", "ん", "を", "わ",
-                "さ", "し", "す", "せ", "そ", "「", "。", "?",
-                "た", "ち", "つ", "て", "と", "」", "、", "!",
-                "な", "に", "ぬ", "ね", "の", "小", DAKUTEN_ICON, HANDAKUTEN_ICON,
-                "は", "ひ", "ふ", "へ", "ほ", "", "閉じる", RETURN_ICON,
-                "ま", "み", "む", "め", "も", "ー", BACKSPACE_ICON, SPACE_ICON,
-                "ら", "り", "る", "れ", "ろ", "〜", SIGNS_ICON, NEXT_PLANE_ICON,
-            ],
-        }
-    }
-}
-
-const DAKUTEN_ICON: &'static str = "\u{2B1A}\u{3099}";
-const HANDAKUTEN_ICON: &'static str = "\u{2B1A}\u{309a}";
-
-impl IInputMethod for JapaneseInput {
-    fn get_table(&self) -> &[&str; 8 * 8] {
-        &self.table
-    }
-
-    fn on_input(&mut self, stick: UVec2, buffer: &mut String) -> InputNextAction {
-        match stick.to_tuple() {
-            (l @ (5 | 6 | 7), r @ (6 | 7)) => unreachable!("intrinsic keys: {}, {}", l, r),
-            (4, 5) => {
-                // small char
-                if let Some(c) = buffer.pop() {
-                    buffer.push(match c {
-                        'あ' | 'い' | 'う' | 'え' | 'お' | 'つ' | 'や' | 'ゆ' | 'よ' | 'わ' =>
-                        unsafe { char::from_u32_unchecked(c as u32 - 1) },
-                        'ぁ' | 'ぃ' | 'ぅ' | 'ぇ' | 'ぉ' | 'っ' | 'ゃ' | 'ゅ' | 'ょ' | 'ゎ' =>
-                        unsafe { char::from_u32_unchecked(c as u32 + 1) },
-                        'か' => 'ゕ',
-                        'ゕ' => 'か',
-                        'け' => 'ゖ',
-                        'ゖ' => 'け',
-                        other => other,
-                    })
-                }
-                InputNextAction::nop()
-            }
-            (4, 6) => {
-                // add Dakuten
-                if let Some(c) = buffer.pop() {
-                    buffer.push(match c {
-                        'か' | 'き' | 'く' | 'け' | 'こ' | 'さ' | 'し' | 'す' | 'せ' | 'そ'
-                        | 'た' | 'ち' | 'つ' | 'て' | 'と' | 'は' | 'ひ' | 'ふ' | 'へ' | 'ほ' =>
-                        unsafe { char::from_u32_unchecked(c as u32 + 1) },
-                        'が' | 'ぎ' | 'ぐ' | 'げ' | 'ご' | 'ざ' | 'じ' | 'ず' | 'ぜ' | 'ぞ'
-                        | 'だ' | 'ぢ' | 'づ' | 'で' | 'ど' | 'ば' | 'び' | 'ぶ' | 'べ' | 'ぼ' =>
-                        unsafe { char::from_u32_unchecked(c as u32 - 1) },
-                        'ぱ' | 'ぴ' | 'ぷ' | 'ぺ' | 'ぽ' => unsafe {
-                            char::from_u32_unchecked(c as u32 - 1)
-                        },
-                        'う' => 'ゔ',
-                        'ゔ' => 'う',
-                        other => other,
-                    })
-                }
-                InputNextAction::nop()
-            }
-            (4, 7) => {
-                // add Handakuten
-                if let Some(c) = buffer.pop() {
-                    buffer.push(match c {
-                        'は' | 'ひ' | 'ふ' | 'へ' | 'ほ' => unsafe {
-                            char::from_u32_unchecked(c as u32 + 2)
-                        },
-                        'ぱ' | 'ぴ' | 'ぷ' | 'ぺ' | 'ぽ' => unsafe {
-                            char::from_u32_unchecked(c as u32 - 2)
-                        },
-                        'ば' | 'び' | 'ぶ' | 'べ' | 'ぼ' => unsafe {
-                            char::from_u32_unchecked(c as u32 + 1)
-                        },
-                        'う' => 'ゔ',
-                        'ゔ' => 'う',
-                        other => other,
-                    })
-                }
-                InputNextAction::nop()
-            }
-            (5, 5) => InputNextAction::nop(),
-            ////////////
-            ////////////
-            (2 | 3, 5 | 6 | 7) | (6 | 7, 5) => {
-                InputNextAction::enter_char(get_table_char!(self.get_table(), stick))
-            }
-            (0..=7, 0..=7) => InputNextAction::enter_char(get_table_char!(self.table, stick)),
-            (8..=u32::MAX, _) | (_, 8..=u32::MAX) => {
-                unreachable!("invalid key: {}, {}", stick.x, stick.y)
-            }
-        }
-    }
-
-    fn on_hard_input(&mut self, button: HardKeyButton) -> InputNextAction {
-        match button {
-            HardKeyButton::CloseButton => unreachable!("intrinsic keys"),
-        }
-    }
-
-    fn set_inputted_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "閉じる";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = RETURN_ICON;
-    }
-
-    fn set_inputting_table(&mut self) {
-        self.table[stick_index(UVec2::new(5, 6)) as usize] = "変換";
-        self.table[stick_index(UVec2::new(5, 7)) as usize] = "確定";
-    }
-}
+);

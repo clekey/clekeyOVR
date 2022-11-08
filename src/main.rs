@@ -1,18 +1,19 @@
+#[macro_use]
+mod utils;
 mod config;
 mod global;
 mod graphics;
 mod input_method;
 mod os;
 mod ovr_controller;
-mod utils;
 mod resources;
 
-use crate::config::{load_config, CleKeyConfig};
+use crate::config::{load_config, CleKeyConfig, UIMode};
 use crate::graphics::{draw_center, draw_ring};
-use crate::input_method::{HardKeyButton, IInputMethod, InputNextAction};
+use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
-use glam::{UVec2, Vec2};
+use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
@@ -24,6 +25,7 @@ use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
 use std::ptr::null;
 use std::rc::Rc;
+use std::time::Instant;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -111,6 +113,7 @@ fn main() {
         status: Rc::new(Waiting),
         #[cfg(not(feature = "openvr"))]
         status: Rc::new(Inputting),
+        config: &config,
     };
 
     let font_mgr = FontMgr::new();
@@ -165,42 +168,71 @@ fn main() {
 
         app.status.clone().tick(&mut app);
 
-        ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-            draw_ring(
-                &app.keyboard.status,
-                LeftRight::Left,
-                true,
-                &config.left_ring,
-                &fonts,
-                &font_families,
-                &mut left_ring.surface,
-            );
-            left_ring.gl_tex_id
-        });
+        match config.ui_mode {
+            UIMode::TwoRing => {
+                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+                    draw_ring(
+                        &app.keyboard.status,
+                        LeftRight::Left,
+                        true,
+                        &config.two_ring.left_ring,
+                        &fonts,
+                        &font_families,
+                        &mut left_ring.surface,
+                    );
+                    left_ring.gl_tex_id
+                });
 
-        ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-            draw_ring(
-                &app.keyboard.status,
-                LeftRight::Right,
-                false,
-                &config.right_ring,
-                &fonts,
-                &font_families,
-                &mut right_ring.surface,
-            );
-            right_ring.gl_tex_id
-        });
+                ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
+                    draw_ring(
+                        &app.keyboard.status,
+                        LeftRight::Right,
+                        false,
+                        &config.two_ring.right_ring,
+                        &fonts,
+                        &font_families,
+                        &mut right_ring.surface,
+                    );
+                    right_ring.gl_tex_id
+                });
 
-        ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-            draw_center(
-                &app.keyboard.status,
-                &config.completion,
-                &fonts,
-                &font_families,
-                &mut center_field.surface,
-            );
-            center_field.gl_tex_id
-        });
+                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+                    draw_center(
+                        &app.keyboard.status,
+                        &config.two_ring.completion,
+                        &fonts,
+                        &font_families,
+                        &mut center_field.surface,
+                    );
+                    center_field.gl_tex_id
+                });
+            }
+            UIMode::OneRing => {
+                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+                    draw_ring(
+                        &app.keyboard.status,
+                        LeftRight::Left,
+                        true,
+                        &config.one_ring.ring,
+                        &fonts,
+                        &font_families,
+                        &mut left_ring.surface,
+                    );
+                    left_ring.gl_tex_id
+                });
+
+                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+                    draw_center(
+                        &app.keyboard.status,
+                        &config.one_ring.completion,
+                        &fonts,
+                        &font_families,
+                        &mut center_field.surface,
+                    );
+                    center_field.gl_tex_id
+                });
+            }
+        }
 
         #[cfg(feature = "debug_window")]
         {
@@ -242,6 +274,7 @@ struct Application<'a> {
     ovr_controller: &'a OVRController,
     keyboard: &'a mut KeyboardManager<'a>,
     status: Rc<dyn ApplicationStatus>,
+    config: &'a CleKeyConfig,
 }
 
 trait ApplicationStatus {
@@ -274,8 +307,15 @@ impl ApplicationStatus for Inputting {
         ]);
         app.ovr_controller.update_status(&mut app.keyboard.status);
 
-        app.ovr_controller.show_overlay(OverlayPlane::Left);
-        app.ovr_controller.show_overlay(OverlayPlane::Right);
+        match app.config.ui_mode {
+            UIMode::TwoRing => {
+                app.ovr_controller.show_overlay(OverlayPlane::Left);
+                app.ovr_controller.show_overlay(OverlayPlane::Right);
+            }
+            UIMode::OneRing => {
+                app.ovr_controller.show_overlay(OverlayPlane::Left);
+            }
+        }
         if !app.keyboard.status.buffer.is_empty() {
             app.ovr_controller.show_overlay(OverlayPlane::Center);
         } else {
@@ -379,6 +419,12 @@ pub struct HandInfo {
 }
 
 impl HandInfo {
+    pub(crate) fn selection_changed(&self) -> bool {
+        self.selection != self.selection_old
+    }
+}
+
+impl HandInfo {
     pub fn new() -> Self {
         Self {
             stick: Vec2::new(0.0, 0.0),
@@ -388,17 +434,51 @@ impl HandInfo {
             clicking_old: false,
         }
     }
-
-    fn click_started(&self) -> bool {
-        return self.clicking && !self.clicking_old;
-    }
 }
 
 pub struct KeyboardStatus {
     left: HandInfo,
     right: HandInfo,
-    method: Box<dyn IInputMethod>,
+    method: CleKeyInputTable<'static>,
+    button_idx: usize,
     buffer: String,
+    closing: bool,
+}
+
+impl KeyboardStatus {
+    pub(crate) fn is_selecting(&self) -> bool {
+        self.left.selection != -1 && self.right.selection != -1
+    }
+
+    pub(crate) fn click_started(&self) -> bool {
+        // prev: both not clicking
+        // now: either clicking
+        (!self.left.clicking_old && !self.right.clicking_old) 
+            && (self.left.clicking || self.right.clicking)
+    }
+
+    pub(crate) fn click_stopped(&self) -> bool {
+        // prev: either clicking
+        // now: both not clicking
+        (self.left.clicking_old || self.right.clicking_old)
+            && (!self.left.clicking && !self.right.clicking)
+    }
+
+    pub(crate) fn selection_changed(&self) -> bool {
+        self.left.selection_changed() || self.right.selection_changed()
+    }
+
+    pub(crate) fn clicking(&self) -> bool {
+        self.left.clicking || self.right.clicking
+    }
+
+    pub(crate) fn selecting_button(&self) -> Option<CleKeyButton<'static>> {
+        if self.is_selecting() {
+            Some(self.method.table[(self.left.selection * 8 + self.right.selection) as usize])
+        } else {
+            None
+        }
+    }
 }
 
 impl KeyboardStatus {
@@ -419,80 +499,57 @@ impl KeyboardStatus {
 
 struct KeyboardManager<'ovr> {
     ovr_controller: &'ovr OVRController,
-    sign_input: Box<dyn IInputMethod>,
-    methods: VecDeque<Box<dyn IInputMethod>>,
+    sign_input: &'static CleKeyInputTable<'static>,
+    methods: VecDeque<&'static CleKeyInputTable<'static>>,
     is_sign: bool,
     status: KeyboardStatus,
+    click_started: Instant,
 }
 
 impl<'ovr> KeyboardManager<'ovr> {
     pub fn new(ovr: &'ovr OVRController, _config: &CleKeyConfig) -> Self {
         use input_method::*;
-        Self {
+        let mut result = Self {
             ovr_controller: ovr,
-            sign_input: Box::new(SignsInput::new()),
-            methods: VecDeque::from([Box::new(EnglishInput::new()) as Box<dyn IInputMethod>]),
+            sign_input: SIGNS_TABLE,
+            methods: VecDeque::from([JAPANESE_INPUT, ENGLISH_TABLE]),
             is_sign: false,
             status: KeyboardStatus {
                 left: HandInfo::new(),
                 right: HandInfo::new(),
-                method: Box::new(JapaneseInput::new()),
+                method: CleKeyInputTable {
+                    starts_ime: false,
+                    table: [CleKeyButton::empty(); 8 * 8],
+                },
+                button_idx: 0,
                 buffer: String::new(),
+                closing: false,
             },
-        }
+            click_started: Instant::now(), 
+        };
+
+        result.set_plane(result.methods.front().unwrap());
+
+        result
     }
 
     pub(crate) fn tick(&mut self) -> bool {
-        if (self.status.left.click_started() || self.status.right.click_started())
-            && self.status.left.selection != -1
-            && self.status.right.selection != -1
-        {
-            match (self.status.left.selection, self.status.right.selection) {
-                (5, 6) => {
-                    if self.status.buffer.is_empty() {
-                        // close keyboard
-                        return true;
-                    } else {
-                        // henkan key: nop currently
-                    }
+        if let Some(button) = self.status.selecting_button() {
+            if self.status.click_started() || self.status.selection_changed() {
+                self.click_started = Instant::now();
+                self.status.button_idx = 0
+            } else if self.status.clicking() {
+                if button.0.len() != 0 {
+                    let dur = Instant::now().duration_since(self.click_started);
+                    self.status.button_idx = ((dur.as_millis() / 175) % button.0.len() as u128) as usize;
+                } else {
+                    self.status.button_idx = 0;
                 }
-                (5, 7) => {
-                    if self.status.buffer.is_empty() {
-                        // new line
-                        os::enter_enter();
-                    } else {
-                        // kakutei key: just flush currently
-                        self.flush();
-                    }
-                }
-                (6, 6) => {
-                    // backspace
-                    if let Some(_) = self.status.buffer.pop() {
-                        if self.status.buffer.is_empty() {
-                            self.status.method.set_inputted_table();
-                        }
-                    } else {
-                        os::enter_backspace();
-                    }
-                }
-                (6, 7) => {
-                    // space
-                    if self.status.buffer.is_empty() {
-                        os::enter_char(' ');
-                    } else {
-                        self.status.buffer.push(' ');
-                    }
-                }
-                (7, 6) => self.move_to_next_plane(),
-                (7, 7) => self.swap_sign_oplane(),
-                (l @ 0..=7, r @ 0..=7) => {
-                    let action = self
-                        .status
-                        .method
-                        .on_input(UVec2::new(l as u32, r as u32), &mut self.status.buffer);
+            } else if self.status.click_stopped() {
+                if let Some(action) = button.0.get(self.status.button_idx).map(|x| &x.action) {
                     self.do_input_action(action)
                 }
-                (l, r) => unreachable!("{}, {}", l, r),
+                self.status.button_idx = 0;
             }
         }
 
@@ -501,9 +558,10 @@ impl<'ovr> KeyboardManager<'ovr> {
                 match x {
                     HardKeyButton::CloseButton => return true,
                     #[allow(unreachable_patterns)]
-                    x => {
-                        let action = self.status.method.on_hard_input(x);
-                        self.do_input_action(action)
+                    _ => {
+                        todo!()
+                        //let action = self.status.method.on_hard_input(x);
+                        //self.do_input_action(action)
                     }
                 }
             }
@@ -511,37 +569,130 @@ impl<'ovr> KeyboardManager<'ovr> {
         return false;
     }
 
-    fn do_input_action(&mut self, action: InputNextAction) {
+    fn do_input_action(&mut self, action: &InputNextAction) {
         match action {
-            InputNextAction::Nop => (),
             InputNextAction::EnterChar(c) => {
-                self.status.buffer.push(c);
-                self.status.method.set_inputting_table();
+                if self.status.method.starts_ime || !self.status.buffer.is_empty() {
+                    self.status.buffer.push(*c);
+                    self.set_inputting_table();
+                } else {
+                    os::enter_char(*c)
+                }
             }
+            InputNextAction::Extra(f) => f(&mut self.status),
+            InputNextAction::Intrinsic(f) => f(self),
         }
     }
 
     fn move_to_next_plane(&mut self) {
-        if self.is_sign {
-            // if current is sign, back to zero
-            std::mem::swap(&mut self.sign_input, &mut self.status.method);
-            self.is_sign = false
-        }
+        self.is_sign = false;
         // rotate
-        std::mem::swap(&mut self.status.method, self.methods.front_mut().unwrap());
         self.methods.rotate_left(1);
+        // and clear
+        self.set_plane(self.methods.front().unwrap());
     }
 
-    fn swap_sign_oplane(&mut self) {
-        std::mem::swap(&mut self.sign_input, &mut self.status.method);
-        self.is_sign = !self.is_sign;
+    fn swap_sign_plane(&mut self) {
+        if self.is_sign {
+            self.is_sign = false;
+            self.set_plane(self.methods.front().unwrap());
+        } else { 
+            self.is_sign = true;
+            self.set_plane(self.sign_input);
+        }
     }
 
     pub fn flush(&mut self) {
         let buffer = std::mem::take(&mut self.status.buffer);
-        self.status.method.set_inputted_table();
+        self.set_inputted_table();
         if !buffer.is_empty() {
             os::copy_text_and_enter_paste_shortcut(&buffer);
         }
+    }
+
+    fn close_key(mgr: &mut KeyboardManager) {
+        debug_assert!(mgr.status.buffer.is_empty());
+        mgr.status.closing = true;
+    }
+
+    fn henkan_key(mgr: &mut KeyboardManager) {
+        debug_assert!(!mgr.status.buffer.is_empty());
+        // nop currently
+    }
+
+    fn new_line_key(mgr: &mut KeyboardManager) {
+        debug_assert!(mgr.status.buffer.is_empty());
+        os::enter_enter();
+    }
+
+    fn kakutei_key(mgr: &mut KeyboardManager) {
+        debug_assert!(!mgr.status.buffer.is_empty());
+        mgr.flush()
+    }
+
+    fn backspace_key(mgr: &mut KeyboardManager) {
+        if let Some(_) = mgr.status.buffer.pop() {
+            if mgr.status.buffer.is_empty() {
+                mgr.set_inputted_table();
+            }
+        } else {
+            os::enter_backspace();
+        }
+    }
+
+    fn space_key(mgr: &mut KeyboardManager) {
+        if mgr.status.buffer.is_empty() {
+            os::enter_char(' ');
+        } else {
+            mgr.status.buffer.push(' ');
+        }
+    }
+
+    fn next_plane_key(mgr: &mut KeyboardManager) {
+        mgr.move_to_next_plane()
+    }
+
+    fn sign_plane_key(mgr: &mut KeyboardManager) {
+        mgr.swap_sign_plane()
+    }
+}
+
+macro_rules! builtin_button {
+    ($char: literal = $func: ident) => {
+        CleKeyButton(&[CleKeyButtonAction {
+            shows: $char,
+            action: InputNextAction::Intrinsic(KeyboardManager::$func),
+        }])
+    };
+}
+
+impl<'ovr> KeyboardManager<'ovr> {
+    fn set_plane(&mut self, table: &CleKeyInputTable<'static>) {
+        use input_method::*;
+        self.status.method.clone_from(table);
+
+        self.status.method.table[6 * 8 + 6] = builtin_button!("⌫" = backspace_key);
+        self.status.method.table[6 * 8 + 7] = builtin_button!("␣" = space_key);
+
+        self.status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}" = next_plane_key);// 🌐
+        self.status.method.table[7 * 8 + 7] = builtin_button!("#+=" = sign_plane_key);
+
+        if self.status.buffer.is_empty() {
+            self.set_inputted_table();
+        } else {
+            self.set_inputting_table();
+        }
+    }
+
+    fn set_inputted_table(&mut self) {
+        use input_method::*;
+        self.status.method.table[5 * 8 + 6] = builtin_button!("Close" = close_key);
+        self.status.method.table[5 * 8 + 7] = builtin_button!("⏎" = new_line_key);
+    }
+
+    fn set_inputting_table(&mut self) {
+        use input_method::*;
+        self.status.method.table[5 * 8 + 6] = builtin_button!("変換" = henkan_key);
+        self.status.method.table[5 * 8 + 7] = builtin_button!("確定" = kakutei_key);
     }
 }
