@@ -208,6 +208,7 @@ fn main() {
                         &font_families,
                         &mut left_ring.surface,
                     );
+                    left_ring.surface.flush();
                     left_ring.gl_tex_id
                 });
 
@@ -221,6 +222,7 @@ fn main() {
                         &font_families,
                         &mut right_ring.surface,
                     );
+                    right_ring.surface.flush();
                     right_ring.gl_tex_id
                 });
 
@@ -246,6 +248,7 @@ fn main() {
                         &font_families,
                         &mut left_ring.surface,
                     );
+                    left_ring.surface.flush();
                     left_ring.gl_tex_id
                 });
 
