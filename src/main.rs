@@ -15,6 +15,7 @@ use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPla
 use gl::types::GLuint;
 use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowEvent, WindowHint};
+use log::info;
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
@@ -26,7 +27,6 @@ use std::collections::VecDeque;
 use std::ptr::null;
 use std::rc::Rc;
 use std::time::Instant;
-use log::info;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -43,7 +43,15 @@ fn main() {
     info!("features: ");
     macro_rules! feature_log {
         ($feat: literal) => {
-            info!("  {}: {}", $feat, if cfg!(feature = $feat) { "enabled" } else { "disabled" });
+            info!(
+                "  {}: {}",
+                $feat,
+                if cfg!(feature = $feat) {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
         };
     }
     feature_log!("openvr");
@@ -473,7 +481,7 @@ impl KeyboardStatus {
     pub(crate) fn click_started(&self) -> bool {
         // prev: both not clicking
         // now: either clicking
-        (!self.left.clicking_old && !self.right.clicking_old) 
+        (!self.left.clicking_old && !self.right.clicking_old)
             && (self.left.clicking || self.right.clicking)
     }
 
@@ -545,7 +553,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                 buffer: String::new(),
                 closing: false,
             },
-            click_started: Instant::now(), 
+            click_started: Instant::now(),
         };
 
         result.set_plane(result.methods.front().unwrap());
@@ -561,7 +569,8 @@ impl<'ovr> KeyboardManager<'ovr> {
             } else if self.status.clicking() {
                 if button.0.len() != 0 {
                     let dur = Instant::now().duration_since(self.click_started);
-                    self.status.button_idx = ((dur.as_millis() / 175) % button.0.len() as u128) as usize;
+                    self.status.button_idx =
+                        ((dur.as_millis() / 175) % button.0.len() as u128) as usize;
                 } else {
                     self.status.button_idx = 0;
                 }
@@ -616,7 +625,7 @@ impl<'ovr> KeyboardManager<'ovr> {
         if self.is_sign {
             self.is_sign = false;
             self.set_plane(self.methods.front().unwrap());
-        } else { 
+        } else {
             self.is_sign = true;
             self.set_plane(self.sign_input);
         }
@@ -694,7 +703,7 @@ impl<'ovr> KeyboardManager<'ovr> {
         self.status.method.table[6 * 8 + 6] = builtin_button!("⌫" = backspace_key);
         self.status.method.table[6 * 8 + 7] = builtin_button!("␣" = space_key);
 
-        self.status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}" = next_plane_key);// 🌐
+        self.status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}" = next_plane_key); // 🌐
         self.status.method.table[7 * 8 + 7] = builtin_button!("#+=" = sign_plane_key);
 
         if self.status.buffer.is_empty() {

@@ -1,11 +1,11 @@
 use crate::global::get_appdata_dir;
 use glam::{Vec3, Vec4};
+use serde::{Deserialize, Serialize};
 use skia_safe::Color4f;
 use std::fs::File;
-use std::{fs, io};
 use std::io::Write;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
+use std::{fs, io};
 
 trait MergeSerialize {
     type PartialType;
@@ -39,7 +39,7 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        serde::Deserialize::deserialize(deserializer).map(OptionalValue::Value)
+        Deserialize::deserialize(deserializer).map(OptionalValue::Value)
     }
 }
 
@@ -146,11 +146,11 @@ merging_serde! {
 
 #[derive(Debug, Default, Serialize)]
 pub struct CleKeyConfig {
-    #[serde(rename="uiMode")]
+    #[serde(rename = "uiMode")]
     pub ui_mode: UIMode,
-    #[serde(rename="twoRing")]
+    #[serde(rename = "twoRing")]
     pub two_ring: TwoRingMode,
-    #[serde(rename="oneRing")]
+    #[serde(rename = "oneRing")]
     pub one_ring: OneRingMode,
 }
 
@@ -158,21 +158,21 @@ pub struct CleKeyConfig {
 const _: () = {
     #[derive(serde::Deserialize)]
     struct Partial {
-        #[serde(rename="uiMode")]
+        #[serde(rename = "uiMode")]
         #[serde(default)]
         pub ui_mode: OptionalValue<UIMode>,
-        #[serde(rename="twoRing")]
+        #[serde(rename = "twoRing")]
         #[serde(default)]
         pub two_ring: OptionalValue<TwoRingMode>,
-        #[serde(rename="oneRing")]
+        #[serde(rename = "oneRing")]
         #[serde(default)]
         pub one_ring: OptionalValue<OneRingMode>,
 
         // old config
-        #[serde(rename="leftRing")]
+        #[serde(rename = "leftRing")]
         #[serde(default)]
         pub left_ring: OptionalValue<RingOverlayConfig>,
-        #[serde(rename="rightRing")]
+        #[serde(rename = "rightRing")]
         #[serde(default)]
         pub right_ring: OptionalValue<RingOverlayConfig>,
         #[serde(default)]
@@ -185,8 +185,12 @@ const _: () = {
         fn merge(&mut self, partial: Self::PartialType) {
             // first parse old config to allow override with new config
             partial.left_ring.merge_value(&mut self.two_ring.left_ring);
-            partial.right_ring.merge_value(&mut self.two_ring.right_ring);
-            partial.completion.merge_value(&mut self.two_ring.completion);
+            partial
+                .right_ring
+                .merge_value(&mut self.two_ring.right_ring);
+            partial
+                .completion
+                .merge_value(&mut self.two_ring.completion);
 
             // then, new config format
             partial.ui_mode.merge_value(&mut self.ui_mode);

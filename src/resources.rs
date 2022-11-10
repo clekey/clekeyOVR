@@ -1,10 +1,10 @@
+use crate::global::get_appdata_dir;
+use flate2::bufread::GzDecoder;
+use log::info;
 use std::fs::{read_to_string, write};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use flate2::bufread::GzDecoder;
-use log::info;
 use tar::Archive;
-use crate::global::get_appdata_dir;
 
 static RESOURCES_TAR_GZ: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/resources.tar.gz"));
 static RESOURCES_HASH: &str = env!("RESOURCES_HASH");

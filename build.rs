@@ -1,10 +1,10 @@
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use sha2::{Digest, Sha256};
 use std::env::var_os;
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
-use flate2::Compression;
-use flate2::write::GzEncoder;
-use sha2::{Sha256, Digest};
 
 fn main() {
     // default config settings
@@ -16,11 +16,11 @@ fn main() {
             feature_debug_window = true
         }
         // debug_window without openvr: enable debug_control by default
-        if feature_debug_window && cfg!(not(feature="openvr")) {
+        if feature_debug_window && cfg!(not(feature = "openvr")) {
             println!(r#"cargo:rustc-cfg=feature="debug_control""#);
         }
     }
-    
+
     pack_resources();
     hash_resources();
 }
@@ -51,7 +51,6 @@ fn hash_resources() {
     let hash = hash_read(&mut tar_gz).expect("hashing");
     println!("cargo:rustc-env=RESOURCES_HASH={}", hex::encode(hash));
 }
-
 
 fn hash_read(mut read: impl io::Read) -> io::Result<Vec<u8>> {
     let mut hasher = Sha256::new();

@@ -154,13 +154,25 @@ impl OvrImpl for OVRController {
 
         match config.ui_mode {
             UIMode::TwoRing => {
-                load(&self.overlay_handles[0], &config.two_ring.left_ring.position)?;
-                load(&self.overlay_handles[1], &config.two_ring.right_ring.position)?;
-                load(&self.overlay_handles[2], &config.two_ring.completion.position)?;
+                load(
+                    &self.overlay_handles[0],
+                    &config.two_ring.left_ring.position,
+                )?;
+                load(
+                    &self.overlay_handles[1],
+                    &config.two_ring.right_ring.position,
+                )?;
+                load(
+                    &self.overlay_handles[2],
+                    &config.two_ring.completion.position,
+                )?;
             }
             UIMode::OneRing => {
                 load(&self.overlay_handles[0], &config.one_ring.ring.position)?;
-                load(&self.overlay_handles[2], &config.one_ring.completion.position)?;
+                load(
+                    &self.overlay_handles[2],
+                    &config.one_ring.completion.position,
+                )?;
             }
         }
         Ok(())

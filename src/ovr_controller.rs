@@ -94,16 +94,16 @@ impl OVRController {
                 if selecting_lower < 0.0 {
                     let selecting_lower = selecting_lower + 8.0;
                     if a < selecting_upper || selecting_lower < a {
-                        return selecting
+                        return selecting;
                     }
                 } else if selecting_upper > 8.0 {
                     let selecting_upper = selecting_upper - 8.0;
                     if a < selecting_upper || selecting_lower < a {
-                        return selecting
+                        return selecting;
                     }
                 } else {
                     if selecting_lower < a && a < selecting_upper {
-                        return selecting
+                        return selecting;
                     }
                 }
             }

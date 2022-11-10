@@ -242,7 +242,11 @@ pub fn draw_ring(
             radius,
             |idx| {
                 (
-                    status.method.table[line_origin + line_step * idx as usize].0.first().map(|x| x.shows).unwrap_or(""),
+                    status.method.table[line_origin + line_step * idx as usize]
+                        .0
+                        .first()
+                        .map(|x| x.shows)
+                        .unwrap_or(""),
                     get_color(idx),
                     if idx == current { 1.1 } else { 1.0 },
                 )
