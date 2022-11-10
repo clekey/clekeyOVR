@@ -49,7 +49,7 @@ fn main() {
     glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
     glfw.window_hint(WindowHint::Resizable(false));
     glfw.window_hint(WindowHint::CocoaRetinaFramebuffer(false));
-    glfw.window_hint(WindowHint::Visible(cfg!(debug_assertions)));
+    glfw.window_hint(WindowHint::Visible(cfg!(feature = "debug_window")));
 
     let (mut window, events) = glfw
         .create_window(
