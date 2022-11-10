@@ -14,7 +14,7 @@ use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNe
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
 use glam::Vec2;
-use glfw::{Context, OpenGlProfileHint, WindowHint};
+use glfw::{Context, OpenGlProfileHint, WindowEvent, WindowHint};
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
@@ -26,11 +26,12 @@ use std::collections::VecDeque;
 use std::ptr::null;
 use std::rc::Rc;
 use std::time::Instant;
+use log::info;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum LeftRight {
     Left = 0,
     Right = 1,
@@ -38,6 +39,17 @@ pub enum LeftRight {
 
 fn main() {
     simple_logger::init().unwrap();
+    info!("clekeyOVR version {}", env!("CARGO_PKG_VERSION"));
+    info!("features: ");
+    macro_rules! feature_log {
+        ($feat: literal) => {
+            info!("  {}: {}", $feat, if cfg!(feature = $feat) { "enabled" } else { "disabled" });
+        };
+    }
+    feature_log!("openvr");
+    feature_log!("debug_window");
+    feature_log!("debug_control");
+
     // resource initialization
     resources::init();
     // glfw initialization
@@ -59,6 +71,10 @@ fn main() {
             glfw::WindowMode::Windowed,
         )
         .expect("window creation");
+    #[cfg(feature = "debug_control")]
+    {
+        window.set_key_polling(true);
+    }
     window.make_current();
 
     // gl crate initialization
@@ -163,7 +179,10 @@ fn main() {
 
     while !window.should_close() {
         glfw.poll_events();
-        for (_, _) in glfw::flush_messages(&events) {}
+        for (_, _event) in glfw::flush_messages(&events) {
+            #[cfg(feature = "debug_control")]
+            ovr_controller.accept_debug_control(_event);
+        }
 
         // TODO: openvr tick
 

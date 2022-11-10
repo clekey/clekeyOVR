@@ -197,6 +197,14 @@ impl OVRController {
     }
 }
 
+// mock-only debug_control
+#[cfg(all(feature = "debug_control", not(feature = "openvr")))]
+impl OVRController {
+    pub(crate) fn accept_debug_control(&self, event: glfw::WindowEvent) {
+        self.main.accept_debug_control(event);
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ActionSetKind {
     // action set have sticks
@@ -207,7 +215,7 @@ pub enum ActionSetKind {
     Suspender,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum ButtonKind {
     //BeginInput,
     SuspendInput,
