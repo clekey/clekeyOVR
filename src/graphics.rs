@@ -4,9 +4,9 @@ use glam::Vec2;
 use skia_safe::colors::TRANSPARENT;
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
-    FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextStyle,
+    FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextHeightBehavior, TextStyle,
 };
-use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Surface};
+use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
 pub fn draw_background_ring(
@@ -270,23 +270,34 @@ pub fn draw_center(
     font_families: &[impl AsRef<str>],
     surface: &mut Surface,
 ) {
-    surface.canvas().clear(config.background_color);
+    surface.canvas().clear(TRANSPARENT);
 
-    let space = surface.height() as scalar * 0.15;
+    let width = surface.width() as scalar;
+    let lane_height = width * 0.09;
+    let space = lane_height * 0.1;
+    let font_size = (width * 0.125) * 0.5;
+
+    surface.canvas().draw_rect(
+        Rect::from_xywh(0.0, 0.0, width, lane_height),
+        &Paint::new(config.background_color, None),
+    );
 
     let mut paragraph = ParagraphBuilder::new(
         &ParagraphStyle::new()
             .set_text_align(TextAlign::Left)
+            .set_max_lines(1)
             .set_text_style(
                 TextStyle::new()
                     .set_color(config.inputting_char_color.to_color())
+                    .set_height_override(true)
+                    .set_height(1.0)
                     .set_font_families(font_families)
-                    .set_font_size(surface.height() as scalar * 0.5),
+                    .set_font_size(font_size),
             ),
         fonts,
     )
     .add_text(&status.buffer)
     .build();
-    paragraph.layout(surface.width() as scalar - space - space);
-    paragraph.paint(surface.canvas(), Point::new(space, space));
+    paragraph.layout(width - space - space);
+    paragraph.paint(surface.canvas(), Point::new(space, space * 2.0));
 }

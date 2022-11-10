@@ -180,7 +180,7 @@ fn main() {
     let mut center_field = create_surface(
         &mut skia_ctx.clone().into(),
         WINDOW_WIDTH,
-        WINDOW_HEIGHT / 8,
+        WINDOW_HEIGHT / 2,
     );
 
     //frame.clear_color();
@@ -285,7 +285,7 @@ fn main() {
                 .draw_image_rect_with_sampling_options(
                     &center_field.image,
                     None,
-                    Rect::from_xywh(0.0, half_width, width, width / 8.0),
+                    Rect::from_xywh(0.0, half_width, width, half_width),
                     SamplingOptions::default(),
                     &Default::default(),
                 );
