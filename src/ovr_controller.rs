@@ -75,7 +75,7 @@ impl OVRController {
         status.stick = self.stick_pos(hand);
         status.selection_old = status.selection;
 
-        fn compute_angle(vec: Vec2, selecting: i8, clicking: bool) -> i8 {
+        fn compute_angle(vec: Vec2) -> i8 {
             let mut a: f32 = vec.y.atan2(vec.x);
             // (-pi, pi]
             a *= -4.0 / PI;
@@ -86,28 +86,6 @@ impl OVRController {
                 a += 8.0
             }
             // [0, 8)
-
-            if clicking && selecting != -1 {
-                let selecting_center_angle = selecting as f32 + 0.5f32;
-                let selecting_lower = selecting_center_angle - 1.0;
-                let selecting_upper = selecting_center_angle + 1.0;
-                if selecting_lower < 0.0 {
-                    let selecting_lower = selecting_lower + 8.0;
-                    if a < selecting_upper || selecting_lower < a {
-                        return selecting;
-                    }
-                } else if selecting_upper > 8.0 {
-                    let selecting_upper = selecting_upper - 8.0;
-                    if a < selecting_upper || selecting_lower < a {
-                        return selecting;
-                    }
-                } else {
-                    if selecting_lower < a && a < selecting_upper {
-                        return selecting;
-                    }
-                }
-            }
-
             return a.floor() as i8;
         }
 
@@ -115,10 +93,13 @@ impl OVRController {
         const UPPER_BOUND: f32 = 0.8 * 0.8;
 
         let len_sqrt = status.stick.length_squared();
-        status.selection = if len_sqrt >= UPPER_BOUND {
-            compute_angle(status.stick, status.selection, clicking)
+        status.selection = if clicking {
+            // do not change if clicking
+            status.selection
+        } else if len_sqrt >= UPPER_BOUND {
+            compute_angle(status.stick)
         } else if len_sqrt >= LOWER_BOUND && status.selection != -1 {
-            compute_angle(status.stick, status.selection, clicking)
+            compute_angle(status.stick)
         } else {
             -1
         };
