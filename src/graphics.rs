@@ -1,10 +1,11 @@
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
 use crate::{KeyboardStatus, LeftRight};
 use glam::Vec2;
-use skia_safe::colors::TRANSPARENT;
+use skia_safe::colors::{BLACK, TRANSPARENT};
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
-    FontCollection, ParagraphBuilder, ParagraphStyle, TextAlign, TextHeightBehavior, TextStyle,
+    FontCollection, Paragraph, ParagraphBuilder, ParagraphStyle, TextAlign, TextDecoration,
+    TextHeightBehavior, TextStyle,
 };
 use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
@@ -272,32 +273,134 @@ pub fn draw_center(
 ) {
     surface.canvas().clear(TRANSPARENT);
 
-    let width = surface.width() as scalar;
-    let lane_height = width * 0.09;
-    let space = lane_height * 0.1;
-    let font_size = (width * 0.125) * 0.5;
+    const SPACE_RATIO: scalar = 0.1;
+    const FONT_SIZE_RATIO: scalar = 0.7;
 
-    surface.canvas().draw_rect(
+    fn render(
+        canvas: &mut Canvas,
+        rect: Rect,
+        background_color: Color4f,
+        paragraph: impl FnOnce(/*font_size: */ f32) -> Paragraph,
+    ) {
+        let space = rect.height() * SPACE_RATIO;
+        let font_size = rect.height() * FONT_SIZE_RATIO;
+
+        canvas.draw_rect(rect, &Paint::new(background_color, None));
+
+        let mut paragraph = paragraph(font_size);
+        paragraph.layout(rect.width() - space - space);
+
+        paragraph.paint(
+            canvas,
+            Point::new(rect.left() + space, rect.top() + space * 2.0),
+        );
+    }
+
+    let width = surface.width() as scalar;
+    let lane_height = surface.height() as scalar * 0.18;
+
+    render(
+        surface.canvas(),
         Rect::from_xywh(0.0, 0.0, width, lane_height),
-        &Paint::new(config.background_color, None),
+        config.background_color,
+        |font_size| {
+            let style = {
+                let mut style = TextStyle::new();
+                style.set_color(BLACK.to_color());
+                style.set_height_override(true);
+                style.set_height(1.0);
+                style.set_font_families(font_families);
+                style.set_font_size(font_size);
+                style
+            };
+            let not_changing = {
+                let mut style: TextStyle = style.clone();
+                style.decoration_mut().ty |= TextDecoration::UNDERLINE;
+                style
+            };
+
+            let changing = {
+                let mut style: TextStyle = style.clone();
+                style.decoration_mut().ty |= TextDecoration::UNDERLINE;
+                style.set_color(config.inputting_char_color.to_color());
+                style
+            };
+
+            let mut builder = ParagraphBuilder::new(
+                &ParagraphStyle::new()
+                    .set_text_align(TextAlign::Left)
+                    .set_max_lines(1)
+                    .set_text_style(&style),
+                fonts,
+            );
+
+            builder.push_style(&not_changing);
+            builder.add_text("ここでは");
+            builder.pop();
+
+            builder.add_text(" ");
+
+            builder.push_style(&changing);
+            builder.add_text("きものを");
+            builder.pop();
+
+            builder.add_text(" ");
+
+            builder.push_style(&not_changing);
+            builder.add_text("ぬぐ");
+            builder.pop();
+
+            builder.build()
+        },
     );
 
-    let mut paragraph = ParagraphBuilder::new(
-        &ParagraphStyle::new()
-            .set_text_align(TextAlign::Left)
-            .set_max_lines(1)
-            .set_text_style(
-                TextStyle::new()
-                    .set_color(config.inputting_char_color.to_color())
-                    .set_height_override(true)
-                    .set_height(1.0)
-                    .set_font_families(font_families)
-                    .set_font_size(font_size),
-            ),
-        fonts,
-    )
-    .add_text(&status.buffer)
-    .build();
-    paragraph.layout(width - space - space);
-    paragraph.paint(surface.canvas(), Point::new(space, space * 2.0));
+    let base = lane_height;
+    let lane_height = surface.height() as scalar * 0.13;
+    let font_size = lane_height * FONT_SIZE_RATIO;
+    let space = lane_height * SPACE_RATIO;
+
+    let recommendations = &["着物を", "きものを", "キモノを", "被物を", "木物を"][..];
+
+    let style = {
+        let mut style = TextStyle::new();
+        style.set_color(config.inputting_char_color.to_color());
+        style.set_height_override(true);
+        style.set_height(1.0);
+        style.set_font_families(font_families);
+        style.set_font_size(font_size);
+        style
+    };
+
+    let paragraphs = recommendations
+        .iter()
+        .map(|txt| {
+            let mut builder = ParagraphBuilder::new(
+                &ParagraphStyle::new()
+                    .set_text_align(TextAlign::Left)
+                    .set_max_lines(1)
+                    .set_text_style(&style),
+                fonts,
+            );
+
+            builder.add_text(txt);
+            let mut p = builder.build();
+            p.layout(width);
+            p
+        })
+        .collect::<Vec<_>>();
+
+    let width = paragraphs
+        .iter()
+        .map(|x| x.max_intrinsic_width())
+        .fold(f32::NAN, f32::max)
+        - space * 4.0;
+
+    for (i, p) in paragraphs.into_iter().enumerate() {
+        render(
+            surface.canvas(),
+            Rect::from_xywh(0.0, base + lane_height * (i as scalar), width, lane_height),
+            config.background_color,
+            |_font_size| p,
+        );
+    }
 }
