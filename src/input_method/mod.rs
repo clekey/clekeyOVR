@@ -280,7 +280,7 @@ pub(crate) static JAPANESE_INPUT: &CleKeyInputTable = &CleKeyInputTable {
         char_button!('?'),
         char_button!('た', 'だ'),
         char_button!('ち', 'ぢ'),
-        char_button!('つ', 'づ', 'っ'),
+        char_button!('つ', 'っ', 'づ'),
         char_button!('て', 'で'),
         char_button!('と', 'ど'),
         char_button!('」'),
