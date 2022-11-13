@@ -142,6 +142,12 @@ merging_serde! {
         pub ring: RingOverlayConfig,
         pub completion: CompletionOverlayConfig,
     }
+
+    #[derive(Debug)]
+    pub struct Click {
+        pub offset: u64,
+        pub length: u64,
+    }
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -152,6 +158,7 @@ pub struct CleKeyConfig {
     pub two_ring: TwoRingMode,
     #[serde(rename = "oneRing")]
     pub one_ring: OneRingMode,
+    pub click: Click,
 }
 
 #[doc(hidden)]
@@ -167,6 +174,8 @@ const _: () = {
         #[serde(rename = "oneRing")]
         #[serde(default)]
         pub one_ring: OptionalValue<OneRingMode>,
+        #[serde(default)]
+        pub click: OptionalValue<Click>,
 
         // old config
         #[serde(rename = "leftRing")]
@@ -196,6 +205,7 @@ const _: () = {
             partial.ui_mode.merge_value(&mut self.ui_mode);
             partial.two_ring.merge_value(&mut self.two_ring);
             partial.one_ring.merge_value(&mut self.one_ring);
+            partial.click.merge_value(&mut self.click);
         }
     }
 };
@@ -306,6 +316,15 @@ impl Default for OneRingMode {
                 background_color: Color4f::new(0.188, 0.345, 0.749, 1.0),
                 inputting_char_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
             },
+        }
+    }
+}
+
+impl Default for Click {
+    fn default() -> Self {
+        Self {
+            offset: 120,
+            length: 300,
         }
     }
 }
