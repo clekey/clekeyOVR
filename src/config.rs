@@ -145,8 +145,8 @@ merging_serde! {
 
     #[derive(Debug)]
     pub struct Click {
-        pub offset: u64,
-        pub length: u64,
+        pub offset: u128,
+        pub length: u128,
     }
 }
 
@@ -399,10 +399,12 @@ impl MergeSerializePrimitive for u8 {}
 impl MergeSerializePrimitive for u16 {}
 impl MergeSerializePrimitive for u32 {}
 impl MergeSerializePrimitive for u64 {}
+impl MergeSerializePrimitive for u128 {}
 impl MergeSerializePrimitive for i8 {}
 impl MergeSerializePrimitive for i16 {}
 impl MergeSerializePrimitive for i32 {}
 impl MergeSerializePrimitive for i64 {}
+impl MergeSerializePrimitive for i128 {}
 impl MergeSerializePrimitive for f32 {}
 impl MergeSerializePrimitive for f64 {}
 impl MergeSerializePrimitive for Vec3 {}
