@@ -142,6 +142,12 @@ merging_serde! {
         pub ring: RingOverlayConfig,
         pub completion: CompletionOverlayConfig,
     }
+
+    #[derive(Debug)]
+    pub struct Click {
+        pub offset: u128,
+        pub length: u128,
+    }
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -152,6 +158,7 @@ pub struct CleKeyConfig {
     pub two_ring: TwoRingMode,
     #[serde(rename = "oneRing")]
     pub one_ring: OneRingMode,
+    pub click: Click,
 }
 
 #[doc(hidden)]
@@ -167,6 +174,8 @@ const _: () = {
         #[serde(rename = "oneRing")]
         #[serde(default)]
         pub one_ring: OptionalValue<OneRingMode>,
+        #[serde(default)]
+        pub click: OptionalValue<Click>,
 
         // old config
         #[serde(rename = "leftRing")]
@@ -196,6 +205,7 @@ const _: () = {
             partial.ui_mode.merge_value(&mut self.ui_mode);
             partial.two_ring.merge_value(&mut self.two_ring);
             partial.one_ring.merge_value(&mut self.one_ring);
+            partial.click.merge_value(&mut self.click);
         }
     }
 };
@@ -310,6 +320,15 @@ impl Default for OneRingMode {
     }
 }
 
+impl Default for Click {
+    fn default() -> Self {
+        Self {
+            offset: 120,
+            length: 300,
+        }
+    }
+}
+
 impl Default for RingOverlayConfig {
     fn default() -> Self {
         Self {
@@ -380,10 +399,12 @@ impl MergeSerializePrimitive for u8 {}
 impl MergeSerializePrimitive for u16 {}
 impl MergeSerializePrimitive for u32 {}
 impl MergeSerializePrimitive for u64 {}
+impl MergeSerializePrimitive for u128 {}
 impl MergeSerializePrimitive for i8 {}
 impl MergeSerializePrimitive for i16 {}
 impl MergeSerializePrimitive for i32 {}
 impl MergeSerializePrimitive for i64 {}
+impl MergeSerializePrimitive for i128 {}
 impl MergeSerializePrimitive for f32 {}
 impl MergeSerializePrimitive for f64 {}
 impl MergeSerializePrimitive for Vec3 {}

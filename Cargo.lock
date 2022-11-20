@@ -167,7 +167,7 @@ dependencies = [
 
 [[package]]
 name = "clekey-ovr-rs"
-version = "0.2.0"
+version = "0.2.2"
 dependencies = [
  "cfg-if",
  "flate2",

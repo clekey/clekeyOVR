@@ -201,19 +201,22 @@ fn main() {
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             let surface = &app.surfaces.left_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
-            surface.gl_tex_id
+            app.surfaces.left_ring.surface.flush();
+            app.surfaces.left_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             let surface = &app.surfaces.right_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
-            surface.gl_tex_id
+            app.surfaces.right_ring.surface.flush();
+            app.surfaces.right_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
             let surface = &app.surfaces.center_field;
             (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
-            surface.gl_tex_id
+            app.surfaces.center_field.surface.flush();
+            app.surfaces.center_field.gl_tex_id
         });
 
         #[cfg(feature = "debug_window")]
@@ -572,10 +575,11 @@ struct KeyboardManager<'ovr> {
     is_sign: bool,
     status: KeyboardStatus,
     click_started: Instant,
+    config: &'ovr CleKeyConfig,
 }
 
 impl<'ovr> KeyboardManager<'ovr> {
-    pub fn new(ovr: &'ovr OVRController, _config: &CleKeyConfig) -> Self {
+    pub fn new(ovr: &'ovr OVRController, config: &'ovr CleKeyConfig) -> Self {
         use input_method::*;
         let mut result = Self {
             ovr_controller: ovr,
@@ -596,6 +600,7 @@ impl<'ovr> KeyboardManager<'ovr> {
                 candidates_idx: 0,
             },
             click_started: Instant::now(),
+            config,
         };
 
         result.set_plane(result.methods.front().unwrap());
@@ -611,8 +616,11 @@ impl<'ovr> KeyboardManager<'ovr> {
             } else if self.status.clicking() {
                 if button.0.len() != 0 {
                     let dur = Instant::now().duration_since(self.click_started);
+                    let millis = dur.as_millis();
+                    println!("since: {}, {:?}", millis, self.click_started);
                     self.status.button_idx =
-                        ((dur.as_millis() / 175) % button.0.len() as u128) as usize;
+                        (((millis + self.config.click.offset) / self.config.click.length)
+                            % button.0.len() as u128) as usize;
                 } else {
                     self.status.button_idx = 0;
                 }
