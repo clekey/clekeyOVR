@@ -5,11 +5,10 @@ use skia_safe::colors::{BLACK, TRANSPARENT};
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
     FontCollection, Paragraph, ParagraphBuilder, ParagraphStyle, TextAlign, TextDecoration,
-    TextHeightBehavior, TextStyle,
+    TextStyle,
 };
 use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
-use std::os::macos::raw::stat;
 
 pub fn draw_background_ring(
     canvas: &mut Canvas,
@@ -152,15 +151,18 @@ fn render_ring_chars<'a>(
     }
 }
 
-pub fn draw_ring(
+pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
     status: &KeyboardStatus,
-    side: LeftRight,
-    always_show_in_circle: bool,
     config: &RingOverlayConfig,
     fonts: &FontCollection,
     font_families: &[impl AsRef<str>],
     surface: &mut Surface,
 ) {
+    let side = if is_left {
+        LeftRight::Left
+    } else {
+        LeftRight::Right
+    };
     surface.canvas().clear(TRANSPARENT);
 
     let (current, opposite) = status.get_selecting(side);
@@ -196,41 +198,70 @@ pub fn draw_ring(
 
     if always_show_in_circle || opposite == -1 {
         let offsets = calc_offsets(radius);
-        for pos in 0..(8 as i8) {
-            let col_origin = line_step * pos as usize;
+        #[derive(Clone)]
+        struct RingChar<'a> {
+            show: &'a str,
+            color: Color4f,
+            size: scalar,
+        }
+        impl<'a> Default for RingChar<'a> {
+            fn default() -> Self {
+                Self {
+                    show: Default::default(),
+                    color: TRANSPARENT,
+                    size: Default::default(),
+                }
+            }
+        }
+        #[derive(Clone, Default)]
+        struct RingInfo<'a> {
+            ring_size: scalar,
+            chars: [RingChar<'a>; 8],
+        }
+        let mut prove: [RingInfo; 8] = Default::default();
+
+        for (pos_us, ring) in prove.iter_mut().enumerate() {
+            let pos = pos_us as i8;
+            let col_origin = line_step * pos_us;
             let ring_color = get_color(pos);
-            let ring_size = if pos == current { 0.22 } else { 0.2 } * radius;
+            ring.ring_size = if pos == current { 0.22 } else { 0.2 } * radius;
+            for (idx_us, char) in ring.chars.iter_mut().enumerate() {
+                let idx = idx_us as i8;
+                char.show = {
+                    let key = status.method.table[col_origin + line_len * idx as usize].0;
+                    if pos == current && idx == opposite {
+                        if key.len() == 0 {
+                            ""
+                        } else {
+                            key[status.button_idx].shows
+                        }
+                    } else {
+                        key.first().map(|x| x.shows).unwrap_or("")
+                    }
+                };
+                char.color = if (pos == current || current == -1) && idx == opposite {
+                    config.selecting_char_in_ring_color
+                } else {
+                    ring_color
+                };
+                char.size = if pos == current && idx == opposite {
+                    1.2
+                } else {
+                    1.0
+                };
+            }
+        }
+
+        for (pos, ring) in prove.iter().enumerate() {
             render_ring_chars(
                 surface.canvas(),
                 &fonts,
                 font_families,
-                offsets[pos as usize] + center,
-                ring_size,
+                offsets[pos] + center,
+                ring.ring_size,
                 |idx| {
-                    (
-                        {
-                            let key = status.method.table[col_origin + line_len * idx as usize].0;
-                            if pos == current && idx == opposite {
-                                if key.len() == 0 {
-                                    ""
-                                } else {
-                                    key[status.button_idx].shows
-                                }
-                            } else {
-                                key.first().map(|x| x.shows).unwrap_or("")
-                            }
-                        },
-                        if (pos == current || current == -1) && idx == opposite {
-                            config.selecting_char_in_ring_color
-                        } else {
-                            ring_color
-                        },
-                        if pos == current && idx == opposite {
-                            1.2
-                        } else {
-                            1.0
-                        },
-                    )
+                    let char = &ring.chars[idx as usize];
+                    (char.show, char.color, char.size)
                 },
             )
         }

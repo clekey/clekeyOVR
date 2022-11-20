@@ -199,10 +199,8 @@ fn main() {
         match config.ui_mode {
             UIMode::TwoRing => {
                 ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-                    draw_ring(
+                    draw_ring::<true, true>(
                         &app.keyboard.status,
-                        LeftRight::Left,
-                        true,
                         &config.two_ring.left_ring,
                         &fonts,
                         &font_families,
@@ -212,10 +210,8 @@ fn main() {
                 });
 
                 ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-                    draw_ring(
+                    draw_ring::<false, false>(
                         &app.keyboard.status,
-                        LeftRight::Right,
-                        false,
                         &config.two_ring.right_ring,
                         &fonts,
                         &font_families,
@@ -237,10 +233,8 @@ fn main() {
             }
             UIMode::OneRing => {
                 ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-                    draw_ring(
+                    draw_ring::<true, true>(
                         &app.keyboard.status,
-                        LeftRight::Left,
-                        true,
                         &config.one_ring.ring,
                         &fonts,
                         &font_families,
