@@ -9,12 +9,11 @@ mod ovr_controller;
 mod resources;
 
 use crate::config::{load_config, CleKeyConfig, UIMode};
-use crate::graphics::{draw_center, draw_ring};
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
 use glam::Vec2;
-use glfw::{Context, OpenGlProfileHint, WindowEvent, WindowHint};
+use glfw::{Context, OpenGlProfileHint, WindowHint};
 use log::info;
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
@@ -139,6 +138,15 @@ fn main() {
         #[cfg(not(feature = "openvr"))]
         status: Rc::new(Inputting),
         config: &config,
+        surfaces: Surfaces {
+            left_ring: create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT),
+            right_ring: create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT),
+            center_field: create_surface(
+                &mut skia_ctx.clone().into(),
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT / 2,
+            ),
+        },
     };
 
     let font_mgr = FontMgr::new();
@@ -175,13 +183,7 @@ fn main() {
 
     // gl initialiation
 
-    let mut left_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    let mut right_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    let mut center_field = create_surface(
-        &mut skia_ctx.clone().into(),
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT / 2,
-    );
+    app.set_default_renderers();
 
     //frame.clear_color();
 
@@ -196,65 +198,23 @@ fn main() {
 
         app.status.clone().tick(&mut app);
 
-        match config.ui_mode {
-            UIMode::TwoRing => {
-                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-                    draw_ring::<true, true>(
-                        &app.keyboard.status,
-                        &config.two_ring.left_ring,
-                        &fonts,
-                        &font_families,
-                        &mut left_ring.surface,
-                    );
-                    left_ring.gl_tex_id
-                });
+        ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+            let surface = &app.surfaces.left_ring;
+            (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
+            surface.gl_tex_id
+        });
 
-                ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-                    draw_ring::<false, false>(
-                        &app.keyboard.status,
-                        &config.two_ring.right_ring,
-                        &fonts,
-                        &font_families,
-                        &mut right_ring.surface,
-                    );
-                    right_ring.gl_tex_id
-                });
+        ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
+            let surface = &app.surfaces.right_ring;
+            (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
+            surface.gl_tex_id
+        });
 
-                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-                    draw_center(
-                        &app.keyboard.status,
-                        &config.two_ring.completion,
-                        &fonts,
-                        &font_families,
-                        &mut center_field.surface,
-                    );
-                    center_field.gl_tex_id
-                });
-            }
-            UIMode::OneRing => {
-                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-                    draw_ring::<true, true>(
-                        &app.keyboard.status,
-                        &config.one_ring.ring,
-                        &fonts,
-                        &font_families,
-                        &mut left_ring.surface,
-                    );
-                    left_ring.gl_tex_id
-                });
-
-                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-                    draw_center(
-                        &app.keyboard.status,
-                        &config.one_ring.completion,
-                        &fonts,
-                        &font_families,
-                        &mut center_field.surface,
-                    );
-                    center_field.gl_tex_id
-                });
-            }
-        }
+        ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+            let surface = &app.surfaces.center_field;
+            (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
+            surface.gl_tex_id
+        });
 
         #[cfg(feature = "debug_window")]
         {
@@ -263,21 +223,21 @@ fn main() {
             let half_width = width / 2.0;
             canvas
                 .draw_image_rect_with_sampling_options(
-                    &left_ring.image,
+                    &app.surfaces.left_ring.image,
                     None,
                     Rect::from_xywh(0.0, 0.0, half_width, half_width),
                     SamplingOptions::default(),
                     &Default::default(),
                 )
                 .draw_image_rect_with_sampling_options(
-                    &right_ring.image,
+                    &app.surfaces.right_ring.image,
                     None,
                     Rect::from_xywh(half_width, 0.0, half_width, half_width),
                     SamplingOptions::default(),
                     &Default::default(),
                 )
                 .draw_image_rect_with_sampling_options(
-                    &center_field.image,
+                    &app.surfaces.center_field.image,
                     None,
                     Rect::from_xywh(0.0, half_width, width, half_width),
                     SamplingOptions::default(),
@@ -297,6 +257,30 @@ struct Application<'a> {
     keyboard: &'a mut KeyboardManager<'a>,
     status: Rc<dyn ApplicationStatus>,
     config: &'a CleKeyConfig,
+    surfaces: Surfaces,
+}
+
+impl<'a> Application<'a> {
+    pub(crate) fn set_default_renderers(&mut self) {
+        match self.config.ui_mode {
+            UIMode::TwoRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::left_ring_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::right_ring_renderer;
+                self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
+            }
+            UIMode::OneRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::left_ring_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::nop_renderer;
+                self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
+            }
+        }
+    }
+}
+
+struct Surfaces {
+    left_ring: SurfaceInfo,
+    right_ring: SurfaceInfo,
+    center_field: SurfaceInfo,
 }
 
 trait ApplicationStatus {
@@ -371,6 +355,60 @@ struct SurfaceInfo {
     gl_tex_id: GLuint,
     surface: Surface,
     image: Image,
+    renderer:
+        fn(Surface, app: &Application, fonts: &FontCollection, font_families: &[String]) -> (),
+}
+
+mod renderer_fn {
+    use super::*;
+    use crate::graphics::{draw_center, draw_ring};
+
+    pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontCollection, _: &[String]) {}
+
+    pub(crate) fn left_ring_renderer(
+        mut surface: Surface,
+        app: &Application,
+        fonts: &FontCollection,
+        families: &[String],
+    ) {
+        draw_ring::<true, true>(
+            &app.keyboard.status,
+            &app.config.two_ring.left_ring,
+            fonts,
+            families,
+            &mut surface,
+        );
+    }
+
+    pub(crate) fn right_ring_renderer(
+        mut surface: Surface,
+        app: &Application,
+        fonts: &FontCollection,
+        families: &[String],
+    ) {
+        draw_ring::<false, false>(
+            &app.keyboard.status,
+            &app.config.two_ring.left_ring,
+            fonts,
+            families,
+            &mut surface,
+        );
+    }
+
+    pub(crate) fn center_field_renderer(
+        mut surface: Surface,
+        app: &Application,
+        fonts: &FontCollection,
+        families: &[String],
+    ) {
+        draw_center(
+            &app.keyboard.status,
+            &app.config.two_ring.completion,
+            fonts,
+            &families,
+            &mut surface,
+        );
+    }
 }
 
 fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) -> SurfaceInfo {
@@ -428,6 +466,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
         gl_tex_id,
         surface,
         image,
+        renderer: |_, _, _, _| (),
     }
 }
 
