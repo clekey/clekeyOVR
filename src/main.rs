@@ -14,6 +14,7 @@ use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPla
 use gl::types::GLuint;
 use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
+use graphics::FontInfo;
 use log::info;
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
@@ -181,6 +182,11 @@ fn main() {
         )
     );
 
+    let fonts = FontInfo {
+        collection: fonts,
+        families: &font_families,
+    };
+
     // gl initialiation
 
     app.set_default_renderers();
@@ -200,21 +206,21 @@ fn main() {
 
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             let surface = &app.surfaces.left_ring;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
+            (surface.renderer)(surface.surface.clone(), &app, &fonts);
             app.surfaces.left_ring.surface.flush();
             app.surfaces.left_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             let surface = &app.surfaces.right_ring;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
+            (surface.renderer)(surface.surface.clone(), &app, &fonts);
             app.surfaces.right_ring.surface.flush();
             app.surfaces.right_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
             let surface = &app.surfaces.center_field;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts, &font_families);
+            (surface.renderer)(surface.surface.clone(), &app, &fonts);
             app.surfaces.center_field.surface.flush();
             app.surfaces.center_field.gl_tex_id
         });
@@ -358,57 +364,38 @@ struct SurfaceInfo {
     gl_tex_id: GLuint,
     surface: Surface,
     image: Image,
-    renderer:
-        fn(Surface, app: &Application, fonts: &FontCollection, font_families: &[String]) -> (),
+    renderer: fn(Surface, app: &Application, fonts: &FontInfo) -> (),
 }
 
 mod renderer_fn {
     use super::*;
     use crate::graphics::{draw_center, draw_ring};
 
-    pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontCollection, _: &[String]) {}
+    pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontInfo) {}
 
-    pub(crate) fn left_ring_renderer(
-        mut surface: Surface,
-        app: &Application,
-        fonts: &FontCollection,
-        families: &[String],
-    ) {
+    pub(crate) fn left_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
         draw_ring::<true, true>(
             &app.keyboard.status,
             &app.config.two_ring.left_ring,
             fonts,
-            families,
             &mut surface,
         );
     }
 
-    pub(crate) fn right_ring_renderer(
-        mut surface: Surface,
-        app: &Application,
-        fonts: &FontCollection,
-        families: &[String],
-    ) {
+    pub(crate) fn right_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
         draw_ring::<false, false>(
             &app.keyboard.status,
             &app.config.two_ring.left_ring,
             fonts,
-            families,
             &mut surface,
         );
     }
 
-    pub(crate) fn center_field_renderer(
-        mut surface: Surface,
-        app: &Application,
-        fonts: &FontCollection,
-        families: &[String],
-    ) {
+    pub(crate) fn center_field_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
         draw_center(
             &app.keyboard.status,
             &app.config.two_ring.completion,
             fonts,
-            &families,
             &mut surface,
         );
     }
@@ -469,7 +456,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
         gl_tex_id,
         surface,
         image,
-        renderer: |_, _, _, _| (),
+        renderer: renderer_fn::nop_renderer,
     }
 }
 

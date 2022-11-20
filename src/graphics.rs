@@ -10,6 +10,11 @@ use skia_safe::textlayout::{
 use skia_safe::{op, scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
+pub struct FontInfo<'a> {
+    pub(crate) collection: FontCollection,
+    pub(crate) families: &'a [String],
+}
+
 pub fn draw_background_ring(
     canvas: &mut Canvas,
     center: Point,
@@ -97,8 +102,7 @@ fn calc_offsets(size: scalar) -> [Point; 8] {
 
 fn render_ring_chars<'a>(
     canvas: &mut Canvas,
-    fonts: &FontCollection,
-    font_families: &[impl AsRef<str>],
+    fonts: &FontInfo,
     center: Point,
     size: scalar,
     get_char: impl Fn(i8) -> (&'a str, Color4f, scalar),
@@ -115,9 +119,9 @@ fn render_ring_chars<'a>(
                 ParagraphStyle::new().set_text_style(
                     TextStyle::new()
                         .set_font_size(font_size)
-                        .set_font_families(font_families),
+                        .set_font_families(&fonts.families),
                 ),
-                fonts,
+                &fonts.collection,
             )
             .add_text(&pair.0)
             .build();
@@ -137,9 +141,9 @@ fn render_ring_chars<'a>(
                     TextStyle::new()
                         .set_color(pair.1.to_color())
                         .set_font_size(actual_font_size)
-                        .set_font_families(font_families),
+                        .set_font_families(&fonts.families),
                 ),
-            fonts,
+            &fonts.collection,
         )
         .add_text(&pair.0)
         .build();
@@ -154,8 +158,7 @@ fn render_ring_chars<'a>(
 pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
     status: &KeyboardStatus,
     config: &RingOverlayConfig,
-    fonts: &FontCollection,
-    font_families: &[impl AsRef<str>],
+    fonts: &FontInfo,
     surface: &mut Surface,
 ) {
     let side = if is_left {
@@ -280,8 +283,7 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         for (pos, ring) in prove.iter().enumerate() {
             render_ring_chars(
                 surface.canvas(),
-                &fonts,
-                font_families,
+                fonts,
                 offsets[pos] + center,
                 ring.ring_size,
                 |idx| {
@@ -292,24 +294,17 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         }
     } else {
         let line_origin = line_len * opposite as usize;
-        render_ring_chars(
-            surface.canvas(),
-            &fonts,
-            font_families,
-            center,
-            radius,
-            |idx| {
-                (
-                    status.method.table[line_origin + line_step * idx as usize]
-                        .0
-                        .first()
-                        .map(|x| x.shows)
-                        .unwrap_or(""),
-                    get_color(idx),
-                    if idx == current { 1.1 } else { 1.0 },
-                )
-            },
-        )
+        render_ring_chars(surface.canvas(), fonts, center, radius, |idx| {
+            (
+                status.method.table[line_origin + line_step * idx as usize]
+                    .0
+                    .first()
+                    .map(|x| x.shows)
+                    .unwrap_or(""),
+                get_color(idx),
+                if idx == current { 1.1 } else { 1.0 },
+            )
+        })
     }
 
     draw_cursor_circle(
@@ -324,8 +319,7 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
 pub fn draw_center(
     status: &KeyboardStatus,
     config: &CompletionOverlayConfig,
-    fonts: &FontCollection,
-    font_families: &[impl AsRef<str>],
+    fonts: &FontInfo,
     surface: &mut Surface,
 ) {
     surface.canvas().clear(TRANSPARENT);
@@ -366,7 +360,7 @@ pub fn draw_center(
                 style.set_color(BLACK.to_color());
                 style.set_height_override(true);
                 style.set_height(1.0);
-                style.set_font_families(font_families);
+                style.set_font_families(fonts.families);
                 style.set_font_size(font_size);
                 style
             };
@@ -388,7 +382,7 @@ pub fn draw_center(
                     .set_text_align(TextAlign::Left)
                     .set_max_lines(1)
                     .set_text_style(&style),
-                fonts,
+                &fonts.collection,
             );
 
             if status.candidates.is_empty() {
@@ -427,7 +421,7 @@ pub fn draw_center(
             style.set_color(config.inputting_char_color.to_color());
             style.set_height_override(true);
             style.set_height(1.0);
-            style.set_font_families(font_families);
+            style.set_font_families(fonts.families);
             style.set_font_size(font_size);
             style
         };
@@ -440,7 +434,7 @@ pub fn draw_center(
                         .set_text_align(TextAlign::Left)
                         .set_max_lines(1)
                         .set_text_style(&style),
-                    fonts,
+                    &fonts.collection,
                 );
 
                 builder.add_text(txt);
