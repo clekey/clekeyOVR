@@ -471,6 +471,13 @@ pub struct KeyboardStatus {
     button_idx: usize,
     buffer: String,
     closing: bool,
+    candidates: Vec<HenkanCandidate>,
+    candidates_idx: usize,
+}
+
+pub struct HenkanCandidate {
+    candidates: Vec<String>,
+    index: usize,
 }
 
 impl KeyboardStatus {
@@ -552,6 +559,8 @@ impl<'ovr> KeyboardManager<'ovr> {
                 button_idx: 0,
                 buffer: String::new(),
                 closing: false,
+                candidates: vec![],
+                candidates_idx: 0,
             },
             click_started: Instant::now(),
         };
@@ -632,7 +641,17 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub fn flush(&mut self) {
-        let buffer = std::mem::take(&mut self.status.buffer);
+        let buffer = if self.status.candidates.is_empty() {
+            std::mem::take(&mut self.status.buffer)
+        } else {
+            let mut builder = String::new();
+            for x in &self.status.candidates {
+                builder.push_str(&x.candidates[x.index]);
+            }
+            self.status.buffer.clear();
+            self.status.candidates.clear();
+            builder
+        };
         self.set_inputted_table();
         if !buffer.is_empty() {
             os::copy_text_and_enter_paste_shortcut(&buffer);
@@ -647,6 +666,30 @@ impl<'ovr> KeyboardManager<'ovr> {
     fn henkan_key(mgr: &mut KeyboardManager) {
         debug_assert!(!mgr.status.buffer.is_empty());
         // nop currently
+
+        const QUERY: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+            .add(b' ')
+            .add(b'"')
+            .add(b'#')
+            .add(b'<')
+            .add(b'>');
+
+        if let Some(response) = reqwest::blocking::get(format!(
+            "https://www.google.com/transliterate?langpair=ja-Hira|ja&text={text}",
+            text = percent_encoding::utf8_percent_encode(&mgr.status.buffer, QUERY)
+        ))
+        .and_then(|x| x.json::<Vec<(String, Vec<String>)>>())
+        .ok()
+        {
+            mgr.status.candidates_idx = 0;
+            mgr.status.candidates = response
+                .into_iter()
+                .map(|(_input, candidates)| HenkanCandidate {
+                    candidates,
+                    index: 0,
+                })
+                .collect();
+        };
     }
 
     fn new_line_key(mgr: &mut KeyboardManager) {

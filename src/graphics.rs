@@ -9,6 +9,7 @@ use skia_safe::textlayout::{
 };
 use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
+use std::os::macos::raw::stat;
 
 pub fn draw_background_ring(
     canvas: &mut Canvas,
@@ -334,21 +335,23 @@ pub fn draw_center(
                 fonts,
             );
 
-            builder.push_style(&not_changing);
-            builder.add_text("ここでは");
-            builder.pop();
+            if status.candidates.is_empty() {
+                builder.push_style(&changing);
+                builder.add_text(&status.buffer);
+                builder.pop();
+            } else {
+                for (i, can) in status.candidates.iter().enumerate() {
+                    if i == status.candidates_idx {
+                        builder.push_style(&changing);
+                    } else {
+                        builder.push_style(&not_changing);
+                    }
+                    builder.add_text(&can.candidates[can.index]);
+                    builder.pop();
 
-            builder.add_text(" ");
-
-            builder.push_style(&changing);
-            builder.add_text("きものを");
-            builder.pop();
-
-            builder.add_text(" ");
-
-            builder.push_style(&not_changing);
-            builder.add_text("ぬぐ");
-            builder.pop();
+                    builder.add_text(" ");
+                }
+            }
 
             builder.build()
         },
@@ -358,49 +361,52 @@ pub fn draw_center(
     let lane_height = surface.height() as scalar * 0.13;
     let font_size = lane_height * FONT_SIZE_RATIO;
     let space = lane_height * SPACE_RATIO;
+    if !status.candidates.is_empty() {
+        let recommendations = status.candidates[status.candidates_idx]
+            .candidates
+            .as_slice();
 
-    let recommendations = &["着物を", "きものを", "キモノを", "被物を", "木物を"][..];
+        let style = {
+            let mut style = TextStyle::new();
+            style.set_color(config.inputting_char_color.to_color());
+            style.set_height_override(true);
+            style.set_height(1.0);
+            style.set_font_families(font_families);
+            style.set_font_size(font_size);
+            style
+        };
 
-    let style = {
-        let mut style = TextStyle::new();
-        style.set_color(config.inputting_char_color.to_color());
-        style.set_height_override(true);
-        style.set_height(1.0);
-        style.set_font_families(font_families);
-        style.set_font_size(font_size);
-        style
-    };
+        let paragraphs = recommendations
+            .iter()
+            .map(|txt| {
+                let mut builder = ParagraphBuilder::new(
+                    &ParagraphStyle::new()
+                        .set_text_align(TextAlign::Left)
+                        .set_max_lines(1)
+                        .set_text_style(&style),
+                    fonts,
+                );
 
-    let paragraphs = recommendations
-        .iter()
-        .map(|txt| {
-            let mut builder = ParagraphBuilder::new(
-                &ParagraphStyle::new()
-                    .set_text_align(TextAlign::Left)
-                    .set_max_lines(1)
-                    .set_text_style(&style),
-                fonts,
+                builder.add_text(txt);
+                let mut p = builder.build();
+                p.layout(width);
+                p
+            })
+            .collect::<Vec<_>>();
+
+        let width = paragraphs
+            .iter()
+            .map(|x| x.max_intrinsic_width())
+            .fold(f32::NAN, f32::max)
+            - space * 4.0;
+
+        for (i, p) in paragraphs.into_iter().enumerate() {
+            render(
+                surface.canvas(),
+                Rect::from_xywh(0.0, base + lane_height * (i as scalar), width, lane_height),
+                config.background_color,
+                |_font_size| p,
             );
-
-            builder.add_text(txt);
-            let mut p = builder.build();
-            p.layout(width);
-            p
-        })
-        .collect::<Vec<_>>();
-
-    let width = paragraphs
-        .iter()
-        .map(|x| x.max_intrinsic_width())
-        .fold(f32::NAN, f32::max)
-        - space * 4.0;
-
-    for (i, p) in paragraphs.into_iter().enumerate() {
-        render(
-            surface.canvas(),
-            Rect::from_xywh(0.0, base + lane_height * (i as scalar), width, lane_height),
-            config.background_color,
-            |_font_size| p,
-        );
+        }
     }
 }
