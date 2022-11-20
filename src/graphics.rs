@@ -7,7 +7,7 @@ use skia_safe::textlayout::{
     FontCollection, Paragraph, ParagraphBuilder, ParagraphStyle, TextAlign, TextDecoration,
     TextStyle,
 };
-use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
+use skia_safe::{op, scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
 pub fn draw_background_ring(
@@ -220,35 +220,60 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         }
         let mut prove: [RingInfo; 8] = Default::default();
 
+        // general case. color is not inited because it always depends on current & opposite
         for (pos_us, ring) in prove.iter_mut().enumerate() {
-            let pos = pos_us as i8;
             let col_origin = line_step * pos_us;
-            let ring_color = get_color(pos);
-            ring.ring_size = if pos == current { 0.22 } else { 0.2 } * radius;
+            ring.ring_size = 0.2 * radius;
             for (idx_us, char) in ring.chars.iter_mut().enumerate() {
-                let idx = idx_us as i8;
                 char.show = {
-                    let key = status.method.table[col_origin + line_len * idx as usize].0;
-                    if pos == current && idx == opposite {
-                        if key.len() == 0 {
-                            ""
-                        } else {
-                            key[status.button_idx].shows
-                        }
-                    } else {
-                        key.first().map(|x| x.shows).unwrap_or("")
-                    }
+                    let key = status.method.table[col_origin + line_len * idx_us].0;
+                    key.first().map(|x| x.shows).unwrap_or("")
                 };
-                char.color = if (pos == current || current == -1) && idx == opposite {
-                    config.selecting_char_in_ring_color
-                } else {
-                    ring_color
+                char.size = 1.0;
+            }
+        }
+
+        if current == -1 {
+            // if current is not selected color
+            for ring in prove.iter_mut() {
+                for char in ring.chars.iter_mut() {
+                    char.color = config.normal_char_color;
+                }
+            }
+
+            //if current == -1 and opposite is selected
+            //  prove[*].chars[opposite].color = config.selecting_char_in_ring_color;
+            if opposite != -1 {
+                let opposite = opposite as usize;
+                for ring in prove.iter_mut() {
+                    ring.chars[opposite].color = config.selecting_char_in_ring_color;
+                }
+            }
+        } else {
+            let current = current as usize;
+            for ring in prove.iter_mut() {
+                for char in ring.chars.iter_mut() {
+                    char.color = config.un_selecting_char_color;
+                }
+            }
+
+            // for selecting ring, size is 0.22 && set color to selecting_char_color
+            let ring = &mut prove[current];
+            ring.ring_size = 0.22 * radius;
+            for char in ring.chars.iter_mut() {
+                char.color = config.selecting_char_color;
+            }
+
+            // for selecting char, set color to selecting_char_in_ring_color
+            if opposite != -1 {
+                let opposite = opposite as usize;
+                let char = &mut ring.chars[opposite];
+                char.show = {
+                    let key = status.method.table[line_step * current + line_len * opposite].0;
+                    key.get(status.button_idx).map(|x| x.shows).unwrap_or("")
                 };
-                char.size = if pos == current && idx == opposite {
-                    1.2
-                } else {
-                    1.0
-                };
+                char.color = config.selecting_char_in_ring_color;
+                char.size = 1.2;
             }
         }
 
