@@ -200,10 +200,10 @@ impl Mocked {
 
                     // J for left trigger
                     (J, Press) => {
-                        self.triggers.insert(Left, true);
+                        self.triggers.insert(Right, true);
                     }
                     (J, Release) => {
-                        self.triggers.insert(Left, false);
+                        self.triggers.insert(Right, false);
                     }
 
                     _ => (),
