@@ -113,50 +113,67 @@ fn calc_offsets(size: scalar) -> [Point; 8] {
     ];
 }
 
+fn render_text_in_box(
+    canvas: &mut Canvas,
+    fonts: &FontInfo,
+    box_size: scalar,
+    text: &str,
+    color: Color4f,
+    center: Point,
+) {
+    // first, compute actual font size
+    let computed_font_size: scalar = {
+        let mut paragraph = ParagraphBuilder::new(
+            ParagraphStyle::new().set_text_style(
+                TextStyle::new()
+                    .set_font_size(box_size)
+                    .set_font_families(&fonts.families),
+            ),
+            &fonts.collection,
+        )
+        .add_text(text)
+        .build();
+        paragraph.layout(10000 as _);
+        let width = paragraph.max_intrinsic_width() + 1.0;
+        let computed_font_size = box_size * box_size / width;
+        computed_font_size.min(box_size)
+    };
+
+    let width = (box_size + 10.0);
+    let actual_font_size = computed_font_size;
+
+    let mut paragraph = ParagraphBuilder::new(
+        ParagraphStyle::new()
+            .set_text_align(TextAlign::Center)
+            .set_text_style(
+                TextStyle::new()
+                    .set_color(color.to_color())
+                    .set_font_size(actual_font_size)
+                    .set_font_families(&fonts.families),
+            ),
+        &fonts.collection,
+    )
+    .add_text(&text)
+    .build();
+
+    paragraph.layout(width);
+    let text_pos = center - Point::new(width / 2.0, paragraph.height() / 2.0);
+    paragraph.paint(canvas, text_pos);
+}
+
 fn render_ring_chars<'a>(canvas: &mut Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
     let font_size = ring.ring_size * 0.4;
     let offsets = calc_offsets(ring.ring_size);
 
     for (i, char) in ring.chars.iter().enumerate() {
-        // first, compute actual font size
-        let computed_font_size: scalar = {
-            let mut paragraph = ParagraphBuilder::new(
-                ParagraphStyle::new().set_text_style(
-                    TextStyle::new()
-                        .set_font_size(font_size)
-                        .set_font_families(&fonts.families),
-                ),
-                &fonts.collection,
-            )
-            .add_text(&char.show)
-            .build();
-            paragraph.layout(10000 as _);
-            let width = paragraph.max_intrinsic_width() + 1.0;
-            let computed_font_size = font_size * font_size / width;
-            computed_font_size.min(font_size)
-        };
-
-        let width = (font_size + 10.0) * char.size;
-        let actual_font_size = computed_font_size * char.size;
-
-        let mut paragraph = ParagraphBuilder::new(
-            ParagraphStyle::new()
-                .set_text_align(TextAlign::Center)
-                .set_text_style(
-                    TextStyle::new()
-                        .set_color(char.color.to_color())
-                        .set_font_size(actual_font_size)
-                        .set_font_families(&fonts.families),
-                ),
-            &fonts.collection,
-        )
-        .add_text(&char.show)
-        .build();
-
-        paragraph.layout(width);
-        let text_center_pos = center + offsets[i as usize];
-        let text_pos = text_center_pos - Point::new(width / 2.0, paragraph.height() / 2.0);
-        paragraph.paint(canvas, text_pos);
+        render_text_in_box(
+            canvas,
+            fonts,
+            font_size * char.size,
+            char.show,
+            char.color,
+            center + offsets[i as usize],
+        );
     }
 }
 
@@ -195,8 +212,6 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
     };
 
     if always_show_in_circle || opposite == -1 {
-        let offsets = calc_offsets(radius);
-
         let default_color = if current == -1 {
             config.normal_char_color
         } else {
@@ -251,6 +266,7 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
             }
         }
 
+        let offsets = calc_offsets(radius);
         for (pos, ring) in prove.iter().enumerate() {
             render_ring_chars(surface.canvas(), fonts, offsets[pos] + center, ring)
         }
