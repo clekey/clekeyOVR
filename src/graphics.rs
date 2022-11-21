@@ -1,6 +1,8 @@
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
+use crate::input_method::CleKeyButton;
 use crate::{KeyboardStatus, LeftRight};
 use glam::Vec2;
+use reqwest::get;
 use skia_safe::colors::{BLACK, TRANSPARENT};
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
@@ -177,22 +179,17 @@ fn render_ring_chars<'a>(canvas: &mut Canvas, fonts: &FontInfo, center: Point, r
     }
 }
 
-pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
-    status: &KeyboardStatus,
+pub(crate) fn draw_ring<'a, const ALWAYS_SHOW_IN_CIRCLE: bool>(
+    surface: &mut Surface,
     config: &RingOverlayConfig,
     fonts: &FontInfo,
-    surface: &mut Surface,
+    button_idx: usize,
+    current: i8,
+    opposite: i8,
+    stick_pos: Vec2,
+    get_key: impl Fn(/*cur*/ usize, /*oppo*/ usize) -> CleKeyButton<'a>,
 ) {
-    let side = if is_left {
-        LeftRight::Left
-    } else {
-        LeftRight::Right
-    };
     surface.canvas().clear(TRANSPARENT);
-
-    let (current, opposite) = status.get_selecting(side);
-
-    let stick_pos = status.stick_pos(side);
 
     let center = Point::new(surface.width() as scalar, surface.height() as scalar) * 0.5;
     let radius = center.x;
@@ -206,12 +203,7 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         config.edge_color,
     );
 
-    let (line_step, line_len): (usize, usize) = match side {
-        LeftRight::Left => (8, 1),
-        LeftRight::Right => (1, 8),
-    };
-
-    if always_show_in_circle || opposite == -1 {
+    if ALWAYS_SHOW_IN_CIRCLE || opposite == -1 {
         let default_color = if current == -1 {
             config.normal_char_color
         } else {
@@ -219,19 +211,16 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         };
 
         // initialize with general case.
-        let mut prove: [RingInfo; 8] = from_fn(|pos_us| {
-            let col_origin = line_step * pos_us;
-            RingInfo {
-                ring_size: 0.2 * radius,
-                chars: from_fn(|idx_us| RingChar {
-                    show: {
-                        let key = status.method.table[col_origin + line_len * idx_us].0;
-                        key.first().map(|x| x.shows).unwrap_or("")
-                    },
-                    color: default_color,
-                    size: 1.0,
-                }),
-            }
+        let mut prove: [RingInfo; 8] = from_fn(|pos| RingInfo {
+            ring_size: 0.2 * radius,
+            chars: from_fn(|idx| RingChar {
+                show: {
+                    let key = get_key(pos, idx);
+                    key.0.first().map(|x| x.shows).unwrap_or("")
+                },
+                color: default_color,
+                size: 1.0,
+            }),
         });
 
         if current == -1 {
@@ -258,8 +247,8 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
                 let opposite = opposite as usize;
                 let char = &mut ring.chars[opposite];
                 char.show = {
-                    let key = status.method.table[line_step * current + line_len * opposite].0;
-                    key.get(status.button_idx).map(|x| x.shows).unwrap_or("")
+                    let key = get_key(current, opposite);
+                    key.0.get(button_idx).map(|x| x.shows).unwrap_or("")
                 };
                 char.color = config.selecting_char_in_ring_color;
                 char.size = 1.2;
@@ -271,8 +260,6 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
             render_ring_chars(surface.canvas(), fonts, offsets[pos] + center, ring)
         }
     } else {
-        let line_origin = line_len * opposite as usize;
-
         let default_color = if current == -1 {
             config.normal_char_color
         } else {
@@ -283,8 +270,8 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
             ring_size: radius,
             chars: from_fn(|idx| RingChar {
                 show: {
-                    let key = status.method.table[line_origin + line_step * idx].0;
-                    key.first().map(|x| x.shows).unwrap_or("")
+                    let key = get_key(idx, opposite as usize);
+                    key.0.first().map(|x| x.shows).unwrap_or("")
                 },
                 color: default_color,
                 size: 1.0,

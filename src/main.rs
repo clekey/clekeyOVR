@@ -278,7 +278,7 @@ impl<'a> Application<'a> {
                 self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
             }
             UIMode::OneRing => {
-                self.surfaces.left_ring.renderer = renderer_fn::left_ring_renderer;
+                self.surfaces.left_ring.renderer = renderer_fn::one_ring_renderer;
                 self.surfaces.right_ring.renderer = renderer_fn::nop_renderer;
                 self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
             }
@@ -373,21 +373,42 @@ mod renderer_fn {
 
     pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontInfo) {}
 
+    pub(crate) fn one_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+        draw_ring::<true>(
+            &mut surface,
+            &app.config.one_ring.ring,
+            fonts,
+            app.keyboard.status.button_idx,
+            app.keyboard.status.left.selection,
+            app.keyboard.status.right.selection,
+            app.keyboard.status.left.stick,
+            |current, opposite| app.keyboard.status.method.table[8 * current + opposite],
+        );
+    }
+
     pub(crate) fn left_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
-        draw_ring::<true, true>(
-            &app.keyboard.status,
+        draw_ring::<true>(
+            &mut surface,
             &app.config.two_ring.left_ring,
             fonts,
-            &mut surface,
+            app.keyboard.status.button_idx,
+            app.keyboard.status.left.selection,
+            app.keyboard.status.right.selection,
+            app.keyboard.status.left.stick,
+            |current, opposite| app.keyboard.status.method.table[8 * current + opposite],
         );
     }
 
     pub(crate) fn right_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
-        draw_ring::<false, false>(
-            &app.keyboard.status,
-            &app.config.two_ring.left_ring,
-            fonts,
+        draw_ring::<false>(
             &mut surface,
+            &app.config.two_ring.right_ring,
+            fonts,
+            app.keyboard.status.button_idx,
+            app.keyboard.status.right.selection,
+            app.keyboard.status.left.selection,
+            app.keyboard.status.left.stick,
+            |current, opposite| app.keyboard.status.method.table[current + 8 * opposite],
         );
     }
 
@@ -535,22 +556,6 @@ impl KeyboardStatus {
             Some(self.method.table[(self.left.selection * 8 + self.right.selection) as usize])
         } else {
             None
-        }
-    }
-}
-
-impl KeyboardStatus {
-    pub fn get_selecting(&self, lr: LeftRight) -> (i8, i8) {
-        match lr {
-            LeftRight::Left => (self.left.selection, self.right.selection),
-            LeftRight::Right => (self.right.selection, self.left.selection),
-        }
-    }
-
-    fn stick_pos(&self, lr: LeftRight) -> Vec2 {
-        match lr {
-            LeftRight::Left => self.left.stick,
-            LeftRight::Right => self.right.stick,
         }
     }
 }
