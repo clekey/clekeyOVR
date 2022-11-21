@@ -2,8 +2,6 @@ use super::*;
 use crate::{CleKeyConfig, LeftRight};
 use gl::types::GLuint;
 use glam::Vec2;
-use glfw::Action::{Press, Release};
-use glfw::Key::{C, D, E, F, G, R, T, V, X};
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -121,7 +119,6 @@ impl Mocked {
         match event {
             WindowEvent::Key(key, _, action, _) => {
                 use glfw::Action::*;
-                use glfw::Key;
                 use glfw::Key::*;
                 use LeftRight::{Left, Right};
                 match (key, action) {
@@ -203,10 +200,10 @@ impl Mocked {
 
                     // J for left trigger
                     (J, Press) => {
-                        self.triggers.insert(Left, true);
+                        self.triggers.insert(Right, true);
                     }
                     (J, Release) => {
-                        self.triggers.insert(Left, false);
+                        self.triggers.insert(Right, false);
                     }
 
                     _ => (),

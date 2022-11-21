@@ -9,12 +9,12 @@ mod ovr_controller;
 mod resources;
 
 use crate::config::{load_config, CleKeyConfig, UIMode};
-use crate::graphics::{draw_center, draw_ring};
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
 use glam::Vec2;
-use glfw::{Context, OpenGlProfileHint, WindowEvent, WindowHint};
+use glfw::{Context, OpenGlProfileHint, WindowHint};
+use graphics::FontInfo;
 use log::info;
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
@@ -24,6 +24,7 @@ use skia_safe::{gpu, AlphaType, ColorType, FontMgr, FontStyle, Image, Surface};
 #[cfg(feature = "debug_window")]
 use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
+use std::mem::take;
 use std::ptr::null;
 use std::rc::Rc;
 use std::time::Instant;
@@ -129,17 +130,24 @@ fn main() {
         .load_config(&config)
         .expect("loading config on ovr");
 
-    let mut kbd = KeyboardManager::new(&ovr_controller, &config);
-
-    let mut app = Application {
-        ovr_controller: &ovr_controller,
-        keyboard: &mut kbd,
-        #[cfg(feature = "openvr")]
-        status: Rc::new(Waiting),
-        #[cfg(not(feature = "openvr"))]
-        status: Rc::new(Inputting),
-        config: &config,
-    };
+    let mut app = Application::new(
+        &ovr_controller,
+        &config,
+        if cfg!(feature = "openvr") {
+            Rc::new(Waiting)
+        } else {
+            Rc::new(Inputting)
+        },
+        Surfaces {
+            left_ring: create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT),
+            right_ring: create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT),
+            center_field: create_surface(
+                &mut skia_ctx.clone().into(),
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT / 2,
+            ),
+        },
+    );
 
     let font_mgr = FontMgr::new();
     let mut fonts = FontCollection::new();
@@ -173,15 +181,14 @@ fn main() {
         )
     );
 
+    let fonts = FontInfo {
+        collection: fonts,
+        families: &font_families,
+    };
+
     // gl initialiation
 
-    let mut left_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    let mut right_ring = create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT);
-    let mut center_field = create_surface(
-        &mut skia_ctx.clone().into(),
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT / 8,
-    );
+    app.set_default_renderers();
 
     //frame.clear_color();
 
@@ -194,76 +201,28 @@ fn main() {
 
         // TODO: openvr tick
 
-        app.status.clone().tick(&mut app);
+        app.app_status.clone().tick(&mut app);
 
-        match config.ui_mode {
-            UIMode::TwoRing => {
-                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-                    draw_ring(
-                        &app.keyboard.status,
-                        LeftRight::Left,
-                        true,
-                        &config.two_ring.left_ring,
-                        &fonts,
-                        &font_families,
-                        &mut left_ring.surface,
-                    );
-                    left_ring.surface.flush();
-                    left_ring.gl_tex_id
-                });
+        ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
+            let surface = &app.surfaces.left_ring;
+            (surface.renderer)(surface.surface.clone(), &app, &fonts);
+            app.surfaces.left_ring.surface.flush();
+            app.surfaces.left_ring.gl_tex_id
+        });
 
-                ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-                    draw_ring(
-                        &app.keyboard.status,
-                        LeftRight::Right,
-                        false,
-                        &config.two_ring.right_ring,
-                        &fonts,
-                        &font_families,
-                        &mut right_ring.surface,
-                    );
-                    right_ring.surface.flush();
-                    right_ring.gl_tex_id
-                });
+        ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
+            let surface = &app.surfaces.right_ring;
+            (surface.renderer)(surface.surface.clone(), &app, &fonts);
+            app.surfaces.right_ring.surface.flush();
+            app.surfaces.right_ring.gl_tex_id
+        });
 
-                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-                    draw_center(
-                        &app.keyboard.status,
-                        &config.two_ring.completion,
-                        &fonts,
-                        &font_families,
-                        &mut center_field.surface,
-                    );
-                    center_field.gl_tex_id
-                });
-            }
-            UIMode::OneRing => {
-                ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-                    draw_ring(
-                        &app.keyboard.status,
-                        LeftRight::Left,
-                        true,
-                        &config.one_ring.ring,
-                        &fonts,
-                        &font_families,
-                        &mut left_ring.surface,
-                    );
-                    left_ring.surface.flush();
-                    left_ring.gl_tex_id
-                });
-
-                ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-                    draw_center(
-                        &app.keyboard.status,
-                        &config.one_ring.completion,
-                        &fonts,
-                        &font_families,
-                        &mut center_field.surface,
-                    );
-                    center_field.gl_tex_id
-                });
-            }
-        }
+        ovr_controller.draw_if_visible(OverlayPlane::Center, || {
+            let surface = &app.surfaces.center_field;
+            (surface.renderer)(surface.surface.clone(), &app, &fonts);
+            app.surfaces.center_field.surface.flush();
+            app.surfaces.center_field.gl_tex_id
+        });
 
         #[cfg(feature = "debug_window")]
         {
@@ -271,24 +230,25 @@ fn main() {
             let width = WINDOW_WIDTH as f32;
             let half_width = width / 2.0;
             canvas
+                .clear(skia_safe::colors::TRANSPARENT)
                 .draw_image_rect_with_sampling_options(
-                    &left_ring.image,
+                    &app.surfaces.left_ring.image,
                     None,
                     Rect::from_xywh(0.0, 0.0, half_width, half_width),
                     SamplingOptions::default(),
                     &Default::default(),
                 )
                 .draw_image_rect_with_sampling_options(
-                    &right_ring.image,
+                    &app.surfaces.right_ring.image,
                     None,
                     Rect::from_xywh(half_width, 0.0, half_width, half_width),
                     SamplingOptions::default(),
                     &Default::default(),
                 )
                 .draw_image_rect_with_sampling_options(
-                    &center_field.image,
+                    &app.surfaces.center_field.image,
                     None,
-                    Rect::from_xywh(0.0, half_width, width, width / 8.0),
+                    Rect::from_xywh(0.0, half_width, width, half_width),
                     SamplingOptions::default(),
                     &Default::default(),
                 );
@@ -303,9 +263,87 @@ fn main() {
 
 struct Application<'a> {
     ovr_controller: &'a OVRController,
-    keyboard: &'a mut KeyboardManager<'a>,
-    status: Rc<dyn ApplicationStatus>,
+    sign_input: &'static CleKeyInputTable<'static>,
+    methods: VecDeque<&'static CleKeyInputTable<'static>>,
+    is_sign: bool,
+    kbd_status: KeyboardStatus,
+    click_started: Instant,
+    app_status: Rc<dyn ApplicationStatus>,
     config: &'a CleKeyConfig,
+    surfaces: Surfaces,
+}
+
+impl<'a> Application<'a> {
+    pub fn new(
+        ovr: &'a OVRController,
+        config: &'a CleKeyConfig,
+        app_status: Rc<dyn ApplicationStatus>,
+        surfaces: Surfaces,
+    ) -> Self {
+        use input_method::*;
+        let mut result = Self {
+            ovr_controller: ovr,
+            sign_input: SIGNS_TABLE,
+            methods: VecDeque::from([JAPANESE_INPUT, ENGLISH_TABLE]),
+            is_sign: false,
+            kbd_status: KeyboardStatus {
+                left: HandInfo::new(),
+                right: HandInfo::new(),
+                method: CleKeyInputTable {
+                    starts_ime: false,
+                    table: [CleKeyButton::empty(); 8 * 8],
+                },
+                button_idx: 0,
+                buffer: String::new(),
+                closing: false,
+                candidates: vec![],
+                candidates_idx: 0,
+                henkan_using: None,
+            },
+            click_started: Instant::now(),
+            app_status,
+            config,
+            surfaces,
+        };
+
+        result.set_plane(result.methods.front().unwrap());
+
+        result
+    }
+
+    pub(crate) fn set_default_renderers(&mut self) {
+        match self.config.ui_mode {
+            UIMode::TwoRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::left_ring_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::right_ring_renderer;
+                self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
+            }
+            UIMode::OneRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::one_ring_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::nop_renderer;
+                self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
+            }
+        }
+    }
+
+    pub(crate) fn set_henkan_renderers(&mut self) {
+        match self.config.ui_mode {
+            UIMode::TwoRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::left_ring_henkan_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::right_ring_henkan_renderer;
+            }
+            UIMode::OneRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::one_ring_henkan_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::nop_renderer;
+            }
+        }
+    }
+}
+
+struct Surfaces {
+    left_ring: SurfaceInfo,
+    right_ring: SurfaceInfo,
+    center_field: SurfaceInfo,
 }
 
 trait ApplicationStatus {
@@ -322,7 +360,7 @@ impl ApplicationStatus for Waiting {
         app.ovr_controller.hide_all_overlay();
 
         if app.ovr_controller.click_started(HardKeyButton::CloseButton) {
-            app.status = Rc::new(Inputting);
+            app.app_status = Rc::new(Inputting);
         }
     }
 }
@@ -336,7 +374,7 @@ impl ApplicationStatus for Inputting {
             ActionSetKind::Input,
             ActionSetKind::Waiting,
         ]);
-        app.ovr_controller.update_status(&mut app.keyboard.status);
+        app.ovr_controller.update_status(&mut app.kbd_status);
 
         match app.config.ui_mode {
             UIMode::TwoRing => {
@@ -347,18 +385,18 @@ impl ApplicationStatus for Inputting {
                 app.ovr_controller.show_overlay(OverlayPlane::Left);
             }
         }
-        if !app.keyboard.status.buffer.is_empty() {
+        if !app.kbd_status.buffer.is_empty() {
             app.ovr_controller.show_overlay(OverlayPlane::Center);
         } else {
             app.ovr_controller.hide_overlay(OverlayPlane::Center);
         }
 
-        if app.keyboard.tick() {
-            app.status = Rc::new(Waiting);
+        if app.kbd_tick() {
+            app.app_status = Rc::new(Waiting);
         }
 
         if app.ovr_controller.button_status(ButtonKind::SuspendInput) {
-            app.status = Rc::new(Suspending)
+            app.app_status = Rc::new(Suspending)
         }
     }
 }
@@ -371,7 +409,7 @@ impl ApplicationStatus for Suspending {
             .set_active_action_set([ActionSetKind::Suspender]);
         app.ovr_controller.hide_all_overlay();
         if !app.ovr_controller.button_status(ButtonKind::SuspendInput) {
-            app.status = Rc::new(Inputting)
+            app.app_status = Rc::new(Inputting)
         }
     }
 }
@@ -380,6 +418,131 @@ struct SurfaceInfo {
     gl_tex_id: GLuint,
     surface: Surface,
     image: Image,
+    renderer: fn(Surface, app: &Application, fonts: &FontInfo) -> (),
+}
+
+mod renderer_fn {
+    use super::*;
+    use crate::graphics::{draw_center, draw_ring};
+
+    pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontInfo) {}
+
+    pub(crate) fn one_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+        draw_ring::<true>(
+            &mut surface,
+            &app.config.one_ring.ring,
+            fonts,
+            app.kbd_status.button_idx,
+            app.kbd_status.left.selection,
+            app.kbd_status.right.selection,
+            app.kbd_status.left.stick,
+            |current, opposite| app.kbd_status.method.table[8 * current + opposite],
+        );
+    }
+
+    pub(crate) fn left_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+        draw_ring::<true>(
+            &mut surface,
+            &app.config.two_ring.left_ring,
+            fonts,
+            app.kbd_status.button_idx,
+            app.kbd_status.left.selection,
+            app.kbd_status.right.selection,
+            app.kbd_status.left.stick,
+            |current, opposite| app.kbd_status.method.table[8 * current + opposite],
+        );
+    }
+
+    pub(crate) fn right_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+        draw_ring::<false>(
+            &mut surface,
+            &app.config.two_ring.right_ring,
+            fonts,
+            app.kbd_status.button_idx,
+            app.kbd_status.right.selection,
+            app.kbd_status.left.selection,
+            app.kbd_status.right.stick,
+            |current, opposite| app.kbd_status.method.table[current + 8 * opposite],
+        );
+    }
+
+    pub(crate) fn center_field_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+        draw_center(
+            &app.kbd_status,
+            &app.config.two_ring.completion,
+            fonts,
+            &mut surface,
+        );
+    }
+
+    pub(crate) fn henkan_renderer_impl(
+        mut surface: Surface,
+        config: &config::RingOverlayConfig,
+        hand: &HandInfo,
+        fonts: &FontInfo,
+    ) {
+        draw_ring::<false>(
+            &mut surface,
+            config,
+            fonts,
+            0,
+            hand.selection,
+            1,
+            hand.stick,
+            |current, _| ime_specific::BUTTONS[current],
+        );
+    }
+
+    pub(crate) fn left_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+        henkan_renderer_impl(
+            surface,
+            &app.config.two_ring.left_ring,
+            &app.kbd_status.left,
+            fonts,
+        );
+    }
+
+    pub(crate) fn right_ring_henkan_renderer(
+        surface: Surface,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
+        henkan_renderer_impl(
+            surface,
+            &app.config.two_ring.right_ring,
+            &app.kbd_status.right,
+            fonts,
+        );
+    }
+
+    pub(crate) fn one_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+        match app.kbd_status.henkan_using {
+            None => {
+                henkan_renderer_impl(
+                    surface,
+                    &app.config.one_ring.ring,
+                    &app.kbd_status.left,
+                    fonts,
+                );
+            }
+            Some(LeftRight::Left) => {
+                henkan_renderer_impl(
+                    surface,
+                    &app.config.one_ring.ring,
+                    &app.kbd_status.left,
+                    fonts,
+                );
+            }
+            Some(LeftRight::Right) => {
+                henkan_renderer_impl(
+                    surface,
+                    &app.config.one_ring.ring,
+                    &app.kbd_status.right,
+                    fonts,
+                );
+            }
+        }
+    }
 }
 
 fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) -> SurfaceInfo {
@@ -437,6 +600,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
         gl_tex_id,
         surface,
         image,
+        renderer: renderer_fn::nop_renderer,
     }
 }
 
@@ -452,6 +616,10 @@ pub struct HandInfo {
 impl HandInfo {
     pub(crate) fn selection_changed(&self) -> bool {
         self.selection != self.selection_old
+    }
+
+    pub(crate) fn click_started(&self) -> bool {
+        !self.clicking_old && self.clicking
     }
 }
 
@@ -474,6 +642,14 @@ pub struct KeyboardStatus {
     button_idx: usize,
     buffer: String,
     closing: bool,
+    candidates: Vec<HenkanCandidate>,
+    candidates_idx: usize,
+    henkan_using: Option<LeftRight>,
+}
+
+pub struct HenkanCandidate {
+    candidates: Vec<String>,
+    index: usize,
 }
 
 impl KeyboardStatus {
@@ -512,81 +688,39 @@ impl KeyboardStatus {
     }
 }
 
-impl KeyboardStatus {
-    pub fn get_selecting(&self, lr: LeftRight) -> (i8, i8) {
-        match lr {
-            LeftRight::Left => (self.left.selection, self.right.selection),
-            LeftRight::Right => (self.right.selection, self.left.selection),
+impl<'a> Application<'a> {
+    pub(crate) fn kbd_tick(&mut self) -> bool {
+        if self.kbd_status.candidates.is_empty() {
+            self.kbd_inputting_tick()
+        } else {
+            self.kbd_henkan_tick()
         }
     }
 
-    fn stick_pos(&self, lr: LeftRight) -> Vec2 {
-        match lr {
-            LeftRight::Left => self.left.stick,
-            LeftRight::Right => self.right.stick,
-        }
-    }
-}
-
-struct KeyboardManager<'ovr> {
-    ovr_controller: &'ovr OVRController,
-    sign_input: &'static CleKeyInputTable<'static>,
-    methods: VecDeque<&'static CleKeyInputTable<'static>>,
-    is_sign: bool,
-    status: KeyboardStatus,
-    click_started: Instant,
-    config: &'ovr CleKeyConfig,
-}
-
-impl<'ovr> KeyboardManager<'ovr> {
-    pub fn new(ovr: &'ovr OVRController, config: &'ovr CleKeyConfig) -> Self {
-        use input_method::*;
-        let mut result = Self {
-            ovr_controller: ovr,
-            sign_input: SIGNS_TABLE,
-            methods: VecDeque::from([JAPANESE_INPUT, ENGLISH_TABLE]),
-            is_sign: false,
-            status: KeyboardStatus {
-                left: HandInfo::new(),
-                right: HandInfo::new(),
-                method: CleKeyInputTable {
-                    starts_ime: false,
-                    table: [CleKeyButton::empty(); 8 * 8],
-                },
-                button_idx: 0,
-                buffer: String::new(),
-                closing: false,
-            },
-            click_started: Instant::now(),
-            config,
-        };
-
-        result.set_plane(result.methods.front().unwrap());
-
-        result
-    }
-
-    pub(crate) fn tick(&mut self) -> bool {
-        if let Some(button) = self.status.selecting_button() {
-            if self.status.click_started() || self.status.selection_changed() {
+    pub(crate) fn kbd_inputting_tick(&mut self) -> bool {
+        if let Some(button) = self.kbd_status.selecting_button() {
+            if self.kbd_status.click_started() || self.kbd_status.selection_changed() {
                 self.click_started = Instant::now();
-                self.status.button_idx = 0
-            } else if self.status.clicking() {
+                self.kbd_status.button_idx = 0
+            } else if self.kbd_status.clicking() {
                 if button.0.len() != 0 {
                     let dur = Instant::now().duration_since(self.click_started);
                     let millis = dur.as_millis();
                     println!("since: {}, {:?}", millis, self.click_started);
-                    self.status.button_idx =
+                    self.kbd_status.button_idx =
                         (((millis + self.config.click.offset) / self.config.click.length)
                             % button.0.len() as u128) as usize;
                 } else {
-                    self.status.button_idx = 0;
+                    self.kbd_status.button_idx = 0;
                 }
-            } else if self.status.click_stopped() {
-                if let Some(action) = button.0.get(self.status.button_idx).map(|x| &x.action) {
+            } else if self.kbd_status.click_stopped() {
+                if let Some(action) = button.0.get(self.kbd_status.button_idx).map(|x| &x.action) {
                     self.do_input_action(action)
                 }
-                self.status.button_idx = 0;
+                self.kbd_status.button_idx = 0;
+                if take(&mut self.kbd_status.closing) {
+                    return true;
+                }
             }
         }
 
@@ -606,17 +740,74 @@ impl<'ovr> KeyboardManager<'ovr> {
         return false;
     }
 
+    pub(crate) fn kbd_henkan_tick(&mut self) -> bool {
+        fn action_left(app: &mut Application) {
+            if app.kbd_status.left.selection != -1 && app.kbd_status.left.click_started() {
+                app.do_input_action(
+                    &ime_specific::BUTTONS[app.kbd_status.left.selection as usize].0[0].action,
+                );
+            }
+        }
+        fn action_right(app: &mut Application) {
+            if app.kbd_status.right.selection != -1 && app.kbd_status.right.click_started() {
+                app.do_input_action(
+                    &ime_specific::BUTTONS[app.kbd_status.right.selection as usize].0[0].action,
+                );
+            }
+        }
+        match self.config.ui_mode {
+            UIMode::TwoRing => {
+                action_left(self);
+                action_right(self);
+            }
+            UIMode::OneRing => match self.kbd_status.henkan_using {
+                None => {
+                    if self.kbd_status.left.stick != Vec2::ZERO {
+                        self.kbd_status.henkan_using = Some(LeftRight::Left);
+                    } else if self.kbd_status.right.stick != Vec2::ZERO {
+                        self.kbd_status.henkan_using = Some(LeftRight::Right);
+                    }
+                }
+                Some(LeftRight::Left) => {
+                    action_left(self);
+                    if self.kbd_status.left.stick == Vec2::ZERO {
+                        self.kbd_status.henkan_using = None
+                    }
+                }
+                Some(LeftRight::Right) => {
+                    action_right(self);
+                    if self.kbd_status.right.stick == Vec2::ZERO {
+                        self.kbd_status.henkan_using = None
+                    }
+                }
+            },
+        }
+
+        for x in HardKeyButton::VALUES {
+            if self.ovr_controller.click_started(x) {
+                match x {
+                    HardKeyButton::CloseButton => return true,
+                    // nop
+                    #[allow(unreachable_patterns)]
+                    _ => (),
+                }
+            }
+        }
+
+        return false;
+    }
+
     fn do_input_action(&mut self, action: &InputNextAction) {
         match action {
             InputNextAction::EnterChar(c) => {
-                if self.status.method.starts_ime || !self.status.buffer.is_empty() {
-                    self.status.buffer.push(*c);
+                if self.kbd_status.method.starts_ime || !self.kbd_status.buffer.is_empty() {
+                    self.kbd_status.buffer.push(*c);
                     self.set_inputting_table();
                 } else {
                     os::enter_char(*c)
                 }
             }
-            InputNextAction::Extra(f) => f(&mut self.status),
+            InputNextAction::Extra(f) => f(&mut self.kbd_status),
             InputNextAction::Intrinsic(f) => f(self),
         }
     }
@@ -640,36 +831,71 @@ impl<'ovr> KeyboardManager<'ovr> {
     }
 
     pub fn flush(&mut self) {
-        let buffer = std::mem::take(&mut self.status.buffer);
+        let buffer = if self.kbd_status.candidates.is_empty() {
+            std::mem::take(&mut self.kbd_status.buffer)
+        } else {
+            let mut builder = String::new();
+            for x in &self.kbd_status.candidates {
+                builder.push_str(&x.candidates[x.index]);
+            }
+            self.kbd_status.buffer.clear();
+            self.kbd_status.candidates.clear();
+            builder
+        };
         self.set_inputted_table();
         if !buffer.is_empty() {
             os::copy_text_and_enter_paste_shortcut(&buffer);
         }
     }
 
-    fn close_key(mgr: &mut KeyboardManager) {
-        debug_assert!(mgr.status.buffer.is_empty());
-        mgr.status.closing = true;
+    fn close_key(mgr: &mut Application) {
+        debug_assert!(mgr.kbd_status.buffer.is_empty());
+        mgr.kbd_status.closing = true;
     }
 
-    fn henkan_key(mgr: &mut KeyboardManager) {
-        debug_assert!(!mgr.status.buffer.is_empty());
-        // nop currently
+    fn henkan_key(mgr: &mut Application) {
+        debug_assert!(!mgr.kbd_status.buffer.is_empty());
+
+        const QUERY: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+            .add(b' ')
+            .add(b'"')
+            .add(b'#')
+            .add(b'<')
+            .add(b'>');
+
+        if let Some(response) = reqwest::blocking::get(format!(
+            "https://www.google.com/transliterate?langpair=ja-Hira|ja&text={text}",
+            text = percent_encoding::utf8_percent_encode(&mgr.kbd_status.buffer, QUERY)
+        ))
+        .and_then(|x| x.json::<Vec<(String, Vec<String>)>>())
+        .ok()
+        {
+            mgr.kbd_status.candidates_idx = 0;
+            mgr.kbd_status.henkan_using = None;
+            mgr.kbd_status.candidates = response
+                .into_iter()
+                .map(|(_input, candidates)| HenkanCandidate {
+                    candidates,
+                    index: 0,
+                })
+                .collect();
+            mgr.set_henkan_renderers();
+        };
     }
 
-    fn new_line_key(mgr: &mut KeyboardManager) {
-        debug_assert!(mgr.status.buffer.is_empty());
+    fn new_line_key(mgr: &mut Application) {
+        debug_assert!(mgr.kbd_status.buffer.is_empty());
         os::enter_enter();
     }
 
-    fn kakutei_key(mgr: &mut KeyboardManager) {
-        debug_assert!(!mgr.status.buffer.is_empty());
+    fn kakutei_key(mgr: &mut Application) {
+        debug_assert!(!mgr.kbd_status.buffer.is_empty());
         mgr.flush()
     }
 
-    fn backspace_key(mgr: &mut KeyboardManager) {
-        if let Some(_) = mgr.status.buffer.pop() {
-            if mgr.status.buffer.is_empty() {
+    fn backspace_key(mgr: &mut Application) {
+        if let Some(_) = mgr.kbd_status.buffer.pop() {
+            if mgr.kbd_status.buffer.is_empty() {
                 mgr.set_inputted_table();
             }
         } else {
@@ -677,44 +903,47 @@ impl<'ovr> KeyboardManager<'ovr> {
         }
     }
 
-    fn space_key(mgr: &mut KeyboardManager) {
-        if mgr.status.buffer.is_empty() {
+    fn space_key(mgr: &mut Application) {
+        if mgr.kbd_status.buffer.is_empty() {
             os::enter_char(' ');
         } else {
-            mgr.status.buffer.push(' ');
+            mgr.kbd_status.buffer.push(' ');
         }
     }
 
-    fn next_plane_key(mgr: &mut KeyboardManager) {
+    fn next_plane_key(mgr: &mut Application) {
         mgr.move_to_next_plane()
     }
 
-    fn sign_plane_key(mgr: &mut KeyboardManager) {
+    fn sign_plane_key(mgr: &mut Application) {
         mgr.swap_sign_plane()
     }
 }
 
 macro_rules! builtin_button {
-    ($char: literal = $func: ident) => {
+    ($char: literal = $func: expr) => {
         CleKeyButton(&[CleKeyButtonAction {
             shows: $char,
-            action: InputNextAction::Intrinsic(KeyboardManager::$func),
+            action: InputNextAction::Intrinsic($func),
         }])
     };
 }
 
-impl<'ovr> KeyboardManager<'ovr> {
+impl<'ovr> Application<'ovr> {
     fn set_plane(&mut self, table: &CleKeyInputTable<'static>) {
         use input_method::*;
-        self.status.method.clone_from(table);
+        self.kbd_status.method.clone_from(table);
 
-        self.status.method.table[6 * 8 + 6] = builtin_button!("⌫" = backspace_key);
-        self.status.method.table[6 * 8 + 7] = builtin_button!("␣" = space_key);
+        use Application as App;
+        self.kbd_status.method.table[6 * 8 + 6] = builtin_button!("⌫" = App::backspace_key);
+        self.kbd_status.method.table[6 * 8 + 7] = builtin_button!("␣" = App::space_key);
 
-        self.status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}" = next_plane_key); // 🌐
-        self.status.method.table[7 * 8 + 7] = builtin_button!("#+=" = sign_plane_key);
+        // 🌐
+        self.kbd_status.method.table[7 * 8 + 6] =
+            builtin_button!("\u{1F310}" = App::next_plane_key);
+        self.kbd_status.method.table[7 * 8 + 7] = builtin_button!("#+=" = App::sign_plane_key);
 
-        if self.status.buffer.is_empty() {
+        if self.kbd_status.buffer.is_empty() {
             self.set_inputted_table();
         } else {
             self.set_inputting_table();
@@ -723,13 +952,73 @@ impl<'ovr> KeyboardManager<'ovr> {
 
     fn set_inputted_table(&mut self) {
         use input_method::*;
-        self.status.method.table[5 * 8 + 6] = builtin_button!("Close" = close_key);
-        self.status.method.table[5 * 8 + 7] = builtin_button!("⏎" = new_line_key);
+        self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("Close" = Application::close_key);
+        self.kbd_status.method.table[5 * 8 + 7] = builtin_button!("⏎" = Application::new_line_key);
     }
 
     fn set_inputting_table(&mut self) {
         use input_method::*;
-        self.status.method.table[5 * 8 + 6] = builtin_button!("変換" = henkan_key);
-        self.status.method.table[5 * 8 + 7] = builtin_button!("確定" = kakutei_key);
+        self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("変換" = Application::henkan_key);
+        self.kbd_status.method.table[5 * 8 + 7] =
+            builtin_button!("確定" = Application::kakutei_key);
+    }
+}
+
+mod ime_specific {
+    use crate::input_method::{CleKeyButton, CleKeyButtonAction, InputNextAction};
+    use crate::Application;
+
+    pub(crate) static BUTTONS: [CleKeyButton; 8] = [
+        builtin_button!("↑" = up_key),
+        builtin_button!("Cancel" = cancel_key),
+        builtin_button!("→" = right_key),
+        CleKeyButton::empty(),
+        builtin_button!("↓" = down_key),
+        CleKeyButton::empty(),
+        builtin_button!("←" = left_key),
+        builtin_button!("確定" = kakutei_key),
+    ];
+
+    fn cancel_key(mgr: &mut Application) {
+        mgr.kbd_status.candidates.clear();
+        mgr.kbd_status.candidates_idx = 0;
+        mgr.set_default_renderers();
+    }
+
+    fn kakutei_key(mgr: &mut Application) {
+        Application::kakutei_key(mgr);
+        mgr.set_default_renderers();
+    }
+
+    fn up_key(mgr: &mut Application) {
+        let candidate = &mut mgr.kbd_status.candidates[mgr.kbd_status.candidates_idx];
+        if candidate.index == 0 {
+            candidate.index = candidate.candidates.len() - 1;
+        } else {
+            candidate.index -= 1;
+        }
+    }
+
+    fn down_key(mgr: &mut Application) {
+        let candidate = &mut mgr.kbd_status.candidates[mgr.kbd_status.candidates_idx];
+        candidate.index += 1;
+        if candidate.index == candidate.candidates.len() {
+            candidate.index = 0;
+        }
+    }
+
+    fn left_key(mgr: &mut Application) {
+        if mgr.kbd_status.candidates_idx == 0 {
+            mgr.kbd_status.candidates_idx = mgr.kbd_status.candidates.len() - 1;
+        } else {
+            mgr.kbd_status.candidates_idx -= 1;
+        }
+    }
+
+    fn right_key(mgr: &mut Application) {
+        mgr.kbd_status.candidates_idx += 1;
+        if mgr.kbd_status.candidates_idx == mgr.kbd_status.candidates.len() {
+            mgr.kbd_status.candidates_idx = 0;
+        }
     }
 }

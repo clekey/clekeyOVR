@@ -1,7 +1,7 @@
 use super::*;
 use crate::config::{OverlayPositionConfig, UIMode};
 use crate::utils::{IntoStringLossy, ToCString};
-use crate::{CleKeyConfig, HandInfo, KeyboardStatus, LeftRight, Vec2};
+use crate::{CleKeyConfig, LeftRight, Vec2};
 use gl::types::GLuint;
 use glam::Vec3;
 use openvr::overlay::OwnedInVROverlay;
@@ -9,7 +9,6 @@ use openvr::{
     cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
     VRActiveActionSet_t, VRContext,
 };
-use std::f32::consts::PI;
 use std::ffi::c_void;
 use std::fmt::{Display, Formatter};
 use std::path::Path;

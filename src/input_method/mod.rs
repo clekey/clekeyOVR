@@ -1,4 +1,4 @@
-use crate::{KeyboardManager, KeyboardStatus};
+use crate::{Application, KeyboardStatus};
 
 #[derive(Copy, Clone, Debug)]
 pub enum HardKeyButton {
@@ -12,7 +12,7 @@ impl HardKeyButton {
 pub(crate) enum InputNextAction {
     EnterChar(char),
     Extra(fn(&mut KeyboardStatus)),
-    Intrinsic(fn(&mut KeyboardManager)),
+    Intrinsic(fn(&mut Application)),
 }
 
 #[derive(Clone)]
