@@ -1,3 +1,6 @@
 [submodule "openvr-rust-wrapper"]
 	path = openvr
 	url = https://github.com/anatawa12/openvr-rust-wrapper.git
+[submodule "license-gen"]
+	path = license-gen
+	url = https://github.com/anatawa12/license-gen
