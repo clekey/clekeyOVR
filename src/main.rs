@@ -168,14 +168,14 @@ fn main() {
                 .new_from_data(&std::fs::read(e.path()).expect("read data"), None)
                 .expect("new from data");
             font_families.push(face.family_name());
-            println!("loaded: {:?}", face);
+            info!("loaded: {:?}", face);
         }
     }
-    println!("font_families: {:?}", font_families);
+    info!("font_families: {:?}", font_families);
 
     // TODO: find way to use Noto Sans in rendering instead of system fonts
     fonts.set_default_font_manager(Some(font_mgr), None);
-    println!(
+    info!(
         "find_typefaces: {:?}",
         fonts.find_typefaces(
             &font_families,
@@ -260,7 +260,6 @@ fn main() {
         #[cfg(feature = "debug_window")]
         window.swap_buffers();
     }
-    println!("Hello, world!");
 }
 
 struct Application<'a> {
@@ -708,7 +707,6 @@ impl<'a> Application<'a> {
                 if button.0.len() != 0 {
                     let dur = Instant::now().duration_since(self.click_started);
                     let millis = dur.as_millis();
-                    println!("since: {}, {:?}", millis, self.click_started);
                     self.kbd_status.button_idx =
                         (((millis + self.config.click.offset) / self.config.click.length)
                             % button.0.len() as u128) as usize;
@@ -716,6 +714,12 @@ impl<'a> Application<'a> {
                     self.kbd_status.button_idx = 0;
                 }
             } else if self.kbd_status.click_stopped() {
+                info!(
+                    "clicked: {}ms",
+                    Instant::now()
+                        .duration_since(self.click_started)
+                        .as_millis()
+                );
                 if let Some(action) = button.0.get(self.kbd_status.button_idx).map(|x| &x.action) {
                     self.do_input_action(action)
                 }
@@ -834,7 +838,7 @@ impl<'a> Application<'a> {
 
     pub fn flush(&mut self) {
         let buffer = if self.kbd_status.candidates.is_empty() {
-            std::mem::take(&mut self.kbd_status.buffer)
+            take(&mut self.kbd_status.buffer)
         } else {
             let mut builder = String::new();
             for x in &self.kbd_status.candidates {

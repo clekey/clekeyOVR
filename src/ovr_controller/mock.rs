@@ -114,7 +114,7 @@ impl Mocked {
 
     #[cfg(feature = "debug_control")]
     pub(crate) fn accept_debug_control(&mut self, event: glfw::WindowEvent) {
-        println!("key event: {:?}", event);
+        //info!("key event: {:?}", event);
         use glfw::WindowEvent;
         match event {
             WindowEvent::Key(key, _, action, _) => {

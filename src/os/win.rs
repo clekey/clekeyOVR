@@ -1,13 +1,18 @@
+use log::error;
+use once_cell::sync::Lazy;
 use std::ffi::c_int;
 use std::mem::size_of;
-use once_cell::sync::Lazy;
 use std::path::{Path, PathBuf};
 use std::ptr::null;
 use windows::Win32::Foundation::{GetLastError, HANDLE, HWND};
-use windows::Win32::System::DataExchange::{CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData};
+use windows::Win32::System::DataExchange::{
+    CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+};
 use windows::Win32::System::Memory::{GlobalAlloc, GlobalFree, GMEM_FIXED};
 use windows::Win32::System::SystemServices::CF_UNICODETEXT;
-use windows::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_BACK, VK_LCONTROL, VK_LSHIFT};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_BACK, VK_LCONTROL, VK_LSHIFT,
+};
 
 pub fn get_appdata_dir() -> &'static Path {
     static VALUE: Lazy<PathBuf> = Lazy::new(|| {
@@ -59,29 +64,41 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str) {
     // copy string
     unsafe {
         if !OpenClipboard(HWND::default()).as_bool() {
-            eprintln!("could not possible to open clipboard: {:?}", std::io::Error::last_os_error());
-            return
+            error!(
+                "could not possible to open clipboard: {:?}",
+                std::io::Error::last_os_error()
+            );
+            return;
         }
 
         if !EmptyClipboard().as_bool() {
-            eprintln!("could not possible to clear clipboard: {:?}", std::io::Error::last_os_error());
-            return
+            error!(
+                "could not possible to clear clipboard: {:?}",
+                std::io::Error::last_os_error()
+            );
+            return;
         }
-        
+
         let encoded = copy.encode_utf16().chain([0]).collect::<Vec<u16>>();
 
         let allocated = GlobalAlloc(GMEM_FIXED, encoded.len() * size_of::<u16>());
         if allocated == 0 {
-            eprintln!("error in GlobalAlloc: {:?}", std::io::Error::last_os_error());
-            return
+            error!(
+                "error in GlobalAlloc: {:?}",
+                std::io::Error::last_os_error()
+            );
+            return;
         }
         let allocated_slice = std::slice::from_raw_parts_mut(allocated as *mut u16, encoded.len());
         allocated_slice.copy_from_slice(&encoded);
         let allocated = HANDLE(allocated);
         match SetClipboardData(CF_UNICODETEXT.0, allocated) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(_) => {
-                eprintln!("error in SetClipboardData: {:?}", std::io::Error::last_os_error());
+                error!(
+                    "error in SetClipboardData: {:?}",
+                    std::io::Error::last_os_error()
+                );
                 GlobalFree(allocated.0);
                 return;
             }

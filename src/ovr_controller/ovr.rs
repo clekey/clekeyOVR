@@ -4,6 +4,7 @@ use crate::utils::{IntoStringLossy, ToCString};
 use crate::{CleKeyConfig, LeftRight, Vec2};
 use gl::types::GLuint;
 use glam::Vec3;
+use log::info;
 use openvr::overlay::OwnedInVROverlay;
 use openvr::{
     cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
@@ -99,17 +100,17 @@ impl OvrImpl for OVRController {
             )?,
         ];
 
-        println!("action_left_stick:          {}", action_input_left_stick);
-        println!("action_left_click:          {}", action_input_left_click);
-        println!("action_left_haptic:         {}", action_input_left_haptic);
-        println!("action_right_stick:         {}", action_input_right_stick);
-        println!("action_right_click:         {}", action_input_right_click);
-        println!("action_right_haptic:        {}", action_input_right_haptic);
-        println!("action_set_input:           {}", action_set_input);
-        println!("action_waiting_begin_input: {}", action_waiting_begin_input);
-        println!("action_set_waiting:         {}", action_set_waiting);
-        println!("action_suspender_suspender: {}", action_suspender_suspender);
-        println!("action_set_suspender:       {}", action_set_suspender);
+        info!("action_left_stick:          {}", action_input_left_stick);
+        info!("action_left_click:          {}", action_input_left_click);
+        info!("action_left_haptic:         {}", action_input_left_haptic);
+        info!("action_right_stick:         {}", action_input_right_stick);
+        info!("action_right_click:         {}", action_input_right_click);
+        info!("action_right_haptic:        {}", action_input_right_haptic);
+        info!("action_set_input:           {}", action_set_input);
+        info!("action_waiting_begin_input: {}", action_waiting_begin_input);
+        info!("action_set_waiting:         {}", action_set_waiting);
+        info!("action_suspender_suspender: {}", action_suspender_suspender);
+        info!("action_set_suspender:       {}", action_set_suspender);
 
         Ok(Self {
             action_input_left_stick,

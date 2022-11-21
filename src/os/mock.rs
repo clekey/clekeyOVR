@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use log::info;
 use once_cell::sync::Lazy;
 
 #[cfg(not(windows))]
@@ -11,17 +12,17 @@ pub fn get_appdata_dir() -> &'static Path {
 }
 
 pub fn enter_char(c: char) {
-    println!("mock: enter_char: {}", c);
+    info!("mock: enter_char: {}", c);
 }
 
 pub fn enter_backspace() {
-    println!("mock: backspace");
+    info!("mock: backspace");
 }
 
 pub fn enter_enter() {
-    println!("mock: enter");
+    info!("mock: enter");
 }
 
 pub fn copy_text_and_enter_paste_shortcut(copy: &str) {
-    println!("mock: copy: {}", copy);
+    info!("mock: copy: {}", copy);
 }
