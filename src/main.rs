@@ -24,6 +24,7 @@ use skia_safe::{gpu, AlphaType, ColorType, FontMgr, FontStyle, Image, Surface};
 #[cfg(feature = "debug_window")]
 use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
 use std::collections::VecDeque;
+use std::mem::take;
 use std::ptr::null;
 use std::rc::Rc;
 use std::time::Instant;
@@ -717,6 +718,9 @@ impl<'a> Application<'a> {
                     self.do_input_action(action)
                 }
                 self.kbd_status.button_idx = 0;
+                if take(&mut self.kbd_status.closing) {
+                    return true;
+                }
             }
         }
 
