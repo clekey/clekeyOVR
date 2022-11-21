@@ -8,11 +8,24 @@ use skia_safe::textlayout::{
     TextStyle,
 };
 use skia_safe::{op, scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
+use std::array::from_fn;
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
 pub struct FontInfo<'a> {
     pub(crate) collection: FontCollection,
     pub(crate) families: &'a [String],
+}
+
+#[derive(Clone)]
+struct RingChar<'a> {
+    show: &'a str,
+    color: Color4f,
+    size: scalar,
+}
+#[derive(Clone)]
+struct RingInfo<'a> {
+    ring_size: scalar,
+    chars: [RingChar<'a>; 8],
 }
 
 pub fn draw_background_ring(
@@ -100,19 +113,11 @@ fn calc_offsets(size: scalar) -> [Point; 8] {
     ];
 }
 
-fn render_ring_chars<'a>(
-    canvas: &mut Canvas,
-    fonts: &FontInfo,
-    center: Point,
-    size: scalar,
-    get_char: impl Fn(i8) -> (&'a str, Color4f, scalar),
-) {
-    let font_size = size * 0.4;
-    let offsets = calc_offsets(size);
+fn render_ring_chars<'a>(canvas: &mut Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
+    let font_size = ring.ring_size * 0.4;
+    let offsets = calc_offsets(ring.ring_size);
 
-    for i in 0..8 {
-        let pair = get_char(i);
-
+    for (i, char) in ring.chars.iter().enumerate() {
         // first, compute actual font size
         let computed_font_size: scalar = {
             let mut paragraph = ParagraphBuilder::new(
@@ -123,7 +128,7 @@ fn render_ring_chars<'a>(
                 ),
                 &fonts.collection,
             )
-            .add_text(&pair.0)
+            .add_text(&char.show)
             .build();
             paragraph.layout(10000 as _);
             let width = paragraph.max_intrinsic_width() + 1.0;
@@ -131,21 +136,21 @@ fn render_ring_chars<'a>(
             computed_font_size.min(font_size)
         };
 
-        let width = (font_size + 10.0) * pair.2;
-        let actual_font_size = computed_font_size * pair.2;
+        let width = (font_size + 10.0) * char.size;
+        let actual_font_size = computed_font_size * char.size;
 
         let mut paragraph = ParagraphBuilder::new(
             ParagraphStyle::new()
                 .set_text_align(TextAlign::Center)
                 .set_text_style(
                     TextStyle::new()
-                        .set_color(pair.1.to_color())
+                        .set_color(char.color.to_color())
                         .set_font_size(actual_font_size)
                         .set_font_families(&fonts.families),
                 ),
             &fonts.collection,
         )
-        .add_text(&pair.0)
+        .add_text(&char.show)
         .build();
 
         paragraph.layout(width);
@@ -184,16 +189,6 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         config.edge_color,
     );
 
-    let get_color = |idx: i8| -> Color4f {
-        if current == -1 {
-            config.normal_char_color
-        } else if idx == current {
-            config.selecting_char_color
-        } else {
-            config.un_selecting_char_color
-        }
-    };
-
     let (line_step, line_len): (usize, usize) = match side {
         LeftRight::Left => (8, 1),
         LeftRight::Right => (1, 8),
@@ -201,49 +196,30 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
 
     if always_show_in_circle || opposite == -1 {
         let offsets = calc_offsets(radius);
-        #[derive(Clone)]
-        struct RingChar<'a> {
-            show: &'a str,
-            color: Color4f,
-            size: scalar,
-        }
-        impl<'a> Default for RingChar<'a> {
-            fn default() -> Self {
-                Self {
-                    show: Default::default(),
-                    color: TRANSPARENT,
-                    size: Default::default(),
-                }
-            }
-        }
-        #[derive(Clone, Default)]
-        struct RingInfo<'a> {
-            ring_size: scalar,
-            chars: [RingChar<'a>; 8],
-        }
-        let mut prove: [RingInfo; 8] = Default::default();
 
-        // general case. color is not inited because it always depends on current & opposite
-        for (pos_us, ring) in prove.iter_mut().enumerate() {
+        let default_color = if current == -1 {
+            config.normal_char_color
+        } else {
+            config.un_selecting_char_color
+        };
+
+        // initialize with general case.
+        let mut prove: [RingInfo; 8] = from_fn(|pos_us| {
             let col_origin = line_step * pos_us;
-            ring.ring_size = 0.2 * radius;
-            for (idx_us, char) in ring.chars.iter_mut().enumerate() {
-                char.show = {
-                    let key = status.method.table[col_origin + line_len * idx_us].0;
-                    key.first().map(|x| x.shows).unwrap_or("")
-                };
-                char.size = 1.0;
+            RingInfo {
+                ring_size: 0.2 * radius,
+                chars: from_fn(|idx_us| RingChar {
+                    show: {
+                        let key = status.method.table[col_origin + line_len * idx_us].0;
+                        key.first().map(|x| x.shows).unwrap_or("")
+                    },
+                    color: default_color,
+                    size: 1.0,
+                }),
             }
-        }
+        });
 
         if current == -1 {
-            // if current is not selected color
-            for ring in prove.iter_mut() {
-                for char in ring.chars.iter_mut() {
-                    char.color = config.normal_char_color;
-                }
-            }
-
             //if current == -1 and opposite is selected
             //  prove[*].chars[opposite].color = config.selecting_char_in_ring_color;
             if opposite != -1 {
@@ -254,11 +230,6 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
             }
         } else {
             let current = current as usize;
-            for ring in prove.iter_mut() {
-                for char in ring.chars.iter_mut() {
-                    char.color = config.un_selecting_char_color;
-                }
-            }
 
             // for selecting ring, size is 0.22 && set color to selecting_char_color
             let ring = &mut prove[current];
@@ -281,30 +252,34 @@ pub fn draw_ring<const is_left: bool, const always_show_in_circle: bool>(
         }
 
         for (pos, ring) in prove.iter().enumerate() {
-            render_ring_chars(
-                surface.canvas(),
-                fonts,
-                offsets[pos] + center,
-                ring.ring_size,
-                |idx| {
-                    let char = &ring.chars[idx as usize];
-                    (char.show, char.color, char.size)
-                },
-            )
+            render_ring_chars(surface.canvas(), fonts, offsets[pos] + center, ring)
         }
     } else {
         let line_origin = line_len * opposite as usize;
-        render_ring_chars(surface.canvas(), fonts, center, radius, |idx| {
-            (
-                status.method.table[line_origin + line_step * idx as usize]
-                    .0
-                    .first()
-                    .map(|x| x.shows)
-                    .unwrap_or(""),
-                get_color(idx),
-                if idx == current { 1.1 } else { 1.0 },
-            )
-        })
+
+        let default_color = if current == -1 {
+            config.normal_char_color
+        } else {
+            config.un_selecting_char_color
+        };
+
+        let mut ring = RingInfo {
+            ring_size: radius,
+            chars: from_fn(|idx| RingChar {
+                show: {
+                    let key = status.method.table[line_origin + line_step * idx].0;
+                    key.first().map(|x| x.shows).unwrap_or("")
+                },
+                color: default_color,
+                size: 1.0,
+            }),
+        };
+
+        if current != -1 {
+            ring.chars[current as usize].color = config.selecting_char_color;
+            ring.chars[current as usize].size = 1.1;
+        }
+        render_ring_chars(surface.canvas(), fonts, center, &ring)
     }
 
     draw_cursor_circle(
