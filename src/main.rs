@@ -229,6 +229,7 @@ fn main() {
             let width = WINDOW_WIDTH as f32;
             let half_width = width / 2.0;
             canvas
+                .clear(skia_safe::colors::TRANSPARENT)
                 .draw_image_rect_with_sampling_options(
                     &app.surfaces.left_ring.image,
                     None,
@@ -296,6 +297,7 @@ impl<'a> Application<'a> {
                 closing: false,
                 candidates: vec![],
                 candidates_idx: 0,
+                henkan_using: None,
             },
             click_started: Instant::now(),
             app_status,
@@ -319,6 +321,19 @@ impl<'a> Application<'a> {
                 self.surfaces.left_ring.renderer = renderer_fn::one_ring_renderer;
                 self.surfaces.right_ring.renderer = renderer_fn::nop_renderer;
                 self.surfaces.center_field.renderer = renderer_fn::center_field_renderer;
+            }
+        }
+    }
+
+    pub(crate) fn set_henkan_renderers(&mut self) {
+        match self.config.ui_mode {
+            UIMode::TwoRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::left_ring_henkan_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::right_ring_henkan_renderer;
+            }
+            UIMode::OneRing => {
+                self.surfaces.left_ring.renderer = renderer_fn::one_ring_henkan_renderer;
+                self.surfaces.right_ring.renderer = renderer_fn::nop_renderer;
             }
         }
     }
@@ -445,7 +460,7 @@ mod renderer_fn {
             app.kbd_status.button_idx,
             app.kbd_status.right.selection,
             app.kbd_status.left.selection,
-            app.kbd_status.left.stick,
+            app.kbd_status.right.stick,
             |current, opposite| app.kbd_status.method.table[current + 8 * opposite],
         );
     }
@@ -457,6 +472,75 @@ mod renderer_fn {
             fonts,
             &mut surface,
         );
+    }
+
+    pub(crate) fn henkan_renderer_impl(
+        mut surface: Surface,
+        config: &config::RingOverlayConfig,
+        hand: &HandInfo,
+        fonts: &FontInfo,
+    ) {
+        draw_ring::<false>(
+            &mut surface,
+            config,
+            fonts,
+            0,
+            hand.selection,
+            1,
+            hand.stick,
+            |current, _| ime_specific::BUTTONS[current],
+        );
+    }
+
+    pub(crate) fn left_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+        henkan_renderer_impl(
+            surface,
+            &app.config.two_ring.left_ring,
+            &app.kbd_status.left,
+            fonts,
+        );
+    }
+
+    pub(crate) fn right_ring_henkan_renderer(
+        surface: Surface,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
+        henkan_renderer_impl(
+            surface,
+            &app.config.two_ring.right_ring,
+            &app.kbd_status.right,
+            fonts,
+        );
+    }
+
+    pub(crate) fn one_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+        match app.kbd_status.henkan_using {
+            None => {
+                henkan_renderer_impl(
+                    surface,
+                    &app.config.one_ring.ring,
+                    &app.kbd_status.left,
+                    fonts,
+                );
+            }
+            Some(LeftRight::Left) => {
+                henkan_renderer_impl(
+                    surface,
+                    &app.config.one_ring.ring,
+                    &app.kbd_status.left,
+                    fonts,
+                );
+            }
+            Some(LeftRight::Right) => {
+                henkan_renderer_impl(
+                    surface,
+                    &app.config.one_ring.ring,
+                    &app.kbd_status.right,
+                    fonts,
+                );
+            }
+        }
     }
 }
 
@@ -532,6 +616,10 @@ impl HandInfo {
     pub(crate) fn selection_changed(&self) -> bool {
         self.selection != self.selection_old
     }
+
+    pub(crate) fn click_started(&self) -> bool {
+        !self.clicking_old && self.clicking
+    }
 }
 
 impl HandInfo {
@@ -555,6 +643,7 @@ pub struct KeyboardStatus {
     closing: bool,
     candidates: Vec<HenkanCandidate>,
     candidates_idx: usize,
+    henkan_using: Option<LeftRight>,
 }
 
 pub struct HenkanCandidate {
@@ -600,6 +689,14 @@ impl KeyboardStatus {
 
 impl<'a> Application<'a> {
     pub(crate) fn kbd_tick(&mut self) -> bool {
+        if self.kbd_status.candidates.is_empty() {
+            self.kbd_inputting_tick()
+        } else {
+            self.kbd_henkan_tick()
+        }
+    }
+
+    pub(crate) fn kbd_inputting_tick(&mut self) -> bool {
         if let Some(button) = self.kbd_status.selecting_button() {
             if self.kbd_status.click_started() || self.kbd_status.selection_changed() {
                 self.click_started = Instant::now();
@@ -636,6 +733,63 @@ impl<'a> Application<'a> {
                 }
             }
         }
+        return false;
+    }
+
+    pub(crate) fn kbd_henkan_tick(&mut self) -> bool {
+        fn action_left(app: &mut Application) {
+            if app.kbd_status.left.selection != -1 && app.kbd_status.left.click_started() {
+                app.do_input_action(
+                    &ime_specific::BUTTONS[app.kbd_status.left.selection as usize].0[0].action,
+                );
+            }
+        }
+        fn action_right(app: &mut Application) {
+            if app.kbd_status.right.selection != -1 && app.kbd_status.right.click_started() {
+                app.do_input_action(
+                    &ime_specific::BUTTONS[app.kbd_status.right.selection as usize].0[0].action,
+                );
+            }
+        }
+        match self.config.ui_mode {
+            UIMode::TwoRing => {
+                action_left(self);
+                action_right(self);
+            }
+            UIMode::OneRing => match self.kbd_status.henkan_using {
+                None => {
+                    if self.kbd_status.left.stick != Vec2::ZERO {
+                        self.kbd_status.henkan_using = Some(LeftRight::Left);
+                    } else if self.kbd_status.right.stick != Vec2::ZERO {
+                        self.kbd_status.henkan_using = Some(LeftRight::Right);
+                    }
+                }
+                Some(LeftRight::Left) => {
+                    action_left(self);
+                    if self.kbd_status.left.stick == Vec2::ZERO {
+                        self.kbd_status.henkan_using = None
+                    }
+                }
+                Some(LeftRight::Right) => {
+                    action_right(self);
+                    if self.kbd_status.right.stick == Vec2::ZERO {
+                        self.kbd_status.henkan_using = None
+                    }
+                }
+            },
+        }
+
+        for x in HardKeyButton::VALUES {
+            if self.ovr_controller.click_started(x) {
+                match x {
+                    HardKeyButton::CloseButton => return true,
+                    // nop
+                    #[allow(unreachable_patterns)]
+                    _ => (),
+                }
+            }
+        }
+
         return false;
     }
 
@@ -697,7 +851,6 @@ impl<'a> Application<'a> {
 
     fn henkan_key(mgr: &mut Application) {
         debug_assert!(!mgr.kbd_status.buffer.is_empty());
-        // nop currently
 
         const QUERY: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
             .add(b' ')
@@ -714,6 +867,7 @@ impl<'a> Application<'a> {
         .ok()
         {
             mgr.kbd_status.candidates_idx = 0;
+            mgr.kbd_status.henkan_using = None;
             mgr.kbd_status.candidates = response
                 .into_iter()
                 .map(|(_input, candidates)| HenkanCandidate {
@@ -721,6 +875,7 @@ impl<'a> Application<'a> {
                     index: 0,
                 })
                 .collect();
+            mgr.set_henkan_renderers();
         };
     }
 
@@ -762,10 +917,10 @@ impl<'a> Application<'a> {
 }
 
 macro_rules! builtin_button {
-    ($char: literal = $func: ident) => {
+    ($char: literal = $func: expr) => {
         CleKeyButton(&[CleKeyButtonAction {
             shows: $char,
-            action: InputNextAction::Intrinsic(Application::$func),
+            action: InputNextAction::Intrinsic($func),
         }])
     };
 }
@@ -775,11 +930,14 @@ impl<'ovr> Application<'ovr> {
         use input_method::*;
         self.kbd_status.method.clone_from(table);
 
-        self.kbd_status.method.table[6 * 8 + 6] = builtin_button!("⌫" = backspace_key);
-        self.kbd_status.method.table[6 * 8 + 7] = builtin_button!("␣" = space_key);
+        use Application as App;
+        self.kbd_status.method.table[6 * 8 + 6] = builtin_button!("⌫" = App::backspace_key);
+        self.kbd_status.method.table[6 * 8 + 7] = builtin_button!("␣" = App::space_key);
 
-        self.kbd_status.method.table[7 * 8 + 6] = builtin_button!("\u{1F310}" = next_plane_key); // 🌐
-        self.kbd_status.method.table[7 * 8 + 7] = builtin_button!("#+=" = sign_plane_key);
+        // 🌐
+        self.kbd_status.method.table[7 * 8 + 6] =
+            builtin_button!("\u{1F310}" = App::next_plane_key);
+        self.kbd_status.method.table[7 * 8 + 7] = builtin_button!("#+=" = App::sign_plane_key);
 
         if self.kbd_status.buffer.is_empty() {
             self.set_inputted_table();
@@ -790,13 +948,73 @@ impl<'ovr> Application<'ovr> {
 
     fn set_inputted_table(&mut self) {
         use input_method::*;
-        self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("Close" = close_key);
-        self.kbd_status.method.table[5 * 8 + 7] = builtin_button!("⏎" = new_line_key);
+        self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("Close" = Application::close_key);
+        self.kbd_status.method.table[5 * 8 + 7] = builtin_button!("⏎" = Application::new_line_key);
     }
 
     fn set_inputting_table(&mut self) {
         use input_method::*;
-        self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("変換" = henkan_key);
-        self.kbd_status.method.table[5 * 8 + 7] = builtin_button!("確定" = kakutei_key);
+        self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("変換" = Application::henkan_key);
+        self.kbd_status.method.table[5 * 8 + 7] =
+            builtin_button!("確定" = Application::kakutei_key);
+    }
+}
+
+mod ime_specific {
+    use crate::input_method::{CleKeyButton, CleKeyButtonAction, InputNextAction};
+    use crate::Application;
+
+    pub(crate) static BUTTONS: [CleKeyButton; 8] = [
+        builtin_button!("↑" = up_key),
+        builtin_button!("Cancel" = cancel_key),
+        builtin_button!("→" = right_key),
+        CleKeyButton::empty(),
+        builtin_button!("↓" = down_key),
+        CleKeyButton::empty(),
+        builtin_button!("←" = left_key),
+        builtin_button!("確定" = kakutei_key),
+    ];
+
+    fn cancel_key(mgr: &mut Application) {
+        mgr.kbd_status.candidates.clear();
+        mgr.kbd_status.candidates_idx = 0;
+        mgr.set_default_renderers();
+    }
+
+    fn kakutei_key(mgr: &mut Application) {
+        Application::kakutei_key(mgr);
+        mgr.set_default_renderers();
+    }
+
+    fn up_key(mgr: &mut Application) {
+        let candidate = &mut mgr.kbd_status.candidates[mgr.kbd_status.candidates_idx];
+        if candidate.index == 0 {
+            candidate.index = candidate.candidates.len() - 1;
+        } else {
+            candidate.index -= 1;
+        }
+    }
+
+    fn down_key(mgr: &mut Application) {
+        let candidate = &mut mgr.kbd_status.candidates[mgr.kbd_status.candidates_idx];
+        candidate.index += 1;
+        if candidate.index == candidate.candidates.len() {
+            candidate.index = 0;
+        }
+    }
+
+    fn left_key(mgr: &mut Application) {
+        if mgr.kbd_status.candidates_idx == 0 {
+            mgr.kbd_status.candidates_idx = mgr.kbd_status.candidates.len() - 1;
+        } else {
+            mgr.kbd_status.candidates_idx -= 1;
+        }
+    }
+
+    fn right_key(mgr: &mut Application) {
+        mgr.kbd_status.candidates_idx += 1;
+        if mgr.kbd_status.candidates_idx == mgr.kbd_status.candidates.len() {
+            mgr.kbd_status.candidates_idx = 0;
+        }
     }
 }
