@@ -4,6 +4,7 @@ mod config;
 mod global;
 mod graphics;
 mod input_method;
+mod licenses;
 mod os;
 mod ovr_controller;
 mod resources;
@@ -40,6 +41,7 @@ pub enum LeftRight {
 
 fn main() {
     simple_logger::init().unwrap();
+    licenses::check_and_print_exit();
     info!("clekeyOVR version {}", env!("CARGO_PKG_VERSION"));
     info!("features: ");
     macro_rules! feature_log {

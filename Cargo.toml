@@ -2,6 +2,7 @@
 members = [
     ".",
     "openvr",
+    "license-gen"
 ]
 
 [package]
@@ -38,6 +39,7 @@ flate2 = "1"
 tar = "0.4"
 sha2 = "0.10"
 hex = "0.4"
+license-gen = { path = "license-gen" }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.42.0"

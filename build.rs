@@ -23,6 +23,9 @@ fn main() {
 
     pack_resources();
     hash_resources();
+
+    generate_licenses();
+    compress_licenses();
 }
 
 fn out_dir(joins: impl AsRef<Path>) -> PathBuf {
@@ -65,4 +68,21 @@ fn hash_read(mut read: impl io::Read) -> io::Result<Vec<u8>> {
     }
 
     Ok(Vec::from(&hasher.finalize()[..]))
+}
+
+fn generate_licenses() {
+    license_gen::Builder::new()
+        .generate_to_io(File::create(out_dir("licenses.txt")).expect("creating licenses.txt"))
+        .expect("writing licenses.txt");
+}
+
+fn compress_licenses() {
+    io::copy(
+        &mut File::open(out_dir("licenses.txt")).expect("opening licenses.txt"),
+        &mut GzEncoder::new(
+            File::create(out_dir("licenses.gz")).expect("creating licenses.txt"),
+            Compression::default(),
+        ),
+    )
+    .expect("creating licenses.gz");
 }
