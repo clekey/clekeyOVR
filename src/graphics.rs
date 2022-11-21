@@ -1,15 +1,14 @@
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
 use crate::input_method::CleKeyButton;
-use crate::{KeyboardStatus, LeftRight};
+use crate::KeyboardStatus;
 use glam::Vec2;
-use reqwest::get;
 use skia_safe::colors::{BLACK, TRANSPARENT};
 use skia_safe::paint::Style;
 use skia_safe::textlayout::{
     FontCollection, Paragraph, ParagraphBuilder, ParagraphStyle, TextAlign, TextDecoration,
     TextStyle,
 };
-use skia_safe::{op, scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
+use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
 use std::array::from_fn;
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
@@ -141,7 +140,7 @@ fn render_text_in_box(
         computed_font_size.min(box_size)
     };
 
-    let width = (box_size + 10.0);
+    let width = box_size + 10.0;
     let actual_font_size = computed_font_size;
 
     let mut paragraph = ParagraphBuilder::new(
