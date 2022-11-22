@@ -1,6 +1,7 @@
 #[macro_use]
 mod utils;
 mod config;
+mod debug_graphics;
 mod global;
 mod graphics;
 mod input_method;
@@ -95,30 +96,9 @@ fn main() {
 
     // debug block
     #[cfg(feature = "debug_window")]
-    let mut window_surface = {
+    let debug_renderer = unsafe {
         window.make_current();
-        // init gl context here
-        let fbi;
-        unsafe {
-            gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
-            let mut fboid: u32 = 0;
-            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut fboid as *mut u32 as *mut i32);
-            fbi = gpu::gl::FramebufferInfo {
-                fboid,
-                format: gl::RGBA8,
-            };
-        }
-        let target = BackendRenderTarget::new_gl((WINDOW_WIDTH, WINDOW_HEIGHT), None, 8, fbi);
-        Surface::from_backend_render_target(
-            &mut skia_ctx,
-            &target,
-            SurfaceOrigin::BottomLeft,
-            ColorType::RGBA8888,
-            None,
-            None,
-        )
-        .expect("skia debug sufface creation")
+        debug_graphics::DebugRenderer::init()
     };
 
     // openvr initialization
@@ -228,37 +208,16 @@ fn main() {
 
         #[cfg(feature = "debug_window")]
         {
-            let canvas = window_surface.canvas();
-            let width = WINDOW_WIDTH as f32;
-            let half_width = width / 2.0;
-            canvas
-                .clear(skia_safe::colors::TRANSPARENT)
-                .draw_image_rect_with_sampling_options(
-                    &app.surfaces.left_ring.image,
-                    None,
-                    Rect::from_xywh(0.0, 0.0, half_width, half_width),
-                    SamplingOptions::default(),
-                    &Default::default(),
-                )
-                .draw_image_rect_with_sampling_options(
-                    &app.surfaces.right_ring.image,
-                    None,
-                    Rect::from_xywh(half_width, 0.0, half_width, half_width),
-                    SamplingOptions::default(),
-                    &Default::default(),
-                )
-                .draw_image_rect_with_sampling_options(
-                    &app.surfaces.center_field.image,
-                    None,
-                    Rect::from_xywh(0.0, half_width, width, half_width),
-                    SamplingOptions::default(),
-                    &Default::default(),
+            window.make_current();
+            unsafe {
+                debug_renderer.draw(
+                    app.surfaces.left_ring.gl_tex_id,
+                    app.surfaces.right_ring.gl_tex_id,
+                    app.surfaces.center_field.gl_tex_id,
                 );
-            window_surface.flush();
+            }
+            window.swap_buffers();
         }
-
-        #[cfg(feature = "debug_window")]
-        window.swap_buffers();
     }
 }
 
@@ -418,7 +377,6 @@ impl ApplicationStatus for Suspending {
 struct SurfaceInfo {
     gl_tex_id: GLuint,
     surface: Surface,
-    image: Image,
     renderer: fn(Surface, app: &Application, fonts: &FontInfo) -> (),
 }
 
@@ -587,20 +545,10 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
         None,
     )
     .expect("creating surface");
-    let image = Image::from_texture(
-        context,
-        &backend_texture,
-        SurfaceOrigin::BottomLeft,
-        ColorType::RGBA8888,
-        AlphaType::Opaque,
-        None,
-    )
-    .expect("image creation");
 
     SurfaceInfo {
         gl_tex_id,
         surface,
-        image,
         renderer: renderer_fn::nop_renderer,
     }
 }
