@@ -22,9 +22,7 @@ use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
 use skia_safe::textlayout::FontCollection;
-use skia_safe::{gpu, AlphaType, ColorType, FontMgr, FontStyle, Image, Surface};
-#[cfg(feature = "debug_window")]
-use skia_safe::{gpu::BackendRenderTarget, Rect, SamplingOptions};
+use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
 use std::collections::VecDeque;
 use std::mem::take;
 use std::ptr::null;
@@ -121,13 +119,9 @@ fn main() {
             Rc::new(Inputting)
         },
         Surfaces {
-            left_ring: create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT),
-            right_ring: create_surface(&mut skia_ctx.clone().into(), WINDOW_WIDTH, WINDOW_HEIGHT),
-            center_field: create_surface(
-                &mut skia_ctx.clone().into(),
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT / 2,
-            ),
+            left_ring: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT),
+            right_ring: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT),
+            center_field: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT / 2),
         },
     );
 

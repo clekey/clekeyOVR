@@ -3,8 +3,7 @@ use gl::types::{GLenum, GLint, GLsizei, GLuint};
 use log::error;
 use std::mem::size_of_val;
 use std::num::NonZeroU32;
-use std::process::exit;
-use std::ptr::{null, null_mut};
+use std::ptr::null;
 
 pub struct DebugRenderer {
     shader_program: GLuint,
