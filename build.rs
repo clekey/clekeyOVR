@@ -10,11 +10,11 @@ fn main() {
     // default config settings
     if cfg!(feature = "default") {
         let mut feature_debug_window = cfg!(feature = "debug_window");
-        // in debug build, enable debug_window by default
-        if cfg!(debug_assertions) {
-            println!(r#"cargo:rustc-cfg=feature="debug_window""#);
-            feature_debug_window = true
-        }
+        //// in debug build, enable debug_window by default
+        //if cfg!(debug_assertions) {
+        //    println!(r#"cargo:rustc-cfg=feature="debug_window""#);
+        //    feature_debug_window = true
+        //}
         // debug_window without openvr: enable debug_control by default
         if feature_debug_window && cfg!(not(feature = "openvr")) {
             println!(r#"cargo:rustc-cfg=feature="debug_control""#);

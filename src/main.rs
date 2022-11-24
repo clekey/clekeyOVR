@@ -38,6 +38,9 @@ pub enum LeftRight {
     Right = 1,
 }
 
+#[cfg(feature = "debug_window")]
+compile_error!("debug_window feature is not supported");
+
 fn main() {
     simple_logger::init().unwrap();
     licenses::check_and_print_exit();
