@@ -1,6 +1,7 @@
 #[macro_use]
 mod utils;
 mod config;
+#[cfg(feature = "debug_window")]
 mod debug_graphics;
 mod global;
 mod graphics;
@@ -37,6 +38,9 @@ pub enum LeftRight {
     Left = 0,
     Right = 1,
 }
+
+#[cfg(feature = "debug_window")]
+compile_error!("debug_window feature is not supported");
 
 fn main() {
     simple_logger::init().unwrap();
@@ -179,24 +183,40 @@ fn main() {
 
         app.app_status.clone().tick(&mut app);
 
+        // Surface::flush() does not work as expect but the following is working.
+        //  Surface::image_snapshot(<surface>).backend_texture(true);
+        // I don't know why this is working but It's working so I'm using that.
+
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             let surface = &app.surfaces.left_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.left_ring.surface.flush();
+            app.surfaces
+                .left_ring
+                .surface
+                .image_snapshot()
+                .backend_texture(true);
             app.surfaces.left_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             let surface = &app.surfaces.right_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.right_ring.surface.flush();
+            app.surfaces
+                .right_ring
+                .surface
+                .image_snapshot()
+                .backend_texture(true);
             app.surfaces.right_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
             let surface = &app.surfaces.center_field;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.center_field.surface.flush();
+            app.surfaces
+                .center_field
+                .surface
+                .image_snapshot()
+                .backend_texture(true);
             app.surfaces.center_field.gl_tex_id
         });
 
@@ -204,15 +224,69 @@ fn main() {
         {
             window.make_current();
             unsafe {
+                // wipe the drawing surface clear
+                let framebuffer = gl_get_uint::<1>(gl::FRAMEBUFFER_BINDING)[0];
+                let viewport = gl_get_int::<4>(gl::VIEWPORT);
+                let color_clear = gl_get_float::<4>(gl::COLOR_CLEAR_VALUE);
+                let texture_binding_2d = gl_get_uint::<1>(gl::TEXTURE_BINDING_2D)[0];
+                let active_texture = gl_get_uint::<1>(gl::ACTIVE_TEXTURE)[0];
+                if false {
+                    info!("================================");
+                    info!("FRAMEBUFFER_BINDING: {framebuffer:?}");
+                    info!("VIEWPORT: {viewport:?}");
+                    info!("COLOR_CLEAR_VALUE: {color_clear:?}");
+                    info!("TEXTURE_BINDING_2D: {texture_binding_2d:?}");
+                    info!("ACTIVE_TEXTURE: {active_texture:?}");
+                    info!("================================");
+                }
+
+                gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+                gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+                gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+
+                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+
                 debug_renderer.draw(
                     app.surfaces.left_ring.gl_tex_id,
                     app.surfaces.right_ring.gl_tex_id,
                     app.surfaces.center_field.gl_tex_id,
                 );
+                gl::Flush();
+
+                window.swap_buffers();
+
+                gl::ActiveTexture(active_texture);
+                gl::BindTexture(gl::TEXTURE_2D, texture_binding_2d);
+                gl::ClearColor(
+                    color_clear[0],
+                    color_clear[1],
+                    color_clear[2],
+                    color_clear[3],
+                );
+                gl::Viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+                gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
             }
-            window.swap_buffers();
         }
     }
+}
+
+#[cfg(feature = "debug_window")]
+unsafe fn gl_get_uint<const N: usize>(name: gl::types::GLenum) -> [GLuint; N] {
+    gl_get_int::<N>(name).map(|x| x as GLuint)
+}
+
+#[cfg(feature = "debug_window")]
+unsafe fn gl_get_int<const N: usize>(name: gl::types::GLenum) -> [gl::types::GLint; N] {
+    let mut value = [0; N];
+    gl::GetIntegerv(name, value.as_mut_ptr());
+    value
+}
+
+#[cfg(feature = "debug_window")]
+unsafe fn gl_get_float<const N: usize>(name: gl::types::GLenum) -> [gl::types::GLfloat; N] {
+    let mut value = [0.0; N];
+    gl::GetFloatv(name, value.as_mut_ptr());
+    value
 }
 
 struct Application<'a> {

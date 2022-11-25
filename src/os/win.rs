@@ -1,17 +1,15 @@
 use log::error;
 use once_cell::sync::Lazy;
-use std::ffi::c_int;
 use std::mem::size_of;
 use std::path::{Path, PathBuf};
-use std::ptr::null;
-use windows::Win32::Foundation::{GetLastError, HANDLE, HWND};
+use windows::Win32::Foundation::{HANDLE, HWND};
 use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
 };
 use windows::Win32::System::Memory::{GlobalAlloc, GlobalFree, GMEM_FIXED};
 use windows::Win32::System::SystemServices::CF_UNICODETEXT;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_BACK, VK_LCONTROL, VK_LSHIFT,
+    keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_LCONTROL, VK_LSHIFT,
 };
 
 pub fn get_appdata_dir() -> &'static Path {
