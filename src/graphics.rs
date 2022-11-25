@@ -425,7 +425,7 @@ pub fn draw_center(
             .iter()
             .map(|x| x.max_intrinsic_width())
             .fold(f32::NAN, f32::max)
-            - space * 2.0;
+            + space * 2.0;
 
         for (i, p) in paragraphs.into_iter().enumerate() {
             render(
