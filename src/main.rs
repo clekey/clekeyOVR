@@ -182,24 +182,28 @@ fn main() {
 
         app.app_status.clone().tick(&mut app);
 
+        // Surface::flush() does not work as expect but the following is working.
+        //  Surface::image_snapshot(<surface>).backend_texture(true);
+        // I don't know why this is working but It's working so I'm using that.
+
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             let surface = &app.surfaces.left_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.left_ring.surface.flush();
+            app.surfaces.left_ring.surface.image_snapshot().backend_texture(true);
             app.surfaces.left_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             let surface = &app.surfaces.right_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.right_ring.surface.flush();
+            app.surfaces.right_ring.surface.image_snapshot().backend_texture(true);
             app.surfaces.right_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
             let surface = &app.surfaces.center_field;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.center_field.surface.flush();
+            app.surfaces.center_field.surface.image_snapshot().backend_texture(true);
             app.surfaces.center_field.gl_tex_id
         });
 
