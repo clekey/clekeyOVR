@@ -1,6 +1,7 @@
 #[macro_use]
 mod utils;
 mod config;
+#[cfg(feature = "debug_window")]
 mod debug_graphics;
 mod global;
 mod graphics;
@@ -269,16 +270,19 @@ fn main() {
     }
 }
 
+#[cfg(feature = "debug_window")]
 unsafe fn gl_get_uint<const N: usize>(name: gl::types::GLenum) -> [GLuint; N] {
     gl_get_int::<N>(name).map(|x| x as GLuint)
 }
 
+#[cfg(feature = "debug_window")]
 unsafe fn gl_get_int<const N: usize>(name: gl::types::GLenum) -> [gl::types::GLint; N] {
     let mut value = [0; N];
     gl::GetIntegerv(name, value.as_mut_ptr());
     value
 }
 
+#[cfg(feature = "debug_window")]
 unsafe fn gl_get_float<const N: usize>(name: gl::types::GLenum) -> [gl::types::GLfloat; N] {
     let mut value = [0.0; N];
     gl::GetFloatv(name, value.as_mut_ptr());

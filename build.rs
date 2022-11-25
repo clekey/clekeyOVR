@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 fn main() {
     // default config settings
     if cfg!(feature = "default") {
+        #[allow(unused_mut)]
         let mut feature_debug_window = cfg!(feature = "debug_window");
         //// in debug build, enable debug_window by default
         //if cfg!(debug_assertions) {
