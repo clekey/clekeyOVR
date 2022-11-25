@@ -14,6 +14,7 @@ time cargo build \
 # copy compiled binary to dest
 
 
+rm -rf dest
 mkdir -p dest
 TARGETDIR="target/release"
 
