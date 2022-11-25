@@ -189,21 +189,33 @@ fn main() {
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             let surface = &app.surfaces.left_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.left_ring.surface.image_snapshot().backend_texture(true);
+            app.surfaces
+                .left_ring
+                .surface
+                .image_snapshot()
+                .backend_texture(true);
             app.surfaces.left_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             let surface = &app.surfaces.right_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.right_ring.surface.image_snapshot().backend_texture(true);
+            app.surfaces
+                .right_ring
+                .surface
+                .image_snapshot()
+                .backend_texture(true);
             app.surfaces.right_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
             let surface = &app.surfaces.center_field;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces.center_field.surface.image_snapshot().backend_texture(true);
+            app.surfaces
+                .center_field
+                .surface
+                .image_snapshot()
+                .backend_texture(true);
             app.surfaces.center_field.gl_tex_id
         });
 
