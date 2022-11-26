@@ -3,9 +3,12 @@ An experimental keyboard for OpenVR
 
 ## Steps to install (may be changed later)
 
-1. install OpenVR Runtime such as SteamVR.
+1. install SteanVR.
 1. download [latest] release.
 1. Put downloaded binary to place you want.
+1. Configure SteamVR
+  1. SHOW Advanced Settings in SteamVR Settings (not the OpenVR Advanced Settings).
+  1. In Developers settings, Turn on `Enable global input from overlays (Experimental)`.
 
 ## Notice
 
