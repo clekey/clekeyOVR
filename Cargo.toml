@@ -7,7 +7,7 @@ members = [
 
 [package]
 name = "clekey-ovr-rs"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 repository = "https://github.com/anatawa12/clekeyOVR.git"
 license = "GPL-3.0-only"
