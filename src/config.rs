@@ -2,6 +2,7 @@ use crate::global::get_appdata_dir;
 use glam::{Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 use skia_safe::Color4f;
+use std::arch::aarch64::float32x2_t;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -150,7 +151,7 @@ merging_serde! {
     }
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct CleKeyConfig {
     #[serde(rename = "uiMode")]
     pub ui_mode: UIMode,
@@ -159,6 +160,19 @@ pub struct CleKeyConfig {
     #[serde(rename = "oneRing")]
     pub one_ring: OneRingMode,
     pub click: Click,
+    pub fps: f32,
+}
+
+impl Default for CleKeyConfig {
+    fn default() -> Self {
+        Self {
+            ui_mode: Default::default(),
+            two_ring: Default::default(),
+            one_ring: Default::default(),
+            click: Default::default(),
+            fps: 60.0,
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -176,6 +190,7 @@ const _: () = {
         pub one_ring: OptionalValue<OneRingMode>,
         #[serde(default)]
         pub click: OptionalValue<Click>,
+        pub fps: OptionalValue<f32>,
 
         // old config
         #[serde(rename = "leftRing")]
@@ -206,6 +221,7 @@ const _: () = {
             partial.two_ring.merge_value(&mut self.two_ring);
             partial.one_ring.merge_value(&mut self.one_ring);
             partial.click.merge_value(&mut self.click);
+            partial.fps.merge_value(&mut self.fps);
         }
     }
 };

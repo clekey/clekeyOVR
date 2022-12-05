@@ -24,11 +24,13 @@ use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
 use skia_safe::textlayout::FontCollection;
 use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
+use std::arch::aarch64::vraddhn_high_s16;
 use std::collections::VecDeque;
 use std::mem::take;
 use std::ptr::null;
 use std::rc::Rc;
-use std::time::Instant;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -172,7 +174,15 @@ fn main() {
 
     //frame.clear_color();
 
+    // fps throttling
+    let frame_duration = {
+        let actual_fps = config.fps.max(1.0);
+        let frame_dur_nano = Duration::new(1, 0).as_nanos() as f64 / actual_fps as f64;
+        Duration::new(0, frame_dur_nano as u32)
+    };
+
     while !window.should_close() {
+        let frame_end_expected = Instant::now() + frame_duration;
         glfw.poll_events();
         for (_, _event) in glfw::flush_messages(&events) {
             #[cfg(feature = "debug_control")]
@@ -267,6 +277,8 @@ fn main() {
                 gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
             }
         }
+        // sleep for next frame.
+        sleep(frame_end_expected.duration_since(Instant::now()));
     }
 }
 
