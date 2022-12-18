@@ -174,6 +174,8 @@ fn main() {
 
     //frame.clear_color();
 
+    let mut fps_calc = utils::FPSComputer::<30>::new();
+
     // fps throttling
     let frame_duration = {
         let actual_fps = config.fps.max(1.0);
@@ -277,6 +279,8 @@ fn main() {
                 gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
             }
         }
+        let (average, one_frame) = fps_calc.on_frame();
+        print!("FPS: {average:7.3} fps ({one_frame:7.3} fps in short period)\r");
         // sleep for next frame.
         sleep(frame_end_expected.duration_since(Instant::now()));
     }

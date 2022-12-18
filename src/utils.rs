@@ -1,6 +1,7 @@
 use glam::{UVec2, Vec2};
 use std::ffi::{CString, OsString};
 use std::path::PathBuf;
+use std::time::Instant;
 
 pub trait IntoStringLossy {
     /// always convert to string with into_string and to_string_lossy
@@ -105,5 +106,68 @@ pub const fn encode_utf8_raw(code: char) -> [u8; 4] {
             [a, b, c, d]
         }
         _ => unreachable!(),
+    }
+}
+
+pub struct FPSComputer<const AVG_FRAMES: usize> {
+    time_buf: [Instant; AVG_FRAMES],
+    // highest bit indicates if filling (1) or filled (0)
+    cursor: u32,
+    full: bool,
+}
+
+impl<const AVG_FRAMES: usize> FPSComputer<AVG_FRAMES> {
+    pub fn new() -> Self {
+        assert_ne!(AVG_FRAMES, 0, "AVG_FRAMES must not zero");
+        assert!(
+            AVG_FRAMES < u32::MAX as usize,
+            "AVG_FRAMES must not be greater than u32::MAX"
+        );
+        Self {
+            time_buf: [Instant::now(); AVG_FRAMES],
+            cursor: 0,
+            full: false,
+        }
+    }
+
+    // returns (average, one_frame)
+    pub fn on_frame(&mut self) -> (f64, f64) {
+        let now = Instant::now();
+        if !self.full && self.cursor == 0 {
+            // nothing initialized: just init and
+            self.time_buf[self.cursor as usize] = now;
+            self.cursor = 1;
+            if self.cursor == AVG_FRAMES as u32 {
+                // if AVG_FRAMES == 1, it's filled
+                self.cursor = 0;
+                self.full = true;
+            }
+            (0.0, 0.0)
+        } else {
+            let avg_time;
+            let last_time;
+            let frames;
+            if self.full {
+                avg_time = self.time_buf[self.cursor as usize];
+                let last_index =
+                    self.cursor.checked_sub(1).unwrap_or(AVG_FRAMES as u32 - 1) as usize;
+                last_time = self.time_buf[last_index];
+                frames = AVG_FRAMES as f64;
+            } else {
+                assert_ne!(self.cursor, 0);
+                avg_time = self.time_buf[0];
+                last_time = self.time_buf[self.cursor as usize - 1];
+                frames = self.cursor as f64;
+            };
+            let avg_fps = 1.0 / (now - avg_time).as_secs_f64() * frames;
+            let one_fps = 1.0 / (now - last_time).as_secs_f64();
+            self.time_buf[self.cursor as usize] = now;
+            self.cursor += 1;
+            if self.cursor == AVG_FRAMES as u32 {
+                self.cursor = 0;
+                self.full = true;
+            }
+            (avg_fps, one_fps)
+        }
     }
 }
