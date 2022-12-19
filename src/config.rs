@@ -2,7 +2,6 @@ use crate::global::get_appdata_dir;
 use glam::{Vec3, Vec4};
 use serde::{Deserialize, Serialize};
 use skia_safe::Color4f;
-use std::arch::aarch64::float32x2_t;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;

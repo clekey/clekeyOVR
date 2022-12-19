@@ -24,7 +24,6 @@ use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
 use skia_safe::textlayout::FontCollection;
 use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
-use std::arch::aarch64::vraddhn_high_s16;
 use std::collections::VecDeque;
 use std::mem::take;
 use std::ptr::null;
