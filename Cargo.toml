@@ -34,6 +34,7 @@ flate2 = "1"
 tar = "0.4"
 reqwest = { version = "0.11.13", features = ["blocking", "deflate", "gzip", "json"] }
 percent-encoding = "2.2.0"
+bytemuck = "1.13.1"
 
 [build-dependencies]
 flate2 = "1"
@@ -42,14 +43,11 @@ sha2 = "0.10"
 hex = "0.4"
 license-gen = { path = "license-gen" }
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.42.0"
+[target."cfg(windows)".dependencies.winsafe]
+version = "0.0.17"
 features = [
-    "Win32_Foundation",
-    "Win32_System_DataExchange",
-    "Win32_System_Memory",
-    "Win32_System_SystemServices",
-    "Win32_UI_Input_KeyboardAndMouse",
+    "user",
+    "kernel",
 ]
 
 [dependencies.glfw]
