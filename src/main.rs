@@ -201,22 +201,20 @@ fn main() {
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
             let surface = &app.surfaces.left_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces
-                .left_ring
-                .surface
-                .image_snapshot()
-                .backend_texture(true);
+            gpu::images::get_backend_texture_from_image(
+                &app.surfaces.left_ring.surface.image_snapshot(),
+                true,
+            );
             app.surfaces.left_ring.gl_tex_id
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
             let surface = &app.surfaces.right_ring;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces
-                .right_ring
-                .surface
-                .image_snapshot()
-                .backend_texture(true);
+            gpu::images::get_backend_texture_from_image(
+                &app.surfaces.right_ring.surface.image_snapshot(),
+                true,
+            );
             app.surfaces.right_ring.gl_tex_id
         });
 
@@ -635,6 +633,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
                 target: gl::TEXTURE_2D,
                 format: gl::RGBA8,
                 id: gl_tex_id,
+                ..TextureInfo::default()
             },
         )
     };

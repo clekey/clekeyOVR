@@ -343,13 +343,13 @@ pub fn draw_center(
             };
             let not_changing = {
                 let mut style: TextStyle = style.clone();
-                style.decoration_mut().ty |= TextDecoration::UNDERLINE;
+                style.set_decoration_type(TextDecoration::UNDERLINE);
                 style
             };
 
             let changing = {
                 let mut style: TextStyle = style.clone();
-                style.decoration_mut().ty |= TextDecoration::UNDERLINE;
+                style.set_decoration_type(TextDecoration::UNDERLINE);
                 style.set_color(config.inputting_char_color.to_color());
                 style
             };
