@@ -465,6 +465,7 @@ struct SurfaceInfo {
 
 mod renderer_fn {
     use super::*;
+    use crate::config;
     use crate::graphics::{draw_center, draw_ring};
 
     pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontInfo) {}
@@ -519,25 +520,40 @@ mod renderer_fn {
 
     pub(crate) fn henkan_renderer_impl(
         mut surface: Surface,
+        config0: &CleKeyConfig,
         config: &config::RingOverlayConfig,
         hand: &HandInfo,
         fonts: &FontInfo,
     ) {
-        draw_ring::<false>(
-            &mut surface,
-            config,
-            fonts,
-            0,
-            hand.selection,
-            1,
-            hand.stick,
-            |current, _| ime_specific::BUTTONS[current],
-        );
+        if config0.always_enter_paste {
+            draw_ring::<false>(
+                &mut surface,
+                config,
+                fonts,
+                0,
+                hand.selection,
+                1,
+                hand.stick,
+                |current, _| ime_specific::BUTTONS[current],
+            );
+        } else {
+            draw_ring::<false>(
+                &mut surface,
+                config,
+                fonts,
+                0,
+                hand.selection,
+                1,
+                hand.stick,
+                |current, _| ime_specific::BUTTONS_PASTE_OPTIONAL[current],
+            );
+        }
     }
 
     pub(crate) fn left_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
         henkan_renderer_impl(
             surface,
+            app.config,
             &app.config.two_ring.left_ring,
             &app.kbd_status.left,
             fonts,
@@ -551,6 +567,7 @@ mod renderer_fn {
     ) {
         henkan_renderer_impl(
             surface,
+            app.config,
             &app.config.two_ring.right_ring,
             &app.kbd_status.right,
             fonts,
@@ -562,6 +579,7 @@ mod renderer_fn {
             None => {
                 henkan_renderer_impl(
                     surface,
+                    app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.left,
                     fonts,
@@ -570,6 +588,7 @@ mod renderer_fn {
             Some(LeftRight::Left) => {
                 henkan_renderer_impl(
                     surface,
+                    app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.left,
                     fonts,
@@ -578,6 +597,7 @@ mod renderer_fn {
             Some(LeftRight::Right) => {
                 henkan_renderer_impl(
                     surface,
+                    app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.right,
                     fonts,
@@ -837,7 +857,10 @@ impl<'a> Application<'a> {
     fn do_input_action(&mut self, action: &InputNextAction) {
         match action {
             InputNextAction::EnterChar(c) => {
-                if self.kbd_status.method.starts_ime || !self.kbd_status.buffer.is_empty() {
+                if self.config.always_use_buffer
+                    || self.kbd_status.method.starts_ime
+                    || !self.kbd_status.buffer.is_empty()
+                {
                     self.kbd_status.buffer.push(*c);
                     self.set_inputting_table();
                 } else {
@@ -867,7 +890,7 @@ impl<'a> Application<'a> {
         }
     }
 
-    pub fn flush(&mut self) {
+    pub fn flush(&mut self, force_paste: bool) {
         let buffer = if self.kbd_status.candidates.is_empty() {
             take(&mut self.kbd_status.buffer)
         } else {
@@ -881,7 +904,10 @@ impl<'a> Application<'a> {
         };
         self.set_inputted_table();
         if !buffer.is_empty() {
-            os::copy_text_and_enter_paste_shortcut(&buffer);
+            os::copy_text_and_enter_paste_shortcut(
+                &buffer,
+                force_paste || self.config.always_enter_paste,
+            );
         }
     }
 
@@ -927,7 +953,7 @@ impl<'a> Application<'a> {
 
     fn kakutei_key(mgr: &mut Application) {
         debug_assert!(!mgr.kbd_status.buffer.is_empty());
-        mgr.flush()
+        mgr.flush(false)
     }
 
     fn backspace_key(mgr: &mut Application) {
@@ -1016,6 +1042,17 @@ mod ime_specific {
         builtin_button!("確定" = kakutei_key),
     ];
 
+    pub(crate) static BUTTONS_PASTE_OPTIONAL: [CleKeyButton; 8] = [
+        builtin_button!("↑" = up_key),
+        builtin_button!("Cancel" = cancel_key),
+        builtin_button!("→" = right_key),
+        CleKeyButton::empty(),
+        builtin_button!("↓" = down_key),
+        builtin_button!("貼付" = kakutei_paste_key),
+        builtin_button!("←" = left_key),
+        builtin_button!("確定" = kakutei_key),
+    ];
+
     fn cancel_key(mgr: &mut Application) {
         mgr.kbd_status.candidates.clear();
         mgr.kbd_status.candidates_idx = 0;
@@ -1024,6 +1061,11 @@ mod ime_specific {
 
     fn kakutei_key(mgr: &mut Application) {
         Application::kakutei_key(mgr);
+        mgr.set_default_renderers();
+    }
+
+    fn kakutei_paste_key(mgr: &mut Application) {
+        mgr.flush(true);
         mgr.set_default_renderers();
     }
 

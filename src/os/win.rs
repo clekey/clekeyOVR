@@ -16,7 +16,7 @@ pub fn enter_char(c: char) {
     let (vk, shift) = char_to_key_code(c);
     if vk == co::VK::NoValue {
         // fallback to copy & paste
-        copy_text_and_enter_paste_shortcut(&c.to_string());
+        copy_text_and_enter_paste_shortcut(&c.to_string(), true);
     } else {
         if shift {
             input_two_key(co::VK::LSHIFT, vk);
@@ -34,7 +34,7 @@ pub fn enter_enter() {
     input_one_key(co::VK::RETURN);
 }
 
-pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str) {
+pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) {
     let _clipboard = match winsafe::HWND::NULL.OpenClipboard() {
         Ok(guard) => guard,
         Err(e) => return error!("could not possible to open clipboard: {e:?}"),
@@ -63,7 +63,9 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str) {
         Err(e) => return error!("error in SetClipboardData: {e:?}"),
     }
 
-    input_two_key(co::VK::LCONTROL, co::VK::CHAR_V);
+    if paste {
+        input_two_key(co::VK::LCONTROL, co::VK::CHAR_V);
+    }
 }
 
 fn input_one_key(key1: co::VK) {

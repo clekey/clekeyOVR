@@ -23,6 +23,6 @@ pub fn enter_enter() {
     info!("mock: enter");
 }
 
-pub fn copy_text_and_enter_paste_shortcut(copy: &str) {
+pub fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) {
     info!("mock: copy: {}", copy);
 }

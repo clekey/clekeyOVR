@@ -160,6 +160,8 @@ pub struct CleKeyConfig {
     pub one_ring: OneRingMode,
     pub click: Click,
     pub fps: f32,
+    pub always_enter_paste: bool,
+    pub always_use_buffer: bool,
 }
 
 impl Default for CleKeyConfig {
@@ -170,6 +172,8 @@ impl Default for CleKeyConfig {
             one_ring: Default::default(),
             click: Default::default(),
             fps: 60.0,
+            always_enter_paste: true,
+            always_use_buffer: false,
         }
     }
 }
