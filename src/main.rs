@@ -937,8 +937,8 @@ impl<'a> Application<'a> {
             mgr.kbd_status.henkan_using = None;
             mgr.kbd_status.candidates = response
                 .into_iter()
-                .map(|(_input, candidates)| HenkanCandidate {
-                    candidates,
+                .map(|(original, candidates)| HenkanCandidate {
+                    candidates: Self::add_candidates(original, candidates),
                     index: 0,
                 })
                 .collect();
@@ -946,14 +946,19 @@ impl<'a> Application<'a> {
         };
     }
 
+    fn add_candidates(original: String, mut vec: Vec<String>) -> Vec<String> {
+        if !vec.contains(&original) {
+            vec.push(original.clone())
+        }
+
+        // TODO: add カタカナ option?
+
+        vec
+    }
+
     fn new_line_key(mgr: &mut Application) {
         debug_assert!(mgr.kbd_status.buffer.is_empty());
         os::enter_enter();
-    }
-
-    fn kakutei_key(mgr: &mut Application) {
-        debug_assert!(!mgr.kbd_status.buffer.is_empty());
-        mgr.flush(false)
     }
 
     fn backspace_key(mgr: &mut Application) {
@@ -1022,8 +1027,7 @@ impl<'ovr> Application<'ovr> {
     fn set_inputting_table(&mut self) {
         use input_method::*;
         self.kbd_status.method.table[5 * 8 + 6] = builtin_button!("変換" = Application::henkan_key);
-        self.kbd_status.method.table[5 * 8 + 7] =
-            builtin_button!("確定" = Application::kakutei_key);
+        self.kbd_status.method.table[5 * 8 + 7] = CleKeyButton::empty();
     }
 }
 
@@ -1060,7 +1064,8 @@ mod ime_specific {
     }
 
     fn kakutei_key(mgr: &mut Application) {
-        Application::kakutei_key(mgr);
+        debug_assert!(!mgr.kbd_status.buffer.is_empty());
+        mgr.flush(false);
         mgr.set_default_renderers();
     }
 
