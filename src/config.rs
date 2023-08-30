@@ -204,6 +204,10 @@ const _: () = {
         pub right_ring: OptionalValue<RingOverlayConfig>,
         #[serde(default)]
         pub completion: OptionalValue<CompletionOverlayConfig>,
+        #[serde(default)]
+        pub always_enter_paste: OptionalValue<bool>,
+        #[serde(default)]
+        pub always_use_buffer: OptionalValue<bool>,
     }
 
     impl MergeSerialize for CleKeyConfig {
@@ -225,6 +229,12 @@ const _: () = {
             partial.one_ring.merge_value(&mut self.one_ring);
             partial.click.merge_value(&mut self.click);
             partial.fps.merge_value(&mut self.fps);
+            partial
+                .always_enter_paste
+                .merge_value(&mut self.always_enter_paste);
+            partial
+                .always_use_buffer
+                .merge_value(&mut self.always_use_buffer);
         }
     }
 };
@@ -426,6 +436,7 @@ impl MergeSerializePrimitive for i64 {}
 impl MergeSerializePrimitive for i128 {}
 impl MergeSerializePrimitive for f32 {}
 impl MergeSerializePrimitive for f64 {}
+impl MergeSerializePrimitive for bool {}
 impl MergeSerializePrimitive for Vec3 {}
 impl MergeSerializePrimitive for Vec4 {}
 impl MergeSerializePrimitive for String {}
