@@ -3,6 +3,8 @@ use log::error;
 use once_cell::sync::Lazy;
 use std::mem::size_of;
 use std::path::{Path, PathBuf};
+use std::thread::sleep;
+use std::time::Duration;
 use winapi::um::winuser::{keybd_event, KEYEVENTF_KEYUP, VK_LCONTROL, VK_LSHIFT};
 use winsafe::co;
 use winsafe::prelude::*;
@@ -53,9 +55,20 @@ pub fn enter_enter() {
     }
 }
 
+fn open_clipboard(hwnd: winsafe::HWND) -> winsafe::SysResult<winsafe::guard::CloseClipboardGuard<'_>> {
+    for _ in 0..9 {
+        match hwnd.OpenClipboard() {
+            Ok(guard) => return Ok(guard),
+            Err(e) => (),
+        };
+        sleep(Duration::from_millis(100));
+    }
+    hwnd.OpenClipboard()
+}
+
 pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> bool {
     let hwnd = get_hwnd();
-    let _clipboard = match hwnd.OpenClipboard() {
+    let _clipboard = match open_clipboard(hwnd) {
         Ok(guard) => guard,
         Err(e) => {
             error!("could not possible to open clipboard: {e:?}");
