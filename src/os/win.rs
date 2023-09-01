@@ -34,25 +34,35 @@ pub fn enter_enter() {
     input_one_key(co::VK::RETURN);
 }
 
-pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) {
+pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> bool {
     let _clipboard = match winsafe::HWND::NULL.OpenClipboard() {
         Ok(guard) => guard,
-        Err(e) => return error!("could not possible to open clipboard: {e:?}"),
+        Err(e) => {
+            error!("could not possible to open clipboard: {e:?}");
+            return false
+        },
     };
     
     if let Err(e) = winsafe::EmptyClipboard() {
-        return error!("could not possible to clear clipboard: {e:?}");
+        error!("could not possible to clear clipboard: {e:?}");
+        return false
     }
 
     let encoded = copy.encode_utf16().chain([0]).collect::<Vec<u16>>();
     let mut shared_mem = match winsafe::HGLOBAL::GlobalAlloc(Some(co::GMEM::FIXED), encoded.len() * size_of::<u16>()) {
         Ok(guard) => guard,
-        Err(e) => return error!("error in GlobalAlloc: {e:?}"),
+        Err(e) => {
+            error!("error in GlobalAlloc: {e:?}");
+            return false
+        },
     };
 
     let mut mem_region = match shared_mem.GlobalLock() {
         Ok(guard) => guard,
-        Err(e) => return error!("error in GlobalLock: {e:?}"),
+        Err(e) => {
+            error!("error in GlobalLock: {e:?}");
+            return false
+        },
     };
 
     mem_region.as_mut_slice().copy_from_slice(bytemuck::cast_slice(&encoded));
@@ -60,12 +70,16 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) {
 
     match unsafe { winsafe::SetClipboardData(co::CF::UNICODETEXT, shared_mem.leak().ptr() as *mut _) } {
         Ok(_) => {}
-        Err(e) => return error!("error in SetClipboardData: {e:?}"),
+        Err(e) => {
+            error!("error in SetClipboardData: {e:?}");
+            return false
+        },
     }
 
     if paste {
         input_two_key(co::VK::LCONTROL, co::VK::CHAR_V);
     }
+    return true;
 }
 
 fn input_one_key(key1: co::VK) {

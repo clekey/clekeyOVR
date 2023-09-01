@@ -897,23 +897,26 @@ impl<'a> Application<'a> {
     }
 
     pub fn flush(&mut self, force_paste: bool) {
+        let mut builder = String::new();
         let buffer = if self.kbd_status.candidates.is_empty() {
-            take(&mut self.kbd_status.buffer)
+            &self.kbd_status.buffer
         } else {
-            let mut builder = String::new();
             for x in &self.kbd_status.candidates {
                 builder.push_str(&x.candidates[x.index]);
             }
-            self.kbd_status.buffer.clear();
-            self.kbd_status.candidates.clear();
-            builder
+            &builder
         };
-        self.set_inputted_table();
+        let mut success = true;
         if !buffer.is_empty() {
-            os::copy_text_and_enter_paste_shortcut(
+            success = os::copy_text_and_enter_paste_shortcut(
                 &buffer,
                 force_paste || self.config.always_enter_paste,
             );
+        }
+        if success {
+            self.set_inputted_table();
+            self.kbd_status.buffer.clear();
+            self.kbd_status.candidates.clear();
         }
     }
 
