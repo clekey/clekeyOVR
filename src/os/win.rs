@@ -54,7 +54,8 @@ pub fn enter_enter() {
 }
 
 pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> bool {
-    let _clipboard = match get_hwnd().OpenClipboard() {
+    let hwnd = get_hwnd();
+    let _clipboard = match hwnd.OpenClipboard() {
         Ok(guard) => guard,
         Err(e) => {
             error!("could not possible to open clipboard: {e:?}");
@@ -106,7 +107,7 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> boo
     return true;
 }
 
-static CURRENT_HWND: std::sync::atomic::AtomicUsize = Default::default();
+static CURRENT_HWND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 fn get_hwnd() -> winsafe::HWND {
     unsafe {
