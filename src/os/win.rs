@@ -55,7 +55,7 @@ pub fn enter_enter() {
     }
 }
 
-fn open_clipboard(hwnd: winsafe::HWND) -> winsafe::SysResult<winsafe::guard::CloseClipboardGuard<'_>> {
+fn open_clipboard(hwnd: &winsafe::HWND) -> winsafe::SysResult<winsafe::guard::CloseClipboardGuard> {
     for _ in 0..9 {
         match hwnd.OpenClipboard() {
             Ok(guard) => return Ok(guard),
@@ -68,7 +68,7 @@ fn open_clipboard(hwnd: winsafe::HWND) -> winsafe::SysResult<winsafe::guard::Clo
 
 pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> bool {
     let hwnd = get_hwnd();
-    let _clipboard = match open_clipboard(hwnd) {
+    let _clipboard = match open_clipboard(&hwnd) {
         Ok(guard) => guard,
         Err(e) => {
             error!("could not possible to open clipboard: {e:?}");
