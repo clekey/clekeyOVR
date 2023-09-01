@@ -896,7 +896,7 @@ impl<'a> Application<'a> {
         }
     }
 
-    pub fn flush(&mut self, force_paste: bool) {
+    pub fn flush(&mut self, force_paste: bool) -> bool {
         let mut builder = String::new();
         let buffer = if self.kbd_status.candidates.is_empty() {
             &self.kbd_status.buffer
@@ -918,6 +918,7 @@ impl<'a> Application<'a> {
             self.kbd_status.buffer.clear();
             self.kbd_status.candidates.clear();
         }
+        return success;
     }
 
     fn close_key(mgr: &mut Application) {
@@ -1074,13 +1075,15 @@ mod ime_specific {
 
     fn kakutei_key(mgr: &mut Application) {
         debug_assert!(!mgr.kbd_status.buffer.is_empty());
-        mgr.flush(false);
-        mgr.set_default_renderers();
+        if mgr.flush(false) {
+            mgr.set_default_renderers();
+        }
     }
 
     fn kakutei_paste_key(mgr: &mut Application) {
-        mgr.flush(true);
-        mgr.set_default_renderers();
+        if mgr.flush(true) {
+            mgr.set_default_renderers();
+        }
     }
 
     fn up_key(mgr: &mut Application) {
