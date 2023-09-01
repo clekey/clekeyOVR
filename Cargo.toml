@@ -50,6 +50,12 @@ features = [
     "kernel",
 ]
 
+[target."cfg(windows)".dependencies.winapi]
+version = "0.3.9"
+features = [
+    "winuser",
+]
+
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"
 
