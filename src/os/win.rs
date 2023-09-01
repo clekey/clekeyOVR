@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use log::error;
+use log::*;
 use once_cell::sync::Lazy;
 use std::mem::size_of;
 use std::path::{Path, PathBuf};
@@ -56,10 +56,12 @@ pub fn enter_enter() {
 }
 
 fn open_clipboard(hwnd: &winsafe::HWND) -> winsafe::SysResult<winsafe::guard::CloseClipboardGuard> {
-    for _ in 0..9 {
+    for i in 0..9 {
         match hwnd.OpenClipboard() {
             Ok(guard) => return Ok(guard),
-            Err(e) => (),
+            Err(e) => {
+                info!("open failure #{i}: {e:?}");
+            },
         };
         sleep(Duration::from_millis(100));
     }
