@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use log::error;
 use once_cell::sync::Lazy;
 use std::mem::size_of;
@@ -53,7 +54,7 @@ pub fn enter_enter() {
 }
 
 pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> bool {
-    let _clipboard = match winsafe::HWND::NULL.OpenClipboard() {
+    let _clipboard = match get_hwnd().OpenClipboard() {
         Ok(guard) => guard,
         Err(e) => {
             error!("could not possible to open clipboard: {e:?}");
@@ -103,4 +104,16 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> boo
         }
     }
     return true;
+}
+
+static CURRENT_HWND: std::sync::atomic::AtomicUsize = Default::default();
+
+fn get_hwnd() -> winsafe::HWND {
+    unsafe {
+        winsafe::HWND::from_ptr(CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst) as *mut c_void)
+    }
+}
+
+pub(crate) fn set_hwnd(hwnd: *mut c_void) {
+    CURRENT_HWND.swap(hwnd as _, std::sync::atomic::Ordering::SeqCst);
 }
