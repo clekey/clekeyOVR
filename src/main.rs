@@ -26,7 +26,7 @@ use skia_safe::textlayout::FontCollection;
 use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
 use std::collections::VecDeque;
 use std::mem::take;
-use std::ptr::null;
+use std::ptr::{addr_of_mut, null};
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -797,17 +797,24 @@ impl<'a> Application<'a> {
     }
 
     pub(crate) fn kbd_henkan_tick(&mut self) -> bool {
+        fn buttons(app: &Application) -> &'static [CleKeyButton<'static>; 8] {
+            if app.config.always_enter_paste {
+                &ime_specific::BUTTONS
+            } else {
+                &ime_specific::BUTTONS_PASTE_OPTIONAL
+            }
+        }
         fn action_left(app: &mut Application) {
             if app.kbd_status.left.selection != -1 && app.kbd_status.left.click_started() {
                 app.do_input_action(
-                    &ime_specific::BUTTONS[app.kbd_status.left.selection as usize].0[0].action,
+                    &buttons(app)[app.kbd_status.left.selection as usize].0[0].action,
                 );
             }
         }
         fn action_right(app: &mut Application) {
             if app.kbd_status.right.selection != -1 && app.kbd_status.right.click_started() {
                 app.do_input_action(
-                    &ime_specific::BUTTONS[app.kbd_status.right.selection as usize].0[0].action,
+                    &buttons(app)[app.kbd_status.right.selection as usize].0[0].action,
                 );
             }
         }
