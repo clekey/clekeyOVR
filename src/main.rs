@@ -1061,9 +1061,9 @@ mod ime_specific {
         builtin_button!("→" = right_key),
         CleKeyButton::empty(),
         builtin_button!("↓" = down_key),
-        builtin_button!("貼付" = kakutei_paste_key),
-        builtin_button!("←" = left_key),
         builtin_button!("確定" = kakutei_key),
+        builtin_button!("←" = left_key),
+        builtin_button!("貼付" = kakutei_paste_key),
     ];
 
     fn cancel_key(mgr: &mut Application) {
