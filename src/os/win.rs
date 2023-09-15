@@ -49,9 +49,9 @@ pub fn enter_backspace() {
 
 pub fn enter_enter() {
     unsafe {
-        // \x08: backspace
-        keybd_event(b'\x08', 0, 0, 0);
-        keybd_event(b'\x08', 0, KEYEVENTF_KEYUP, 0);
+        // \r: enter
+        keybd_event(b'\r', 0, 0, 0);
+        keybd_event(b'\r', 0, KEYEVENTF_KEYUP, 0);
     }
 }
 
