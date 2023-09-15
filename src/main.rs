@@ -26,7 +26,7 @@ use skia_safe::textlayout::FontCollection;
 use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
 use std::collections::VecDeque;
 use std::mem::take;
-use std::ptr::{addr_of_mut, null};
+use std::ptr::null;
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -224,11 +224,10 @@ fn main() {
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
             let surface = &app.surfaces.center_field;
             (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            app.surfaces
-                .center_field
-                .surface
-                .image_snapshot()
-                .backend_texture(true);
+            gpu::images::get_backend_texture_from_image(
+                &app.surfaces.center_field.surface.image_snapshot(),
+                true,
+            );
             app.surfaces.center_field.gl_tex_id
         });
 
@@ -640,7 +639,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
             },
         )
     };
-    let surface = Surface::from_backend_texture(
+    let surface = gpu::surfaces::wrap_backend_texture(
         context,
         &backend_texture,
         SurfaceOrigin::BottomLeft,
