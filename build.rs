@@ -22,6 +22,10 @@ fn main() {
         }
     }
 
+    if var_os("CARGO_CFG_WINDOWS").is_some() {
+        embed_manifest();
+    }
+
     pack_resources();
     hash_resources();
 
@@ -86,4 +90,16 @@ fn compress_licenses() {
         ),
     )
     .expect("creating licenses.gz");
+}
+
+fn embed_manifest() {
+    use embed_manifest::manifest::*;
+    use embed_manifest::*;
+
+    embed_manifest(
+        new_manifest("clekey ovr")
+            .ui_access(true)
+            .requested_execution_level(ExecutionLevel::HighestAvailable),
+    )
+    .expect("unable to embed manifest file");
 }
