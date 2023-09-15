@@ -800,25 +800,30 @@ impl<'a> Application<'a> {
     }
 
     pub(crate) fn kbd_henkan_tick(&mut self) -> bool {
-        fn buttons(app: &Application) -> &'static [CleKeyButton<'static>; 8] {
-            if app.config.always_enter_paste {
-                &ime_specific::BUTTONS
-            } else {
-                &ime_specific::BUTTONS_PASTE_OPTIONAL
+        fn get_input_action(
+            config: &CleKeyConfig,
+            hand: &HandInfo,
+        ) -> Option<&'static InputNextAction> {
+            if hand.selection != -1 && hand.click_started() {
+                let buttons = if config.always_enter_paste {
+                    &ime_specific::BUTTONS
+                } else {
+                    &ime_specific::BUTTONS_PASTE_OPTIONAL
+                };
+                if let Some(action) = buttons[hand.selection as usize].0.get(0).map(|x| &x.action) {
+                    return Some(action);
+                }
             }
+            None
         }
         fn action_left(app: &mut Application) {
-            if app.kbd_status.left.selection != -1 && app.kbd_status.left.click_started() {
-                app.do_input_action(
-                    &buttons(app)[app.kbd_status.left.selection as usize].0[0].action,
-                );
+            if let Some(action) = get_input_action(&app.config, &app.kbd_status.left) {
+                app.do_input_action(action);
             }
         }
         fn action_right(app: &mut Application) {
-            if app.kbd_status.right.selection != -1 && app.kbd_status.right.click_started() {
-                app.do_input_action(
-                    &buttons(app)[app.kbd_status.right.selection as usize].0[0].action,
-                );
+            if let Some(action) = get_input_action(&app.config, &app.kbd_status.right) {
+                app.do_input_action(action);
             }
         }
         match self.config.ui_mode {
