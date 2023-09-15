@@ -187,7 +187,7 @@ dependencies = [
 
 [[package]]
 name = "clekey-ovr-rs"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "bytemuck",
  "cfg-if",
