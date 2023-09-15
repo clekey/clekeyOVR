@@ -42,7 +42,6 @@ tar = "0.4"
 sha2 = "0.10"
 hex = "0.4"
 license-gen = { path = "license-gen" }
-embed-manifest = "1.3.1"
 
 [target."cfg(windows)".dependencies.winsafe]
 version = "0.0.17"
