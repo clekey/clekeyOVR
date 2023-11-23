@@ -30,7 +30,7 @@ struct RingInfo<'a> {
 }
 
 pub fn draw_background_ring(
-    canvas: &mut Canvas,
+    canvas: &Canvas,
     center: Point,
     radius: f32,
     center_color: Color4f,
@@ -83,7 +83,7 @@ pub fn draw_background_ring(
 }
 
 pub fn draw_cursor_circle(
-    canvas: &mut Canvas,
+    canvas: &Canvas,
     center: Point,
     radius: f32,
     stick: Vec2,
@@ -115,7 +115,7 @@ fn calc_offsets(size: scalar) -> [Point; 8] {
 }
 
 fn render_text_in_box(
-    canvas: &mut Canvas,
+    canvas: &Canvas,
     fonts: &FontInfo,
     box_size: scalar,
     text: &str,
@@ -162,7 +162,7 @@ fn render_text_in_box(
     paragraph.paint(canvas, text_pos);
 }
 
-fn render_ring_chars<'a>(canvas: &mut Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
+fn render_ring_chars<'a>(canvas: &Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
     let font_size = ring.ring_size * 0.4;
     let offsets = calc_offsets(ring.ring_size);
 
@@ -305,7 +305,7 @@ pub fn draw_center(
     const FONT_SIZE_RATIO: scalar = 0.7;
 
     fn render(
-        canvas: &mut Canvas,
+        canvas: &Canvas,
         rect: Rect,
         background_color: Color4f,
         paragraph: impl FnOnce(/*font_size: */ f32) -> Paragraph,
