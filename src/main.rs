@@ -941,6 +941,7 @@ impl<'a> Application<'a> {
             .add(b'"')
             .add(b'#')
             .add(b'<')
+            .add(b'+')
             .add(b'>');
 
         if let Some(response) = reqwest::blocking::get(format!(
