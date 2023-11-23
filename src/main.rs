@@ -68,7 +68,7 @@ fn main() {
     // resource initialization
     resources::init();
     // glfw initialization
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(WindowHint::DoubleBuffer(true));
     glfw.window_hint(WindowHint::ContextVersionMajor(4));
     glfw.window_hint(WindowHint::ContextVersionMinor(1));
