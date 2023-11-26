@@ -61,7 +61,6 @@ impl OvrImpl for OVRController {
         let path = crate::global::get_resources_dir().join("vrmanifest.json");
         application
             .add_application_manifest(path.into_string_lossy().to_c_string().as_c_str(), false)?;
-        application.set_application_auto_launch(cstr!("com.anatawa12.clekey_ovr"), true)?;
 
         let path = resources.join(crate::global::get_resources_dir().join("actions.json"));
 
