@@ -1,6 +1,6 @@
 use glam::{UVec2, Vec2};
 use std::ffi::{CString, OsString};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 pub trait IntoStringLossy {
@@ -53,9 +53,9 @@ impl ToCString for String {
     }
 }
 
-impl ToCString for PathBuf {
+impl ToCString for Path {
     fn to_c_string(&self) -> CString {
-        CString::new(self.into_string_lossy().into_bytes()).unwrap()
+        CString::new(self.to_string_lossy().into_owned().into_bytes()).unwrap()
     }
 }
 
