@@ -68,7 +68,11 @@ impl OvrImpl for OVRController {
 
         make_manifest(&manifest_template, &manifest);
 
-        application.add_application_manifest(&manifest.to_c_string(), false)?;
+        let manifest_cstr = manifest.to_c_string();
+        if application.is_application_installed(cstr!("com.anatawa12.clekey_ovr")) {
+            application.remove_application_manifest(&manifest_cstr)?;
+        }
+        application.add_application_manifest(&manifest_cstr, false)?;
 
         fn make_manifest(template: &Path, output: &Path) {
             let exe_path = std::env::current_exe()
