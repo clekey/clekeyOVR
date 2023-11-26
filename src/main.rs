@@ -113,7 +113,7 @@ fn main() {
 
     load_config(&mut config);
 
-    let ovr_controller = OVRController::new(".".as_ref()).expect("ovr controller");
+    let ovr_controller = OVRController::new(&global::get_resources_dir()).expect("ovr controller");
     ovr_controller
         .load_config(&config)
         .expect("loading config on ovr");

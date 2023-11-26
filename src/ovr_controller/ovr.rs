@@ -58,11 +58,11 @@ impl OvrImpl for OVRController {
         context.system()?;
 
         let application = context.application()?;
-        let path = crate::global::get_resources_dir().join("vrmanifest.json");
+        let path = resources.join("vrmanifest.json");
         application
             .add_application_manifest(path.into_string_lossy().to_c_string().as_c_str(), false)?;
 
-        let path = resources.join(crate::global::get_resources_dir().join("actions.json"));
+        let path = resources.join("actions.json");
 
         input.set_action_manifest_path(path.into_string_lossy().to_c_string().as_c_str())?;
 
