@@ -1,0 +1,11 @@
+{
+  "source" : "builtin",
+  "applications": [
+    {
+      "app_key": "com.anatawa12.clekey_ovr",
+      "launch_type": "binary",
+      "binary_path_windows": "clekey_ovr.exe",
+      "is_dashboard_overlay": true
+    }
+  ]
+}

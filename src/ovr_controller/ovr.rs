@@ -10,6 +10,7 @@ use openvr::{
     cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
     VRActiveActionSet_t, VRContext,
 };
+use std::env::var;
 use std::ffi::c_void;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
@@ -55,6 +56,11 @@ impl OvrImpl for OVRController {
         let overlay = context.overlay()?;
         let input = context.input()?;
         context.system()?;
+
+        let application = context.application()?;
+        let path = crate::global::get_resources_dir().join("vrmanifest.json");
+        application
+            .add_application_manifest(path.into_string_lossy().to_c_string().as_c_str(), false)?;
 
         let path = resources.join(crate::global::get_resources_dir().join("actions.json"));
 
