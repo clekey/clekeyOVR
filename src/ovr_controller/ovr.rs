@@ -60,7 +60,7 @@ impl OvrImpl for OVRController {
 
         let path = resources.join("actions.json");
 
-        input.set_action_manifest_path(path.into_string_lossy().to_c_string().as_c_str())?;
+        input.set_action_manifest_path(&path.to_c_string())?;
 
         let application = context.application()?;
         let manifest_template = resources.join("vrmanifest-template.json");
@@ -68,10 +68,7 @@ impl OvrImpl for OVRController {
 
         make_manifest(&manifest_template, &manifest);
 
-        application.add_application_manifest(
-            manifest.into_string_lossy().to_c_string().as_c_str(),
-            false,
-        )?;
+        application.add_application_manifest(&manifest.to_c_string(), false)?;
 
         fn make_manifest(template: &Path, output: &Path) {
             let exe_path = std::env::current_exe()

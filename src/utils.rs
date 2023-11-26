@@ -53,6 +53,12 @@ impl ToCString for String {
     }
 }
 
+impl ToCString for PathBuf {
+    fn to_c_string(&self) -> CString {
+        CString::new(self.into_string_lossy().into_bytes()).unwrap()
+    }
+}
+
 #[macro_export]
 macro_rules! char_to_str {
     ($char: expr) => {
