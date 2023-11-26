@@ -171,9 +171,9 @@ impl Default for CleKeyConfig {
             two_ring: Default::default(),
             one_ring: Default::default(),
             click: Default::default(),
-            fps: 60.0,
-            always_enter_paste: true,
-            always_use_buffer: false,
+            fps: 72.0,
+            always_enter_paste: false,
+            always_use_buffer: true,
         }
     }
 }
