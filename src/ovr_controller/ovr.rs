@@ -340,6 +340,7 @@ pub enum OVRError {
     Init(openvr::InitError),
     Input(openvr::InputError),
     Overlay(openvr::OverlayError),
+    Application(openvr::ApplicationError),
 }
 
 impl Display for OVRError {
@@ -348,6 +349,7 @@ impl Display for OVRError {
             OVRError::Init(err) => Display::fmt(err, f),
             OVRError::Input(err) => Display::fmt(err, f),
             OVRError::Overlay(err) => Display::fmt(err, f),
+            OVRError::Application(err) => Display::fmt(err, f),
         }
     }
 }
@@ -367,5 +369,11 @@ impl From<openvr::InputError> for OVRError {
 impl From<openvr::OverlayError> for OVRError {
     fn from(v: openvr::OverlayError) -> Self {
         OVRError::Overlay(v)
+    }
+}
+
+impl From<openvr::ApplicationError> for OVRError {
+    fn from(v: openvr::ApplicationError) -> Self {
+        OVRError::Application(v)
     }
 }
