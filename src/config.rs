@@ -241,8 +241,8 @@ const _: () = {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub enum UIMode {
-    #[default]
     TwoRing,
+    #[default]
     OneRing,
 }
 
@@ -337,7 +337,7 @@ impl Default for OneRingMode {
             completion: CompletionOverlayConfig {
                 position: OverlayPositionConfig {
                     yaw: 0.0,
-                    pitch: -30.565,
+                    pitch: -32.0,
                     distance: 0.75,
                     width_radio: 0.333,
                     alpha: 1.0,
