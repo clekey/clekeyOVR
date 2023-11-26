@@ -10,6 +10,7 @@ use openvr::{
     cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
     VRActiveActionSet_t, VRContext,
 };
+use serde_json::{json, Value};
 use std::env::var;
 use std::ffi::c_void;
 use std::fmt::{Display, Formatter};
@@ -57,14 +58,40 @@ impl OvrImpl for OVRController {
         let input = context.input()?;
         context.system()?;
 
-        let application = context.application()?;
-        let path = resources.join("vrmanifest.json");
-        application
-            .add_application_manifest(path.into_string_lossy().to_c_string().as_c_str(), false)?;
-
         let path = resources.join("actions.json");
 
         input.set_action_manifest_path(path.into_string_lossy().to_c_string().as_c_str())?;
+
+        let application = context.application()?;
+        let manifest_template = resources.join("vrmanifest-template.json");
+        let manifest = resources.join("vrmanifest.json");
+
+        make_manifest(&manifest_template, &manifest);
+
+        application.add_application_manifest(
+            manifest.into_string_lossy().to_c_string().as_c_str(),
+            false,
+        )?;
+
+        fn make_manifest(template: &Path, output: &Path) {
+            let exe_path = std::env::current_exe()
+                .expect("exe path")
+                .to_string_lossy()
+                .into_owned();
+
+            let mut manifest_template: Value = serde_json::from_str(
+                &std::fs::read_to_string(&template).expect("opening manifest template"),
+            )
+            .expect("reading template");
+
+            *manifest_template
+                .get_mut("applications")
+                .and_then(|x| x.get_mut(0))
+                .and_then(|x| x.get_mut("binary_path_windows"))
+                .unwrap() = Value::String(exe_path);
+            std::fs::write(output, serde_json::to_string(&manifest_template).unwrap())
+                .expect("writing actual manifest");
+        }
 
         let action_input_left_stick =
             input.get_action_handle(cstr!("/actions/input/in/left_stick"))?;
