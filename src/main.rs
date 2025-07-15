@@ -96,13 +96,16 @@ fn main() {
     os::set_hwnd(window.get_win32_window());
 
     // gl crate initialization
-    gl::load_with(|s| {
+    let loader = |s: &str| {
         glfw.get_proc_address_raw(s)
             .map(|x| x as *const std::ffi::c_void)
             .unwrap_or(null())
-    });
+    };
+    gl::load_with(loader);
 
-    let mut skia_ctx = gpu::DirectContext::new_gl(None, None).expect("skia gpu context creation");
+    let skia_interfaces = gpu::gl::Interface::new_load_with(loader).expect("initializing skia api");
+    let mut skia_ctx =
+        gpu::direct_contexts::make_gl(skia_interfaces, None).expect("skia gpu context creation");
 
     // debug block
     #[cfg(feature = "debug_window")]
