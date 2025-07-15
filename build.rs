@@ -7,6 +7,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(feature,values(\"debug_control\"))");
     // default config settings
     if cfg!(feature = "default") {
         #[allow(unused_mut)]

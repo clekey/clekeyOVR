@@ -59,7 +59,7 @@ pub fn enter_text(text: &str) -> bool {
     if let Err(e) = SendInput(&text.encode_utf16().map(|c| {
         HwKbMouse::Kb(KEYBDINPUT {
             wScan: c,
-            dwFlags: KEYEVENTF_UNICODE,
+            dwFlags: co::KEYEVENTF::UNICODE,
             ..KEYBDINPUT::default()
         })
     }).collect::<Vec<_>>()) {

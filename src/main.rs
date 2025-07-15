@@ -96,7 +96,11 @@ fn main() {
     os::set_hwnd(window.get_win32_window());
 
     // gl crate initialization
-    gl::load_with(|s| glfw.get_proc_address_raw(s));
+    gl::load_with(|s| {
+        glfw.get_proc_address_raw(s)
+            .map(|x| x as *const std::ffi::c_void)
+            .unwrap_or(null())
+    });
 
     let mut skia_ctx = gpu::DirectContext::new_gl(None, None).expect("skia gpu context creation");
 
