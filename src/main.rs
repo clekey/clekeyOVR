@@ -915,10 +915,12 @@ impl<'a> Application<'a> {
         };
         let mut success = true;
         if !buffer.is_empty() {
-            success = os::copy_text_and_enter_paste_shortcut(
-                &buffer,
-                force_paste || self.config.always_enter_paste,
-            );
+            let enter = force_paste || self.config.always_enter_paste;
+            if enter {
+                success = os::enter_text(&buffer)
+            } else {
+                success = os::copy_text(&buffer);
+            }
         }
         if success {
             self.set_inputted_table();

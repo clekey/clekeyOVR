@@ -5,8 +5,8 @@ use std::mem::size_of;
 use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
-use winapi::um::winuser::{keybd_event, KEYEVENTF_KEYUP, VK_LCONTROL, VK_LSHIFT};
-use winsafe::co;
+use winapi::um::winuser::{keybd_event, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, VK_LCONTROL, VK_LSHIFT};
+use winsafe::{co, HwKbMouse, SendInput, INPUT, KEYBDINPUT};
 use winsafe::prelude::*;
 
 pub fn get_appdata_dir() -> &'static Path {
@@ -35,7 +35,7 @@ pub fn enter_char(c: char) {
         }
     } else {
         // fallback to copy & paste
-        copy_text_and_enter_paste_shortcut(&c.to_string(), true);
+        enter_text(&c.to_string());
     }
 }
 
@@ -55,6 +55,20 @@ pub fn enter_enter() {
     }
 }
 
+pub fn enter_text(text: &str) -> bool {
+    if let Err(e) = SendInput(&text.encode_utf16().map(|c| {
+        HwKbMouse::Kb(KEYBDINPUT {
+            wScan: c,
+            dwFlags: KEYEVENTF_UNICODE,
+            ..KEYBDINPUT::default()
+        })
+    }).collect::<Vec<_>>()) {
+        error!("failed to send text: {}", e);
+        return false;
+    }
+    true
+}
+
 fn open_clipboard(hwnd: &winsafe::HWND) -> winsafe::SysResult<winsafe::guard::CloseClipboardGuard> {
     for i in 0..9 {
         match hwnd.OpenClipboard() {
@@ -68,7 +82,7 @@ fn open_clipboard(hwnd: &winsafe::HWND) -> winsafe::SysResult<winsafe::guard::Cl
     hwnd.OpenClipboard()
 }
 
-pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> bool {
+pub(crate) fn copy_text(copy: &str) -> bool {
     let hwnd = get_hwnd();
     let _clipboard = match open_clipboard(&hwnd) {
         Ok(guard) => guard,
@@ -111,14 +125,6 @@ pub(crate) fn copy_text_and_enter_paste_shortcut(copy: &str, paste: bool) -> boo
         },
     }
 
-    if paste {
-        unsafe {
-            keybd_event(VK_LCONTROL as _, 0, Default::default(), 0);
-            keybd_event(b'V', 0, Default::default(), 0);
-            keybd_event(b'V', 0, KEYEVENTF_KEYUP, 0);
-            keybd_event(VK_LCONTROL as _, 0, KEYEVENTF_KEYUP, 0);
-        }
-    }
     return true;
 }
 
