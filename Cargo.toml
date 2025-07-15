@@ -44,7 +44,7 @@ hex = "0.4"
 license-gen = { path = "license-gen" }
 
 [target."cfg(windows)".dependencies.winsafe]
-version = "0.0.18"
+version = "0.0.25"
 features = [
     "user",
     "kernel",

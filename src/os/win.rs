@@ -84,7 +84,7 @@ fn open_clipboard(hwnd: &winsafe::HWND) -> winsafe::SysResult<winsafe::guard::Cl
 
 pub(crate) fn copy_text(copy: &str) -> bool {
     let hwnd = get_hwnd();
-    let _clipboard = match open_clipboard(&hwnd) {
+    let clipboard = match open_clipboard(&hwnd) {
         Ok(guard) => guard,
         Err(e) => {
             error!("could not possible to open clipboard: {e:?}");
@@ -92,32 +92,15 @@ pub(crate) fn copy_text(copy: &str) -> bool {
         },
     };
     
-    if let Err(e) = winsafe::EmptyClipboard() {
+    if let Err(e) = clipboard.EmptyClipboard() {
         error!("could not possible to clear clipboard: {e:?}");
         return false
     }
 
     let encoded = copy.encode_utf16().chain([0]).collect::<Vec<u16>>();
-    let mut shared_mem = match winsafe::HGLOBAL::GlobalAlloc(Some(co::GMEM::FIXED), encoded.len() * size_of::<u16>()) {
-        Ok(guard) => guard,
-        Err(e) => {
-            error!("error in GlobalAlloc: {e:?}");
-            return false
-        },
-    };
+    let clipboard_data = unsafe { std::slice::from_raw_parts(encoded.as_ptr() as *const u8, encoded.len() * 2) };
 
-    let mut mem_region = match shared_mem.GlobalLock() {
-        Ok(guard) => guard,
-        Err(e) => {
-            error!("error in GlobalLock: {e:?}");
-            return false
-        },
-    };
-
-    mem_region.as_mut_slice().copy_from_slice(bytemuck::cast_slice(&encoded));
-    drop(mem_region);
-
-    match unsafe { winsafe::SetClipboardData(co::CF::UNICODETEXT, shared_mem.leak().ptr() as *mut _) } {
+    match clipboard.SetClipboardData(co::CF::UNICODETEXT, clipboard_data) {
         Ok(_) => {}
         Err(e) => {
             error!("error in SetClipboardData: {e:?}");
