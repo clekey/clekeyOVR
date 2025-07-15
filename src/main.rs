@@ -96,11 +96,7 @@ fn main() {
     os::set_hwnd(window.get_win32_window());
 
     // gl crate initialization
-    let loader = |s: &str| {
-        glfw.get_proc_address_raw(s)
-            .map(|x| x as *const std::ffi::c_void)
-            .unwrap_or(null())
-    };
+    let loader = |s: &str| glfw.get_proc_address_raw(s);
     gl::load_with(loader);
 
     let skia_interfaces = gpu::gl::Interface::new_load_with(loader).expect("initializing skia api");
