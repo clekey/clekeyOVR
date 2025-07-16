@@ -229,7 +229,6 @@ dependencies = [
  "simple_logger",
  "skia-safe",
  "tar",
- "winapi",
  "winsafe",
 ]
 

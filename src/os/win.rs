@@ -1,10 +1,9 @@
-use std::ffi::c_void;
 use log::*;
 use once_cell::sync::Lazy;
+use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
-use winapi::um::winuser::{keybd_event, KEYEVENTF_KEYUP, VK_LSHIFT};
 use winsafe::{co, HwKbMouse, SendInput, KEYBDINPUT};
 
 pub fn get_appdata_dir() -> &'static Path {
@@ -14,23 +13,40 @@ pub fn get_appdata_dir() -> &'static Path {
     &*VALUE
 }
 
+fn send_input<const N: usize>(keys: &[co::VK; N]) {
+    let mut inputs = [HwKbMouse::Kb(KEYBDINPUT::default()); N * 2];
+    let mut index = 0;
+
+    for &wVk in keys.iter() {
+        inputs[index] = HwKbMouse::Kb(KEYBDINPUT {
+            wVk,
+            ..KEYBDINPUT::default()
+        });
+    }
+
+    for &wVk in keys.iter().rev() {
+        inputs[index] = HwKbMouse::Kb(KEYBDINPUT {
+            wVk,
+            dwFlags: co::KEYEVENTF::KEYUP,
+            ..KEYBDINPUT::default()
+        });
+    }
+
+    if let Err(e) = SendInput(&inputs) {
+        error!("failed to send input: {}", e);
+    }
+}
+
 pub fn enter_char(c: char) {
     if '0' <= c && c <= '9' || 'a' <= c && c <= 'z' {
         // simple input.
         let c = c.to_ascii_uppercase() as u8;
-        unsafe {
-            keybd_event(c, 0, 0, 0);
-            keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
-        }
+        send_input(&[co::VK(c as u16)]);
     } else if 'A' <= c && c <= 'Z' {
         // input with shift down
         let c = c as u8;
-        unsafe {
-            keybd_event(VK_LSHIFT as _, 0, 0, 0);
-            keybd_event(c, 0, 0, 0);
-            keybd_event(c, 0, KEYEVENTF_KEYUP, 0);
-            keybd_event(VK_LSHIFT as _, 0, KEYEVENTF_KEYUP, 0);
-        }
+
+        send_input(&[co::VK::LSHIFT, co::VK(c as u16)]);
     } else {
         // fallback to copy & paste
         enter_text(&c.to_string());
@@ -38,29 +54,26 @@ pub fn enter_char(c: char) {
 }
 
 pub fn enter_backspace() {
-    unsafe {
-        // \x08: backspace
-        keybd_event(b'\x08', 0, 0, 0);
-        keybd_event(b'\x08', 0, KEYEVENTF_KEYUP, 0);
-    }
+    send_input(&[co::VK::BACK]);
 }
 
 pub fn enter_enter() {
-    unsafe {
-        // \r: enter
-        keybd_event(b'\r', 0, 0, 0);
-        keybd_event(b'\r', 0, KEYEVENTF_KEYUP, 0);
-    }
+    send_input(&[co::VK::RETURN]);
 }
 
 pub fn enter_text(text: &str) -> bool {
-    if let Err(e) = SendInput(&text.encode_utf16().map(|c| {
-        HwKbMouse::Kb(KEYBDINPUT {
-            wScan: c,
-            dwFlags: co::KEYEVENTF::UNICODE,
-            ..KEYBDINPUT::default()
-        })
-    }).collect::<Vec<_>>()) {
+    if let Err(e) = SendInput(
+        &text
+            .encode_utf16()
+            .map(|c| {
+                HwKbMouse::Kb(KEYBDINPUT {
+                    wScan: c,
+                    dwFlags: co::KEYEVENTF::UNICODE,
+                    ..KEYBDINPUT::default()
+                })
+            })
+            .collect::<Vec<_>>(),
+    ) {
         error!("failed to send text: {}", e);
         return false;
     }
@@ -73,7 +86,7 @@ fn open_clipboard(hwnd: &winsafe::HWND) -> winsafe::SysResult<winsafe::guard::Cl
             Ok(guard) => return Ok(guard),
             Err(e) => {
                 info!("open failure #{i}: {e:?}");
-            },
+            }
         };
         sleep(Duration::from_millis(100));
     }
@@ -86,24 +99,25 @@ pub(crate) fn copy_text(copy: &str) -> bool {
         Ok(guard) => guard,
         Err(e) => {
             error!("could not possible to open clipboard: {e:?}");
-            return false
-        },
+            return false;
+        }
     };
-    
+
     if let Err(e) = clipboard.EmptyClipboard() {
         error!("could not possible to clear clipboard: {e:?}");
-        return false
+        return false;
     }
 
     let encoded = copy.encode_utf16().chain([0]).collect::<Vec<u16>>();
-    let clipboard_data = unsafe { std::slice::from_raw_parts(encoded.as_ptr() as *const u8, encoded.len() * 2) };
+    let clipboard_data =
+        unsafe { std::slice::from_raw_parts(encoded.as_ptr() as *const u8, encoded.len() * 2) };
 
     match clipboard.SetClipboardData(co::CF::UNICODETEXT, clipboard_data) {
         Ok(_) => {}
         Err(e) => {
             error!("error in SetClipboardData: {e:?}");
-            return false
-        },
+            return false;
+        }
     }
 
     true
@@ -113,7 +127,9 @@ static CURRENT_HWND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicU
 
 fn get_hwnd() -> winsafe::HWND {
     unsafe {
-        winsafe::HWND::from_ptr(CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst) as *mut c_void)
+        winsafe::HWND::from_ptr(
+            CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst) as *mut c_void
+        )
     }
 }
 
