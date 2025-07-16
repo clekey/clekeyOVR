@@ -14,7 +14,8 @@ pub fn get_appdata_dir() -> &'static Path {
 }
 
 fn send_input<const N: usize>(keys: &[co::VK; N]) {
-    let mut inputs = [HwKbMouse::Kb(KEYBDINPUT::default()); N * 2];
+    //let mut inputs = [HwKbMouse::Kb(KEYBDINPUT::default()); N * 2];
+    let mut inputs = vec![HwKbMouse::Kb(KEYBDINPUT::default()); N * 2];
     let mut index = 0;
 
     for &wVk in keys.iter() {
