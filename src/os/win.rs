@@ -40,13 +40,12 @@ fn send_input<const N: usize>(keys: &[co::VK; N]) {
 pub fn enter_char(c: char) {
     if '0' <= c && c <= '9' || 'a' <= c && c <= 'z' {
         // simple input.
-        let c = c.to_ascii_uppercase() as u8;
-        send_input(&[co::VK(c as u16)]);
+        let key = unsafe { co::VK::from_raw(c as u8 as u16) };
+        send_input(&[key]);
     } else if 'A' <= c && c <= 'Z' {
         // input with shift down
-        let c = c as u8;
-
-        send_input(&[co::VK::LSHIFT, co::VK(c as u16)]);
+        let key = unsafe { co::VK::from_raw(c as u8 as u16) };
+        send_input(&[co::VK::LSHIFT, key]);
     } else {
         // fallback to copy & paste
         enter_text(&c.to_string());
