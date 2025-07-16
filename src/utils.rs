@@ -21,6 +21,7 @@ impl IntoStringLossy for OsString {
     }
 }
 
+#[allow(dead_code)]
 pub trait ToTuple {
     type Tuple;
     fn to_tuple(&self) -> Self::Tuple;
@@ -42,6 +43,7 @@ impl ToTuple for UVec2 {
     }
 }
 
+#[allow(dead_code)]
 pub trait ToCString {
     /// always convert to string with into_string and to_string_lossy
     fn to_c_string(&self) -> CString;

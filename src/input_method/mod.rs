@@ -95,8 +95,7 @@ macro_rules! replace_last_char {
     };
     (@first_init_set $init: expr; $v: expr) => {
         // unstable
-        //$init[$v] = unsafe { std::char::from_u32_unchecked($v + 0x3040) };
-        $init[$v] = unsafe { std::mem::transmute::<u32, char>($v + 0x3040) };
+        $init[$v] = unsafe { std::char::from_u32_unchecked($v + 0x3040) };
     };
 
     (@init $init: expr; $a: literal <=> $b: literal , $($tt:tt)*) => {

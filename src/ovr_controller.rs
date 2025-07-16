@@ -2,7 +2,7 @@ use crate::{CleKeyConfig, HandInfo, KeyboardStatus, LeftRight, Vec2};
 use gl::types::GLuint;
 use std::f32::consts::PI;
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[cfg(not(feature = "openvr"))]
 mod mock;

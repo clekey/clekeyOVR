@@ -1,3 +1,5 @@
+#![allow(double_negations)] // false positive. see https://github.com/rust-lang/rust/issues/143980
+
 #[macro_use]
 mod utils;
 mod config;
@@ -21,7 +23,7 @@ use graphics::FontInfo;
 use log::info;
 use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
-use skia_safe::gpu::{BackendTexture, Mipmapped, SurfaceOrigin};
+use skia_safe::gpu::{Mipmapped, SurfaceOrigin};
 use skia_safe::textlayout::FontCollection;
 use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
 use std::collections::VecDeque;
@@ -631,7 +633,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
     }
 
     let backend_texture = unsafe {
-        BackendTexture::new_gl(
+        gpu::backend_textures::make_gl(
             (width, height),
             Mipmapped::No,
             TextureInfo {
@@ -640,6 +642,7 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
                 id: gl_tex_id,
                 ..TextureInfo::default()
             },
+            "backend_texture",
         )
     };
     let surface = gpu::surfaces::wrap_backend_texture(
