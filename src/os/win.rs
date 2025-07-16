@@ -18,19 +18,21 @@ fn send_input<const N: usize>(keys: &[co::VK; N]) {
     let mut inputs = vec![HwKbMouse::Kb(KEYBDINPUT::default()); N * 2];
     let mut index = 0;
 
-    for &wVk in keys.iter() {
+    for &key in keys.iter() {
         inputs[index] = HwKbMouse::Kb(KEYBDINPUT {
-            wVk,
+            wVk: key,
             ..KEYBDINPUT::default()
         });
+        index += 1;
     }
 
-    for &wVk in keys.iter().rev() {
+    for &key in keys.iter().rev() {
         inputs[index] = HwKbMouse::Kb(KEYBDINPUT {
-            wVk,
+            wVk: key,
             dwFlags: co::KEYEVENTF::KEYUP,
             ..KEYBDINPUT::default()
         });
+        index += 1;
     }
 
     if let Err(e) = SendInput(&inputs) {
