@@ -250,7 +250,7 @@ pub enum UIMode {
 mod serialize_color4f_4f {
     use super::OptionalValue;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use skia_safe::{scalar, Color4f};
+    use skia_safe::{Color4f, scalar};
 
     pub fn serialize<S: Serializer>(value: &Color4f, serializer: S) -> Result<S::Ok, S::Error> {
         Serialize::serialize(value.as_array(), serializer)
@@ -268,7 +268,7 @@ mod serialize_color4f_4f {
 mod serialize_color4f_3f {
     use super::OptionalValue;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use skia_safe::{scalar, Color4f};
+    use skia_safe::{Color4f, scalar};
 
     pub fn serialize<S: Serializer>(value: &Color4f, serializer: S) -> Result<S::Ok, S::Error> {
         Serialize::serialize(&value.as_array()[..3], serializer)

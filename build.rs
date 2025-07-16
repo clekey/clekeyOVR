@@ -1,5 +1,5 @@
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
 use std::env::var_os;
 use std::fs::File;

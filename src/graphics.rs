@@ -1,6 +1,6 @@
+use crate::KeyboardStatus;
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
 use crate::input_method::CleKeyButton;
-use crate::KeyboardStatus;
 use glam::Vec2;
 use skia_safe::colors::{BLACK, TRANSPARENT};
 use skia_safe::paint::Style;
@@ -8,7 +8,7 @@ use skia_safe::textlayout::{
     FontCollection, Paragraph, ParagraphBuilder, ParagraphStyle, TextAlign, TextDecoration,
     TextStyle,
 };
-use skia_safe::{scalar, Canvas, Color4f, Paint, Point, Rect, Surface};
+use skia_safe::{Canvas, Color4f, Paint, Point, Rect, Surface, scalar};
 use std::array::from_fn;
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
 

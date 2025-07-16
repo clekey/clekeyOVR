@@ -13,7 +13,7 @@ mod os;
 mod ovr_controller;
 mod resources;
 
-use crate::config::{load_config, CleKeyConfig, UIMode};
+use crate::config::{CleKeyConfig, UIMode, load_config};
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
@@ -25,7 +25,7 @@ use skia_safe::font_style::{Slant, Weight, Width};
 use skia_safe::gpu::gl::TextureInfo;
 use skia_safe::gpu::{Mipmapped, SurfaceOrigin};
 use skia_safe::textlayout::FontCollection;
-use skia_safe::{gpu, ColorType, FontMgr, FontStyle, Surface};
+use skia_safe::{ColorType, FontMgr, FontStyle, Surface, gpu};
 use std::collections::VecDeque;
 use std::mem::take;
 use std::ptr::null;
@@ -1085,8 +1085,8 @@ impl<'ovr> Application<'ovr> {
 }
 
 mod ime_specific {
-    use crate::input_method::{CleKeyButton, CleKeyButtonAction, InputNextAction};
     use crate::Application;
+    use crate::input_method::{CleKeyButton, CleKeyButtonAction, InputNextAction};
 
     pub(crate) static BUTTONS: [CleKeyButton; 8] = [
         builtin_button!("↑" = up_key),

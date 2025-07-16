@@ -118,9 +118,9 @@ impl Mocked {
         use glfw::WindowEvent;
         match event {
             WindowEvent::Key(key, _, action, _) => {
+                use LeftRight::{Left, Right};
                 use glfw::Action::*;
                 use glfw::Key::*;
-                use LeftRight::{Left, Right};
                 match (key, action) {
                     // following for left stick
                     //ERT

@@ -7,10 +7,10 @@ use glam::Vec3;
 use log::info;
 use openvr::overlay::OwnedInVROverlay;
 use openvr::{
-    cstr, ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
-    VRActiveActionSet_t, VRContext,
+    ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
+    VRActiveActionSet_t, VRContext, cstr,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::env::var;
 use std::ffi::c_void;
 use std::fmt::{Display, Formatter};

@@ -75,15 +75,17 @@ macro_rules! char_to_str {
 //noinspection RsAssertEqual
 /// SAFETY: caller must guarantee bytes have valid UTF8 & suffixed with '\0' if it's not 4 bytes
 pub const unsafe fn encoded_to_str(bytes: &[u8]) -> &str {
-    debug_assert!(bytes.len() == 4, "bytes len is not 4");
-    if bytes[1] == 0 {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes.as_ptr(), 1))
-    } else if bytes[2] == 0 {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes.as_ptr(), 2))
-    } else if bytes[3] == 0 {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes.as_ptr(), 3))
-    } else {
-        std::str::from_utf8_unchecked(bytes)
+    unsafe {
+        debug_assert!(bytes.len() == 4, "bytes len is not 4");
+        if bytes[1] == 0 {
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes.as_ptr(), 1))
+        } else if bytes[2] == 0 {
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes.as_ptr(), 2))
+        } else if bytes[3] == 0 {
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(bytes.as_ptr(), 3))
+        } else {
+            std::str::from_utf8_unchecked(bytes)
+        }
     }
 }
 
