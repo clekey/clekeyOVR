@@ -941,17 +941,44 @@ impl<'a> Application<'a> {
     fn henkan_key(mgr: &mut Application) {
         debug_assert!(!mgr.kbd_status.buffer.is_empty());
 
-        const QUERY: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+        // query percent-encode set     = C0 control percent-encode set + " "#<>"
+        // path percent-encode set      = query percent-encode set + "?^`{}"
+        // userinfo percent-encode set  = path percent-encode set + "/:;=@[\]|"
+        // component percent-encode set = userinfo percent-encode set + "$%&+,"
+        const COMPONENT_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+            // query percent-encode set
             .add(b' ')
             .add(b'"')
             .add(b'#')
             .add(b'<')
+            .add(b'>')
+            // path percent-encode set
+            .add(b'?')
+            .add(b'^')
+            .add(b'`')
+            .add(b'{')
+            .add(b'}')
+            // userinfo percent-encode set
+            .add(b'/')
+            .add(b':')
+            .add(b';')
+            .add(b'=')
+            .add(b'@')
+            .add(b'[')
+            .add(b'\\')
+            .add(b']')
+            .add(b'|')
+            // component percent-encode set
+            .add(b'$')
+            .add(b'%')
+            .add(b'&')
             .add(b'+')
-            .add(b'>');
+            .add(b',');
 
         if let Some(response) = reqwest::blocking::get(format!(
             "https://www.google.com/transliterate?langpair=ja-Hira|ja&text={text}",
-            text = percent_encoding::utf8_percent_encode(&mgr.kbd_status.buffer, QUERY)
+            text =
+                percent_encoding::utf8_percent_encode(&mgr.kbd_status.buffer, COMPONENT_ENCODE_SET)
         ))
         .and_then(|x| x.json::<Vec<(String, Vec<String>)>>())
         .ok()
