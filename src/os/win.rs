@@ -1,19 +1,17 @@
 use std::ffi::c_void;
 use log::*;
 use once_cell::sync::Lazy;
-use std::mem::size_of;
 use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
-use winapi::um::winuser::{keybd_event, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, VK_LCONTROL, VK_LSHIFT};
-use winsafe::{co, HwKbMouse, SendInput, INPUT, KEYBDINPUT};
-use winsafe::prelude::*;
+use winapi::um::winuser::{keybd_event, KEYEVENTF_KEYUP, VK_LSHIFT};
+use winsafe::{co, HwKbMouse, SendInput, KEYBDINPUT};
 
 pub fn get_appdata_dir() -> &'static Path {
     static VALUE: Lazy<PathBuf> = Lazy::new(|| {
         PathBuf::from(std::env::var_os("APPDATA").expect("no APPDATA found")).join("clekey_ovr")
     });
-    return &*VALUE;
+    &*VALUE
 }
 
 pub fn enter_char(c: char) {
@@ -108,7 +106,7 @@ pub(crate) fn copy_text(copy: &str) -> bool {
         },
     }
 
-    return true;
+    true
 }
 
 static CURRENT_HWND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);

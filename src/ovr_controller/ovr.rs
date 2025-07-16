@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::{OverlayPositionConfig, UIMode};
-use crate::utils::{IntoStringLossy, ToCString};
+use crate::utils::ToCString;
 use crate::{CleKeyConfig, LeftRight, Vec2};
 use gl::types::GLuint;
 use glam::Vec3;
@@ -10,8 +10,7 @@ use openvr::{
     ColorSpace, OverlayTexture, TextureType, VRActionHandle_t, VRActionSetHandle_t,
     VRActiveActionSet_t, VRContext, cstr,
 };
-use serde_json::{Value, json};
-use std::env::var;
+use serde_json::Value;
 use std::ffi::c_void;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
