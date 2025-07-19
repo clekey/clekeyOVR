@@ -135,6 +135,24 @@ fn get_hwnd() -> winsafe::HWND {
     }
 }
 
-pub(crate) fn set_hwnd(hwnd: *mut c_void) {
-    CURRENT_HWND.swap(hwnd as _, std::sync::atomic::Ordering::SeqCst);
+pub(crate) fn set_hwnd(_hwnd: *mut c_void) {
+    //CURRENT_HWND.swap(hwnd as _, std::sync::atomic::Ordering::SeqCst);
+
+    let hwnd = {
+        unsafe {
+            winsafe::HWND::CreateWindowEx(
+                Default::default(),
+                winsafe::AtomStr::from_str("STATIC"),
+                None,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                None,
+                winsafe::IdMenu::None,
+                &winsafe::HINSTANCE::GetModuleHandle(None).unwrap(),
+                None
+            ).unwrap()
+        }
+    };
+    CURRENT_HWND.swap(hwnd.ptr() as _, std::sync::atomic::Ordering::SeqCst);
 }

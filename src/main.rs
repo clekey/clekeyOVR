@@ -16,19 +16,25 @@ mod resources;
 use crate::config::{CleKeyConfig, UIMode, load_config};
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
+use font_kit::handle::Handle;
 use gl::types::GLuint;
 use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use graphics::FontInfo;
-use log::info;
-use skia_safe::font_style::{Slant, Weight, Width};
-use skia_safe::gpu::gl::TextureInfo;
-use skia_safe::gpu::{Mipmapped, SurfaceOrigin};
-use skia_safe::textlayout::FontCollection;
-use skia_safe::{ColorType, FontMgr, FontStyle, Surface, gpu};
+use log::{LevelFilter, info};
+use pathfinder_canvas::{Canvas, CanvasFontContext, CanvasRenderingContext2D, Vector2I, vec2i};
+use pathfinder_gl::{GLDevice, GLFramebuffer, GLVersion};
+use pathfinder_gpu::{Device, TextureFormat};
+use pathfinder_renderer::concurrent::rayon::RayonExecutor;
+use pathfinder_renderer::concurrent::scene_proxy::SceneProxy;
+use pathfinder_renderer::gpu::options::{DestFramebuffer, RendererMode, RendererOptions};
+use pathfinder_renderer::gpu::renderer::Renderer;
+use pathfinder_renderer::options::BuildOptions;
+use pathfinder_resources::embedded::EmbeddedResourceLoader;
+use simple_logger::SimpleLogger;
+use std::cell::Cell;
 use std::collections::VecDeque;
 use std::mem::take;
-use std::ptr::null;
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -42,11 +48,11 @@ pub enum LeftRight {
     Right = 1,
 }
 
-#[cfg(feature = "debug_window")]
-compile_error!("debug_window feature is not supported");
-
 fn main() {
-    simple_logger::init().unwrap();
+    SimpleLogger::new()
+        .with_level(LevelFilter::Info)
+        .init()
+        .unwrap();
     licenses::check_and_print_exit();
     info!("clekeyOVR version {}", env!("CARGO_PKG_VERSION"));
     info!("features: ");
@@ -93,17 +99,39 @@ fn main() {
         window.set_key_polling(true);
     }
     window.make_current();
-
-    #[cfg(windows)]
-    os::set_hwnd(window.get_win32_window());
+    window.show();
 
     // gl crate initialization
     let loader = |s: &str| glfw.get_proc_address_raw(s);
     gl::load_with(loader);
 
-    let skia_interfaces = gpu::gl::Interface::new_load_with(loader).expect("initializing skia api");
-    let mut skia_ctx =
-        gpu::direct_contexts::make_gl(skia_interfaces, None).expect("skia gpu context creation");
+    // pathfinder renderer initialization
+    let device = GLDevice::new(GLVersion::GL3, 0);
+    let mode = RendererMode::default_for_device(&device);
+    let mut renderer = Renderer::new(
+        device,
+        &EmbeddedResourceLoader,
+        mode,
+        RendererOptions {
+            dest: DestFramebuffer::full_window(vec2i(WINDOW_WIDTH, WINDOW_HEIGHT)),
+            ..RendererOptions::default()
+        },
+    );
+
+    macro_rules! load_font {
+        ($path: expr) => {
+            Handle::from_memory(Vec::from(include_bytes!($path)).into(), 0)
+        };
+    }
+
+    let font_context = CanvasFontContext::from_fonts(
+        [
+            load_font!("../resources/fonts/NotoSansJP-Medium.otf"),
+            load_font!("../resources/fonts/NotoEmoji-VariableFont_wght.ttf"),
+            load_font!("../resources/fonts/NotoSansSymbols2-Regular.ttf"),
+        ]
+        .into_iter(),
+    );
 
     // debug block
     #[cfg(feature = "debug_window")]
@@ -132,48 +160,17 @@ fn main() {
             Rc::new(Inputting)
         },
         Surfaces {
-            left_ring: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT),
-            right_ring: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT),
-            center_field: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT / 2),
+            left_ring: create_surface(&mut renderer, WINDOW_WIDTH, WINDOW_HEIGHT),
+            right_ring: create_surface(&mut renderer, WINDOW_WIDTH, WINDOW_HEIGHT),
+            center_field: create_surface(&mut renderer, WINDOW_WIDTH, WINDOW_HEIGHT / 2),
         },
     );
 
-    let font_mgr = FontMgr::new();
-    let mut fonts = FontCollection::new();
-    let mut font_families = Vec::new();
-
-    for e in global::get_resources_dir()
-        .join("fonts")
-        .read_dir()
-        .expect("read dir")
-    {
-        let e = e.expect("read dir");
-        if e.path().extension() == Some("otf".as_ref())
-            || e.path().extension() == Some("ttf".as_ref())
-        {
-            let face = font_mgr
-                .new_from_data(&std::fs::read(e.path()).expect("read data"), None)
-                .expect("new from data");
-            font_families.push(face.family_name());
-            info!("loaded: {:?}", face);
-        }
-    }
-    info!("font_families: {:?}", font_families);
-
-    // TODO: find way to use Noto Sans in rendering instead of system fonts
-    fonts.set_default_font_manager(Some(font_mgr), None);
-    info!(
-        "find_typefaces: {:?}",
-        fonts.find_typefaces(
-            &font_families,
-            FontStyle::new(Weight::MEDIUM, Width::NORMAL, Slant::Upright)
-        )
-    );
-
-    let fonts = FontInfo {
-        collection: fonts,
-        families: &font_families,
-    };
+    let fonts = [
+        "NotoSansSymbols2-Regular",
+        "NotoSansJP-Medium",
+        "NotoEmoji-Regular",
+    ];
 
     // gl initialiation
 
@@ -190,7 +187,7 @@ fn main() {
         Duration::new(0, frame_dur_nano as u32)
     };
 
-    while !window.should_close() {
+    loop {
         let frame_end_expected = Instant::now() + frame_duration;
         glfw.poll_events();
         for (_, _event) in glfw::flush_messages(&events) {
@@ -207,33 +204,21 @@ fn main() {
         // I don't know why this is working but It's working so I'm using that.
 
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-            let surface = &app.surfaces.left_ring;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            gpu::images::get_backend_texture_from_image(
-                &app.surfaces.left_ring.surface.image_snapshot(),
-                true,
-            );
-            app.surfaces.left_ring.gl_tex_id
+            app.surfaces
+                .left_ring
+                .render(&app, &fonts, &font_context, &mut renderer)
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-            let surface = &app.surfaces.right_ring;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            gpu::images::get_backend_texture_from_image(
-                &app.surfaces.right_ring.surface.image_snapshot(),
-                true,
-            );
-            app.surfaces.right_ring.gl_tex_id
+            app.surfaces
+                .right_ring
+                .render(&app, &fonts, &font_context, &mut renderer)
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-            let surface = &app.surfaces.center_field;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            gpu::images::get_backend_texture_from_image(
-                &app.surfaces.center_field.surface.image_snapshot(),
-                true,
-            );
-            app.surfaces.center_field.gl_tex_id
+            app.surfaces
+                .center_field
+                .render(&app, &fonts, &font_context, &mut renderer)
         });
 
         #[cfg(feature = "debug_window")]
@@ -464,8 +449,53 @@ impl ApplicationStatus for Suspending {
 
 struct SurfaceInfo {
     gl_tex_id: GLuint,
-    surface: Surface,
-    renderer: fn(Surface, app: &Application, fonts: &FontInfo) -> (),
+    size: Vector2I,
+    frame_buffer: Cell<Option<GLFramebuffer>>,
+    renderer: fn(&mut CanvasRenderingContext2D, app: &Application, fonts: &FontInfo) -> (),
+}
+
+impl SurfaceInfo {
+    fn new(gl_tex_id: GLuint, frame_buffer: GLFramebuffer) -> Self {
+        Self {
+            gl_tex_id,
+            size: frame_buffer.texture.size,
+            frame_buffer: Cell::new(Some(frame_buffer)),
+            renderer: renderer_fn::nop_renderer,
+        }
+    }
+
+    fn render(
+        &self,
+        app: &Application,
+        fonts: &FontInfo,
+        font_context: &CanvasFontContext,
+        renderer: &mut Renderer<GLDevice>,
+    ) -> GLuint {
+        let mut canvas = Canvas::new(self.size.to_f32()).get_context_2d(font_context.clone());
+        (self.renderer)(&mut canvas, &app, &fonts);
+        self.draw_canvas(canvas, renderer);
+        self.gl_tex_id
+    }
+
+    fn draw_canvas(&self, canvas: CanvasRenderingContext2D, renderer: &mut Renderer<GLDevice>) {
+        let before = std::mem::replace(
+            &mut renderer.options_mut().dest,
+            DestFramebuffer::Other(self.frame_buffer.take().unwrap()),
+        );
+        renderer.dest_framebuffer_size_changed();
+        SceneProxy::from_scene(
+            canvas.into_canvas().into_scene(),
+            renderer.mode().level,
+            RayonExecutor,
+        )
+        .build_and_render(renderer, BuildOptions::default());
+        let DestFramebuffer::Other(buffer) =
+            std::mem::replace(&mut renderer.options_mut().dest, before)
+        else {
+            panic!("Surface was not created with DestFramebuffer::Other")
+        };
+        self.frame_buffer.set(Some(buffer));
+    }
 }
 
 mod renderer_fn {
@@ -473,11 +503,15 @@ mod renderer_fn {
     use crate::config;
     use crate::graphics::{draw_center, draw_ring};
 
-    pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontInfo) {}
+    pub(crate) fn nop_renderer(_: &mut CanvasRenderingContext2D, _: &Application, _: &FontInfo) {}
 
-    pub(crate) fn one_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn one_ring_renderer(
+        canvas: &mut CanvasRenderingContext2D,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
         draw_ring::<true>(
-            &mut surface,
+            canvas,
             &app.config.one_ring.ring,
             fonts,
             app.kbd_status.button_idx,
@@ -488,9 +522,13 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn left_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn left_ring_renderer(
+        canvas: &mut CanvasRenderingContext2D,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
         draw_ring::<true>(
-            &mut surface,
+            canvas,
             &app.config.two_ring.left_ring,
             fonts,
             app.kbd_status.button_idx,
@@ -501,9 +539,13 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn right_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn right_ring_renderer(
+        canvas: &mut CanvasRenderingContext2D,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
         draw_ring::<false>(
-            &mut surface,
+            canvas,
             &app.config.two_ring.right_ring,
             fonts,
             app.kbd_status.button_idx,
@@ -514,17 +556,21 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn center_field_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn center_field_renderer(
+        canvas: &mut CanvasRenderingContext2D,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
         draw_center(
             &app.kbd_status,
             &app.config.two_ring.completion,
             fonts,
-            &mut surface,
+            canvas,
         );
     }
 
     pub(crate) fn henkan_renderer_impl(
-        mut surface: Surface,
+        surface: &mut CanvasRenderingContext2D,
         config0: &CleKeyConfig,
         config: &config::RingOverlayConfig,
         hand: &HandInfo,
@@ -532,7 +578,7 @@ mod renderer_fn {
     ) {
         if config0.always_enter_paste {
             draw_ring::<false>(
-                &mut surface,
+                surface,
                 config,
                 fonts,
                 0,
@@ -543,7 +589,7 @@ mod renderer_fn {
             );
         } else {
             draw_ring::<false>(
-                &mut surface,
+                surface,
                 config,
                 fonts,
                 0,
@@ -555,9 +601,13 @@ mod renderer_fn {
         }
     }
 
-    pub(crate) fn left_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn left_ring_henkan_renderer(
+        canvas: &mut CanvasRenderingContext2D,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
         henkan_renderer_impl(
-            surface,
+            canvas,
             app.config,
             &app.config.two_ring.left_ring,
             &app.kbd_status.left,
@@ -566,12 +616,12 @@ mod renderer_fn {
     }
 
     pub(crate) fn right_ring_henkan_renderer(
-        surface: Surface,
+        canvas: &mut CanvasRenderingContext2D,
         app: &Application,
         fonts: &FontInfo,
     ) {
         henkan_renderer_impl(
-            surface,
+            canvas,
             app.config,
             &app.config.two_ring.right_ring,
             &app.kbd_status.right,
@@ -579,11 +629,15 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn one_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn one_ring_henkan_renderer(
+        canvas: &mut CanvasRenderingContext2D,
+        app: &Application,
+        fonts: &FontInfo,
+    ) {
         match app.kbd_status.henkan_using {
             None => {
                 henkan_renderer_impl(
-                    surface,
+                    canvas,
                     app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.left,
@@ -592,7 +646,7 @@ mod renderer_fn {
             }
             Some(LeftRight::Left) => {
                 henkan_renderer_impl(
-                    surface,
+                    canvas,
                     app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.left,
@@ -601,7 +655,7 @@ mod renderer_fn {
             }
             Some(LeftRight::Right) => {
                 henkan_renderer_impl(
-                    surface,
+                    canvas,
                     app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.right,
@@ -612,55 +666,17 @@ mod renderer_fn {
     }
 }
 
-fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) -> SurfaceInfo {
+fn create_surface(renderer: &mut Renderer<GLDevice>, width: i32, height: i32) -> SurfaceInfo {
+    let texture = renderer
+        .device()
+        .create_texture(TextureFormat::RGBA8, vec2i(width, height));
+    // hack to get texture id
     let mut gl_tex_id = 0;
-    unsafe {
-        gl::GenTextures(1, &mut gl_tex_id);
-        gl::BindTexture(gl::TEXTURE_2D, gl_tex_id);
-        gl::TexImage2D(
-            gl::TEXTURE_2D,
-            0,
-            gl::RGBA8 as _,
-            width,
-            height,
-            0,
-            gl::RGBA,
-            gl::UNSIGNED_BYTE,
-            null(),
-        );
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
-    }
+    unsafe { gl::GetIntegerv(gl::TEXTURE_BINDING_2D, &mut gl_tex_id) };
 
-    let backend_texture = unsafe {
-        gpu::backend_textures::make_gl(
-            (width, height),
-            Mipmapped::No,
-            TextureInfo {
-                target: gl::TEXTURE_2D,
-                format: gl::RGBA8,
-                id: gl_tex_id,
-                ..TextureInfo::default()
-            },
-            "backend_texture",
-        )
-    };
-    let surface = gpu::surfaces::wrap_backend_texture(
-        context,
-        &backend_texture,
-        SurfaceOrigin::BottomLeft,
-        None,
-        ColorType::RGBA8888,
-        None,
-        None,
-    )
-    .expect("creating surface");
+    let frame_buffer = renderer.device().create_framebuffer(texture);
 
-    SurfaceInfo {
-        gl_tex_id,
-        surface,
-        renderer: renderer_fn::nop_renderer,
-    }
+    SurfaceInfo::new(gl_tex_id as _, frame_buffer)
 }
 
 pub struct HandInfo {
