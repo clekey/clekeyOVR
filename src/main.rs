@@ -5,6 +5,7 @@ mod utils;
 mod config;
 #[cfg(feature = "debug_window")]
 mod debug_graphics;
+mod font_rendering;
 mod global;
 mod graphics;
 mod input_method;
