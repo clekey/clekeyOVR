@@ -5,7 +5,7 @@ use font_kit::error::GlyphLoadingError;
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
 use pathfinder_geometry::transform2d::Transform2F;
-use pathfinder_geometry::vector::{Vector2I, vec2i};
+use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2i};
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -108,10 +108,12 @@ impl Hash for GlyphId {
 #[derive(Default, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub struct GlyphInfo {
-    canvas_id: usize,
-    rasterize_offset: Vector2I,
-    glyph_origin: Vector2I,
-    glyph_size: Vector2I,
+    pub canvas_id: usize,
+    pub glyph_id: u32,
+    pub advance: Vector2F,
+    pub rasterize_offset: Vector2I,
+    pub glyph_origin: Vector2I,
+    pub glyph_size: Vector2I,
 }
 
 impl FontAtlas {
@@ -141,6 +143,10 @@ impl FontAtlas {
 
     pub fn font_em_size(&self) -> f32 {
         self.font_em_size
+    }
+
+    pub fn canvas_size(&self) -> Vector2I {
+        self.canvas_state.canvas_size
     }
 
     pub fn canvases(&self) -> &[Canvas] {
@@ -177,6 +183,7 @@ impl FontAtlas {
                 glyph_id: u32,
                 rasterize_offset: Vector2I,
                 rasterize_size: Vector2I,
+                advance: Vector2F,
                 // canvas id, position, offset for raster
                 rasterize_position: Option<(usize, Vector2I)>,
             }
@@ -199,6 +206,7 @@ impl FontAtlas {
                     (rasterize_size.y() as u32).next_multiple_of(self.mip_cell_size) as i32,
                 );
                 let is_short = rasterize_size.y() as u32 <= self.short_line_height;
+                let advance = font.advance(glyph_id).unwrap() * raster_scale;
 
                 if rasterize_size.x() >= self.canvas_state.canvas_size.x()
                     || rasterize_size.y() >= self.canvas_state.canvas_size.y()
@@ -217,6 +225,7 @@ impl FontAtlas {
                     glyph_id,
                     rasterize_offset,
                     rasterize_size,
+                    advance,
                     rasterize_position: None,
                 })
             }
@@ -341,6 +350,8 @@ impl FontAtlas {
                 let id = GlyphId(Arc::downgrade(&information.font), information.glyph_id);
                 let glyph_info = GlyphInfo {
                     canvas_id,
+                    glyph_id: information.glyph_id,
+                    advance: information.advance,
                     rasterize_offset: information.rasterize_offset,
                     glyph_origin: rasterize_position,
                     glyph_size: information.rasterize_size,
