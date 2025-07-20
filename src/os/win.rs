@@ -125,16 +125,35 @@ pub(crate) fn copy_text(copy: &str) -> bool {
     true
 }
 
-static CURRENT_HWND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static CURRENT_HWND: std::sync::atomic::AtomicPtr::<c_void> = std::sync::atomic::AtomicPtr::<c_void>::new(std::ptr::null_mut());
 
 fn get_hwnd() -> winsafe::HWND {
-    unsafe {
-        winsafe::HWND::from_ptr(
-            CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst) as *mut c_void
-        )
+    let mut hwnd_ptr = CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst);
+    if hwnd_ptr == std::ptr::null_mut() {
+        let new_hwnd = {
+            unsafe {
+                winsafe::HWND::CreateWindowEx(
+                    Default::default(),
+                    winsafe::AtomStr::from_str("STATIC"),
+                    None,
+                    Default::default(),
+                    Default::default(),
+                    Default::default(),
+                    None,
+                    winsafe::IdMenu::None,
+                    &winsafe::HINSTANCE::GetModuleHandle(None).unwrap(),
+                    None
+                ).unwrap()
+            }
+        };
+        match CURRENT_HWND.compare_exchange(std::ptr::null_mut(), new_hwnd.ptr(), std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst) {
+            Ok(old) => new_hwnd,
+            Err(new) => {
+                unsafe { winsafe::HWND::from_ptr(hwnd_ptr as _) }.DestroyWindow().ok();
+                unsafe { winsafe::HWND::from_ptr(new) }
+            }
+        }
+    } else {
+       unsafe { winsafe::HWND::from_ptr(hwnd_ptr) }
     }
-}
-
-pub(crate) fn set_hwnd(hwnd: *mut c_void) {
-    CURRENT_HWND.swap(hwnd as _, std::sync::atomic::Ordering::SeqCst);
 }

@@ -92,9 +92,6 @@ fn main() {
 
     window.make_current();
 
-    #[cfg(windows)]
-    os::set_hwnd(window.get_win32_window());
-
     // gl crate initialization
     let loader = |s: &str| glfw.get_proc_address_raw(s);
     gl::load_with(loader);
