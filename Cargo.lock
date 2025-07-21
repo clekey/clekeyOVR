@@ -1041,6 +1041,7 @@ dependencies = [
 [[package]]
 name = "license-gen"
 version = "0.1.0"
+source = "git+https://github.com/anatawa12/license-gen.git#cacd29afa92261e8981dc34cbac34193d2ac8f4a"
 dependencies = [
  "cargo_metadata",
  "itertools 0.10.5",

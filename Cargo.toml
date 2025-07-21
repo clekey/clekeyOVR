@@ -2,7 +2,6 @@
 members = [
     ".",
     "openvr",
-    "license-gen"
 ]
 
 [package]
@@ -45,7 +44,7 @@ flate2 = "1"
 tar = "0.4"
 sha2 = "0.10"
 hex = "0.4"
-license-gen = { path = "license-gen" }
+license-gen = { git = "https://github.com/anatawa12/license-gen.git" }
 
 [target."cfg(windows)".dependencies.winsafe]
 version = "0.0.25"
