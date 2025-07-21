@@ -16,7 +16,7 @@ const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
 
 fn main() {
-    let mut atlas = FontAtlas::new(200.0, 65536, 16);
+    let mut atlas = FontAtlas::new(100.0, 65536, 16);
 
     let font = Arc::new(
         Handle::from_memory(
@@ -95,10 +95,10 @@ fn main() {
 
         let regular_use_ideographs = include_str!("regular_use_utf8.txt");
         let hiragana = [
-            (0x3041..=0x3092)
+            (0x3041..=0x3090)
                 .map(|x| char::from_u32(x as u32).unwrap())
                 .collect::<String>(),
-            (0x3093..=0x3094)
+            (0x3091..=0x3094)
                 .map(|x| char::from_u32(x as u32).unwrap())
                 .collect::<String>(),
         ];
@@ -115,8 +115,7 @@ fn main() {
         let mut font_renderer = FontRenderer::new();
         font_renderer.update_texture(&atlas);
 
-        let pos_scale =
-            Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.125;
+        let pos_scale = Vector2F::splat(25.6) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         let angle = -0.0 * std::f32::consts::PI / 180.0;
         let matrix = Matrix2x2F::from_scale(pos_scale) * Matrix2x2F::from_rotation(angle);
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -140,7 +139,7 @@ fn main() {
                     text,
                 )
                 .unwrap();
-            cursor -= matrix * vec2f(0.0, atlas.font_em_size());
+            cursor -= matrix * vec2f(0.0, 1.0);
         }
         let render0_end = Instant::now();
         render_target0.export_png("canvas0.png");
@@ -165,7 +164,7 @@ fn main() {
                     text,
                 )
                 .unwrap();
-            cursor -= matrix * vec2f(0.0, atlas.font_em_size());
+            cursor -= matrix * vec2f(0.0, 1.0);
         }
         let render1_end = Instant::now();
         println!("rendering 1 took {:?}", render1_end - render1_start);
@@ -196,7 +195,7 @@ fn main() {
                 cursor += advance;
                 (*info, transform)
             }));
-            cursor0 -= matrix * vec2f(0.0, atlas.font_em_size());
+            cursor0 -= matrix * vec2f(0.0, 1.0);
         }
         font_renderer.draw_glyphs(ColorF::new(0.0, 1.0, 0.0, 1.0), info_transforms);
         let render2_end = Instant::now();

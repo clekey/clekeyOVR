@@ -6,9 +6,9 @@ use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
 use pathfinder_color::ColorF;
-use pathfinder_geometry::rect::RectI;
+use pathfinder_geometry::rect::{RectF, RectI};
 use pathfinder_geometry::transform2d::Transform2F;
-use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2i};
+use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f, vec2i};
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -110,6 +110,11 @@ impl Hash for GlyphId {
     }
 }
 
+/// The information of each glyph.
+///
+/// This information contains:
+/// - The rect of glyph and advance in em-unit (1.0 is 1em)
+/// - The rect of glyph in the atlas texture and the index of atlas texture
 #[derive(Default, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub struct GlyphInfo {
@@ -117,9 +122,10 @@ pub struct GlyphInfo {
     #[allow(dead_code)]
     pub glyph_id: u32,
     pub advance: Vector2F,
-    pub rasterize_offset: Vector2I,
-    pub glyph_origin: Vector2I,
-    pub glyph_size: Vector2I,
+    pub rasterize_offset: Vector2F,
+    pub rasterize_size: Vector2F,
+    pub atlas_origin: Vector2I,
+    pub atlas_size: Vector2I,
 }
 
 impl FontAtlas {
@@ -147,6 +153,7 @@ impl FontAtlas {
         }
     }
 
+    #[allow(dead_code)]
     pub fn font_em_size(&self) -> f32 {
         self.font_em_size
     }
@@ -357,10 +364,11 @@ impl FontAtlas {
                 let glyph_info = GlyphInfo {
                     canvas_id,
                     glyph_id: information.glyph_id,
-                    advance: information.advance,
-                    rasterize_offset: information.rasterize_offset,
-                    glyph_origin: rasterize_position,
-                    glyph_size: information.rasterize_size,
+                    advance: information.advance / self.font_em_size,
+                    rasterize_offset: information.rasterize_offset.to_f32() / self.font_em_size,
+                    rasterize_size: information.rasterize_size.to_f32() / self.font_em_size,
+                    atlas_origin: rasterize_position,
+                    atlas_size: information.rasterize_size,
                 };
                 for &index in &glyphs_to_add[&id] {
                     result[index] = glyph_info;
@@ -566,10 +574,12 @@ impl FontRenderer {
         let uv_scale = Vector2F::splat(1.0) / self.font_atlas_texture_size.to_f32();
         let mut points = Vec::<PointInfo>::with_capacity(glyphs.size_hint().0 * 6);
         for (info, transform) in glyphs {
-            let poly_rect =
-                RectI::new(info.rasterize_offset * vec2i(-1, 1), info.glyph_size).to_f32();
+            let poly_rect = RectF::new(
+                info.rasterize_offset * vec2f(-1.0, 1.0),
+                info.rasterize_size,
+            );
             let uv_rect =
-                RectI::new(info.glyph_origin, info.glyph_size * vec2i(1, -1)).to_f32() * uv_scale;
+                RectI::new(info.atlas_origin, info.atlas_size * vec2i(1, -1)).to_f32() * uv_scale;
 
             macro_rules! point {
                 ($f: ident) => {
