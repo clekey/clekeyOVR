@@ -59,16 +59,6 @@ fn main() {
         .unwrap();
     assert!(changed);
 
-    for (i, canvas) in atlas.canvases().iter().enumerate() {
-        let file = std::fs::File::create(format!("canvas.{}.png", i + 1)).unwrap();
-        let mut png = png::Encoder::new(file, canvas.size.x() as u32, canvas.size.y() as u32);
-        png.set_color(png::ColorType::Grayscale);
-        png.set_depth(png::BitDepth::Eight);
-        let mut writer = png.write_header().unwrap();
-        writer.write_image_data(&canvas.pixels).unwrap();
-        writer.finish().unwrap();
-    }
-
     // glfw initialization
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(WindowHint::DoubleBuffer(true));
@@ -151,30 +141,37 @@ fn main() {
 
         let color = ColorF::new(1.0, 0.0, 0.0, 0.5);
         let pos_scale =
-            Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.5;
-        let angle = -45.0 * std::f32::consts::PI / 180.0;
+            Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.125;
+        let angle = -0.0 * std::f32::consts::PI / 180.0;
         let matrix = Matrix2x2F::from_scale(pos_scale) * Matrix2x2F::from_rotation(angle);
 
-        font_renderer.draw_text_simple(
-            &mut atlas,
-            &font,
-            color,
-            Transform2F {
-                matrix,
-                vector: vec2f(0.0, 0.5),
-            },
-            "あいうえお",
-        );
-        font_renderer.draw_text_simple(
-            &mut atlas,
-            &font,
-            color,
-            Transform2F {
-                matrix,
-                vector: vec2f(0.0, 0.0),
-            },
-            "あいう",
-        );
+        let regular_use_ideographs = include_str!("regular_use_utf8.txt");
+        let mut cursor = vec2f(-1.0, 0.975);
+        for text in [
+            (0x3041..=0x3092)
+                .map(|x| char::from_u32(x as u32).unwrap())
+                .collect::<String>()
+                .as_str(),
+            (0x3093..=0x3094)
+                .map(|x| char::from_u32(x as u32).unwrap())
+                .collect::<String>()
+                .as_str(),
+        ]
+        .into_iter()
+        .chain((0..52).map(|i| &regular_use_ideographs[i * 3 * 40..][..3 * 40]))
+        {
+            font_renderer.draw_text_simple(
+                &mut atlas,
+                &font,
+                color,
+                Transform2F {
+                    matrix,
+                    vector: cursor,
+                },
+                text,
+            );
+            cursor -= matrix * vec2f(0.0, atlas.font_em_size());
+        }
 
         gl::Flush();
 
@@ -209,5 +206,15 @@ fn main() {
                 .unwrap();
             writer.finish().unwrap();
         }
+    }
+
+    for (i, canvas) in atlas.canvases().iter().enumerate() {
+        let file = std::fs::File::create(format!("canvas.{}.png", i + 1)).unwrap();
+        let mut png = png::Encoder::new(file, canvas.size.x() as u32, canvas.size.y() as u32);
+        png.set_color(png::ColorType::Grayscale);
+        png.set_depth(png::BitDepth::Eight);
+        let mut writer = png.write_header().unwrap();
+        writer.write_image_data(&canvas.pixels).unwrap();
+        writer.finish().unwrap();
     }
 }
