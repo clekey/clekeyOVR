@@ -1,6 +1,7 @@
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
 use pathfinder_color::ColorF;
-use pathfinder_geometry::transform2d::Transform2F;
+use pathfinder_geometry::rect::RectF;
+use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
 
 pub fn gl_clear(color: ColorF) {
     unsafe {
@@ -152,6 +153,56 @@ impl CircleRenderer {
 
     /// Renders glyphs in specified color.
     pub fn draw(&self, transform: Transform2F, color: ColorF) {
+        self.base.draw(transform, || unsafe {
+            gl::Uniform4f(
+                self.color_uniform,
+                color.r(),
+                color.g(),
+                color.b(),
+                color.a(),
+            );
+        });
+    }
+}
+
+pub struct RectangleRenderer {
+    base: ShaderRenderer,
+    color_uniform: GLint,
+}
+
+impl RectangleRenderer {
+    pub fn new() -> RectangleRenderer {
+        let base = ShaderRenderer::new(
+            "#version 400\n\
+                \n\
+                in vec2 v2f_uv;\n\
+                out vec4 out_color;\n\
+                \n\
+                uniform vec4 color;\n\
+                \n\
+                void main() {\n\
+                    out_color = color;\n\
+                }\n",
+        );
+        unsafe {
+            let color_uniform = gl::GetUniformLocation(base.shader_program, c"color".as_ptr());
+            assert!(color_uniform != -1, "color not found");
+
+            Self {
+                base,
+                color_uniform,
+            }
+        }
+    }
+
+    /// Renders glyphs in specified color.
+    pub fn draw(&self, rect: RectF, angle_deg: f32, color: ColorF) {
+        let mut transform = Transform2F {
+            matrix: Matrix2x2F::from_scale(rect.size() * 0.5),
+            vector: rect.size() * 0.5,
+        };
+        transform = Transform2F::from_rotation(angle_deg.to_radians()) * transform;
+        transform.vector += rect.origin();
         self.base.draw(transform, || unsafe {
             gl::Uniform4f(
                 self.color_uniform,

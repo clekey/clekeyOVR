@@ -1,9 +1,10 @@
 use crate::font_rendering::{FontAtlas, FontRenderer, TextLayout};
-use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, gl_clear};
+use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer, gl_clear};
 use font_kit::handle::Handle;
 use gl::types::{GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use pathfinder_color::ColorF;
+use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
 use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f};
 use std::ptr::null;
@@ -160,12 +161,13 @@ fn main() {
 
         let circle_renderer = CircleRenderer::new();
         let bg_renderer = BaseBackgroundRenderer::new();
+        let rectangle_renderer = RectangleRenderer::new();
 
         //let pos_scale = Vector2F::splat(25.6) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         let pos_scale = Vector2F::splat(40.) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         //let pos_scale = Vector2F::splat(100.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
-        let angle = -0.0 * std::f32::consts::PI / 180.0;
-        //let angle = 10.0 * std::f32::consts::PI / 180.0;
+        let angle = -0.0f32.to_radians();
+        //let angle = 10.0f32.to_radians();
         let matrix = Matrix2x2F::from_scale(pos_scale) * Matrix2x2F::from_rotation(angle);
 
         // rendering
@@ -238,7 +240,13 @@ fn main() {
 
         let render2_start = Instant::now();
         render_target2.prepare_rendering();
-        gl_clear(ColorF::black());
+        gl_clear(ColorF::transparent_black());
+
+        rectangle_renderer.draw(
+            RectF::new(vec2f(0.0, 0.5), vec2f(1.0, 0.5)),
+            10f32,
+            ColorF::black(),
+        );
 
         bg_renderer.draw(
             Transform2F::default(),
