@@ -164,6 +164,106 @@ impl CircleRenderer {
     }
 }
 
+pub struct BaseBackgroundRenderer {
+    base: ShaderRenderer,
+    center_color_uniform: GLint,
+    bg_color_uniform: GLint,
+    line_color_uniform: GLint,
+}
+
+impl BaseBackgroundRenderer {
+    pub fn new() -> BaseBackgroundRenderer {
+        let base = ShaderRenderer::new(
+            "#version 400\n\
+                const float PI = 3.1415926535897932384626433832795;\n\
+                const float LINE_W = 0.04;\n\
+                const float CENTER = 0.5;\n\
+                \n\
+                in vec2 v2f_uv;\n\
+                out vec4 out_color;\n\
+                \n\
+                uniform vec3 center_color;\n\
+                uniform vec3 bg_color;\n\
+                uniform vec3 line_color;\n\
+                \n\
+                float d_from_line(float angle_deg) {\n\
+                    float angle_rad = angle_deg * PI / 180;\n\
+                    float a = sin(angle_rad);\n\
+                    float b = cos(angle_rad);\n\
+                    return abs(a * v2f_uv.x + b * v2f_uv.y);\n\
+                }\n\
+                \n\
+                void main() {\n\
+                    float rsq = v2f_uv.x * v2f_uv.x + v2f_uv.y * v2f_uv.y;\n\
+                    \n\
+                    float d1 = d_from_line(22.5 * 1);\n\
+                    float d2 = d_from_line(22.5 * 3);\n\
+                    float d3 = d_from_line(22.5 * -1);\n\
+                    float d4 = d_from_line(22.5 * -3);\n\
+                    \n\
+                    float min_line_d = min(min(d1, d2), min(d3, d4));\n\
+                    \n\
+                    out_color.rgb = rsq < CENTER * CENTER ? center_color \
+                            : min_line_d < (LINE_W / 2) || (rsq > ((1 - LINE_W) * (1 - LINE_W))) ? line_color \
+                            : bg_color;\n\
+                    \n\
+                    out_color.a = step(rsq, 1.0);\n\
+                }\n\
+                \n\
+                ",
+        );
+        unsafe {
+            let center_color_uniform =
+                gl::GetUniformLocation(base.shader_program, c"center_color".as_ptr());
+            let bg_color_uniform =
+                gl::GetUniformLocation(base.shader_program, c"bg_color".as_ptr());
+            let line_color_uniform =
+                gl::GetUniformLocation(base.shader_program, c"line_color".as_ptr());
+            assert!(bg_color_uniform != -1, "bg_color not found");
+            assert!(line_color_uniform != -1, "line_color not found");
+
+            Self {
+                base,
+                center_color_uniform,
+                bg_color_uniform,
+                line_color_uniform,
+            }
+        }
+    }
+
+    /// Renders glyphs in specified color.
+    pub fn draw(
+        &self,
+        transform: Transform2F,
+        center_color: ColorF,
+        bg_color: ColorF,
+        line_color: ColorF,
+    ) {
+        self.base.draw(transform, || unsafe {
+            gl::Uniform3f(
+                self.center_color_uniform,
+                center_color.r(),
+                center_color.g(),
+                center_color.b(),
+            );
+
+            gl::Uniform3f(
+                self.bg_color_uniform,
+                bg_color.r(),
+                bg_color.g(),
+                bg_color.b(),
+            );
+
+            gl::Uniform3f(
+                self.line_color_uniform,
+                line_color.r(),
+                line_color.g(),
+                line_color.b(),
+            );
+        });
+    }
+}
+
 pub unsafe fn compile_shader(type_: GLenum, script: &str) -> GLuint {
     unsafe {
         let shader = gl::CreateShader(type_);

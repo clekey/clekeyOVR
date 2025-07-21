@@ -1,5 +1,5 @@
 use crate::font_rendering::{FontAtlas, FontRenderer, TextLayout};
-use crate::gl_primitives::{CircleRenderer, gl_clear};
+use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, gl_clear};
 use font_kit::handle::Handle;
 use gl::types::{GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
@@ -159,6 +159,7 @@ fn main() {
         font_renderer.update_texture(&atlas);
 
         let circle_renderer = CircleRenderer::new();
+        let bg_renderer = BaseBackgroundRenderer::new();
 
         //let pos_scale = Vector2F::splat(25.6) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         let pos_scale = Vector2F::splat(40.) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
@@ -238,6 +239,13 @@ fn main() {
         let render2_start = Instant::now();
         render_target2.prepare_rendering();
         gl_clear(ColorF::black());
+
+        bg_renderer.draw(
+            Transform2F::default(),
+            ColorF::new(0.83, 0.83, 0.83, 1.0),
+            ColorF::new(0.686, 0.686, 0.686, 1.0),
+            ColorF::new(1., 1.0, 1.0, 1.0),
+        );
 
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         let mut info_transforms = Vec::with_capacity(chars.iter().map(|x| x.chars().count()).sum());
