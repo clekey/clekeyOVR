@@ -226,7 +226,51 @@ fn main() {
         gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAX_LEVEL, 0);
         gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0);
 
-        // attributes
+        // attributes definition
+        struct PointInfo {
+            pos: [f32; 2],
+            uv: [f32; 2],
+            tex: f32,
+        }
+
+        static _POINT_INFO_LAYOUT: () = {
+            ["uv and tex must be in a row"]
+                [std::mem::offset_of!(PointInfo, uv) + 8 - std::mem::offset_of!(PointInfo, tex)];
+        };
+
+        // vbo: vertex buffer object
+        // vao: vertex array object
+
+        let mut points_vbo = 0;
+        gl::GenBuffers(1, &mut points_vbo);
+
+        let mut points_vao = 0;
+        gl::GenVertexArrays(1, &mut points_vao);
+        gl::BindVertexArray(points_vao);
+
+        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
+        gl::EnableVertexAttribArray(in_pos_attrib as _);
+        gl::VertexAttribPointer(
+            0,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            size_of::<PointInfo>() as _,
+            std::ptr::without_provenance(offset_of!(PointInfo, pos)),
+        );
+
+        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
+        gl::EnableVertexAttribArray(in_uv_tex_attrib as _);
+        gl::VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            size_of::<PointInfo>() as _,
+            std::ptr::without_provenance(offset_of!(PointInfo, uv)),
+        );
+
+        // prepare data
         let text = "あいう".chars().collect::<Vec<_>>();
         let glyphs = text
             .iter()
@@ -239,17 +283,6 @@ fn main() {
         let uv_scale = Vector2F::splat(1.0) / atlas.canvas_size().to_f32();
         let pos_scale =
             Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.5;
-
-        struct PointInfo {
-            pos: [f32; 2],
-            uv: [f32; 2],
-            tex: f32,
-        }
-
-        static _POINT_INFO_LAYOUT: () = {
-            ["uv and tex must be in a row"]
-                [std::mem::offset_of!(PointInfo, uv) + 8 - std::mem::offset_of!(PointInfo, tex)];
-        };
 
         let mut points = Vec::<PointInfo>::with_capacity(glyphs.len() * 6);
 
@@ -282,44 +315,12 @@ fn main() {
 
             cursor += advance;
         }
-
-        // vbo: vertex buffer object
-        // vao: vertex array object
-
-        let mut points_vbo = 0;
-        gl::GenBuffers(1, &mut points_vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
             size_of_val::<[_]>(points.as_slice()) as isize,
             points.as_ptr().cast(),
             gl::STATIC_DRAW,
-        );
-
-        let mut points_vao = 0;
-        gl::GenVertexArrays(1, &mut points_vao);
-        gl::BindVertexArray(points_vao);
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::EnableVertexAttribArray(in_pos_attrib as _);
-        gl::VertexAttribPointer(
-            0,
-            2,
-            gl::FLOAT,
-            gl::FALSE,
-            size_of::<PointInfo>() as _,
-            std::ptr::without_provenance(offset_of!(PointInfo, pos)),
-        );
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::EnableVertexAttribArray(in_uv_tex_attrib as _);
-        gl::VertexAttribPointer(
-            1,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            size_of::<PointInfo>() as _,
-            std::ptr::without_provenance(offset_of!(PointInfo, uv)),
         );
 
         // rendering
