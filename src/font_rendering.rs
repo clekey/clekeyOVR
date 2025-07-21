@@ -565,7 +565,8 @@ impl FontRenderer {
         let uv_scale = Vector2F::splat(1.0) / self.font_atlas_texture_size.to_f32();
         let mut points = Vec::<PointInfo>::with_capacity(glyphs.size_hint().0 * 6);
         for (info, transform) in glyphs {
-            let poly_rect = RectI::new(info.rasterize_offset, info.glyph_size).to_f32();
+            let poly_rect =
+                RectI::new(info.rasterize_offset * vec2i(-1, 1), info.glyph_size).to_f32();
             let uv_rect =
                 RectI::new(info.glyph_origin, info.glyph_size * vec2i(1, -1)).to_f32() * uv_scale;
 
