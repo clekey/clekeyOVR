@@ -1,4 +1,5 @@
 use crate::font_rendering::{FontAtlas, FontRenderer, TextLayout};
+use crate::gl_primitives::{CircleRenderer, gl_clear};
 use font_kit::handle::Handle;
 use gl::types::{GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
@@ -12,11 +13,14 @@ use std::time::Instant;
 #[path = "../font_rendering.rs"]
 mod font_rendering;
 
+#[path = "../gl_primitives.rs"]
+mod gl_primitives;
+
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
 
 fn main() {
-    let mut atlas = FontAtlas::new(200.0, 65536, 16);
+    let mut atlas = FontAtlas::new(50.0, 65536, 16);
 
     let font = Arc::new(
         Handle::from_memory(
@@ -112,7 +116,7 @@ fn main() {
     let loader = |s: &str| glfw.get_proc_address_raw(s);
     gl::load_with(loader);
 
-    unsafe {
+    {
         window.make_current();
 
         let regular_use_ideographs = include_str!("regular_use_utf8.txt");
@@ -154,18 +158,19 @@ fn main() {
         let mut font_renderer = FontRenderer::new();
         font_renderer.update_texture(&atlas);
 
+        let circle_renderer = CircleRenderer::new();
+
         //let pos_scale = Vector2F::splat(25.6) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         let pos_scale = Vector2F::splat(40.) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         //let pos_scale = Vector2F::splat(100.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         let angle = -0.0 * std::f32::consts::PI / 180.0;
         //let angle = 10.0 * std::f32::consts::PI / 180.0;
         let matrix = Matrix2x2F::from_scale(pos_scale) * Matrix2x2F::from_rotation(angle);
-        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
 
         // rendering
         let render0_start = Instant::now();
         render_target0.prepare_rendering();
-        gl::Clear(gl::COLOR_BUFFER_BIT);
+        gl_clear(ColorF::black());
 
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         for text in chars.as_slice() {
@@ -195,7 +200,12 @@ fn main() {
 
         let render1_start = Instant::now();
         render_target1.prepare_rendering();
-        gl::Clear(gl::COLOR_BUFFER_BIT);
+        gl_clear(ColorF::black());
+
+        circle_renderer.draw(
+            Transform2F::from_scale_rotation_translation(vec2f(1.0, 0.5), 0.0, vec2f(0.0, 1.0)),
+            ColorF::new(0., 0.5, 0.5, 1.0),
+        );
 
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         for text in chars.as_slice() {
@@ -227,7 +237,7 @@ fn main() {
 
         let render2_start = Instant::now();
         render_target2.prepare_rendering();
-        gl::Clear(gl::COLOR_BUFFER_BIT);
+        gl_clear(ColorF::black());
 
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         let mut info_transforms = Vec::with_capacity(chars.iter().map(|x| x.chars().count()).sum());

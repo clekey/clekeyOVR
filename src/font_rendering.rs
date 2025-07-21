@@ -1,10 +1,11 @@
 //! This module handles font texture atlasing, and texture layout
 
+use crate::gl_primitives::{compile_shader, link_shader};
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::error::GlyphLoadingError;
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
-use gl::types::{GLenum, GLint, GLsizei, GLuint};
+use gl::types::{GLint, GLuint};
 use harfbuzz_rs::{Feature, Font as HFont, Owned, UnicodeBuffer};
 use pathfinder_color::ColorF;
 use pathfinder_geometry::rect::{RectF, RectI};
@@ -697,79 +698,6 @@ impl FontRenderer {
         );
 
         Ok(())
-    }
-}
-
-unsafe fn compile_shader(type_: GLenum, script: &str) -> GLuint {
-    unsafe {
-        let shader = gl::CreateShader(type_);
-        gl::ShaderSource(
-            shader,
-            1,
-            &script.as_ptr().cast::<i8>(),
-            &(script.len() as GLint),
-        );
-        gl::CompileShader(shader);
-
-        let mut success = 0;
-        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
-
-        if success == 0 {
-            let mut info = Vec::<u8>::new();
-            let mut len: GLsizei = 512;
-            while info.capacity() < (len as usize) {
-                info.reserve(len as usize);
-                gl::GetShaderInfoLog(
-                    shader,
-                    info.capacity() as _,
-                    &mut len,
-                    info.as_mut_ptr().cast(),
-                );
-            }
-            info.set_len(len as usize);
-            panic!(
-                "compile error: (0x{:x}): {}",
-                success,
-                String::from_utf8_unchecked(info)
-            );
-        }
-
-        shader
-    }
-}
-
-unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
-    unsafe {
-        let shader_program = gl::CreateProgram();
-        for shader in shaders {
-            gl::AttachShader(shader_program, *shader);
-        }
-        gl::LinkProgram(shader_program);
-
-        let mut success = 0;
-        gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
-
-        if success == 0 {
-            let mut info = Vec::<u8>::new();
-            let mut len: GLsizei = 512;
-            while info.capacity() < (len as usize) {
-                info.reserve(len as usize);
-                gl::GetProgramInfoLog(
-                    shader_program,
-                    info.capacity() as _,
-                    &mut len,
-                    info.as_mut_ptr().cast(),
-                );
-            }
-            info.set_len(len as usize);
-            panic!(
-                "link error: (0x{:x}): {}",
-                success,
-                String::from_utf8_unchecked(info)
-            );
-        }
-
-        shader_program
     }
 }
 
