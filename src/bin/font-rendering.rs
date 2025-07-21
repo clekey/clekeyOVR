@@ -1,12 +1,10 @@
 use crate::font_rendering::FontAtlas;
-use font_kit::file_type;
 use font_kit::handle::Handle;
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use log::error;
 use pathfinder_geometry::rect::RectI;
 use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f, vec2i};
-use std::num::NonZeroU32;
 use std::ptr::null;
 use std::sync::Arc;
 
@@ -109,9 +107,7 @@ fn main() {
         // generate framebuffer with texture
         let mut target_texture = 0;
         gl::GenTextures(1, &mut target_texture);
-        ck();
         gl::BindTexture(gl::TEXTURE_2D, target_texture);
-        ck();
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
@@ -123,23 +119,16 @@ fn main() {
             gl::UNSIGNED_BYTE,
             null(),
         );
-        ck();
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _);
-        ck();
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _);
-        ck();
 
         let mut gl_framebuffer = 0;
 
         gl::GenFramebuffers(1, &mut gl_framebuffer);
-        ck();
         gl::BindFramebuffer(gl::FRAMEBUFFER, gl_framebuffer);
-        ck();
 
         gl::FramebufferTexture(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, target_texture, 0);
-        ck();
         gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
-        ck();
 
         if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
             panic!(
@@ -148,7 +137,6 @@ fn main() {
             );
         }
         gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-        ck();
 
         // shader
         let vs = compile_shader(
@@ -182,12 +170,9 @@ fn main() {
         );
         let shader_program = link_shader(&[fs, vs]);
         let in_pos_attrib = gl::GetAttribLocation(shader_program, c"in_pos".as_ptr());
-        ck();
         let in_uv_tex_attrib = gl::GetAttribLocation(shader_program, c"in_uv_tex".as_ptr());
-        ck();
         let font_textures_attrib =
             gl::GetUniformLocation(shader_program, c"font_textures".as_ptr());
-        ck();
         println!("in_pos_attrib: {in_pos_attrib}");
         println!("in_uv_tex_attrib: {in_uv_tex_attrib}");
         println!("font_textures_attrib: {font_textures_attrib}");
@@ -195,9 +180,7 @@ fn main() {
         // upload font atlas
         let mut font_atlas_texture = 0;
         gl::GenTextures(1, &mut font_atlas_texture);
-        ck();
         gl::BindTexture(gl::TEXTURE_2D_ARRAY, font_atlas_texture);
-        ck();
         let array = atlas
             .canvases()
             .iter()
@@ -206,7 +189,6 @@ fn main() {
             .collect::<Vec<_>>();
         println!("array: {:?}", array.as_ptr());
         gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-        ck();
         gl::TexImage3D(
             gl::TEXTURE_2D_ARRAY,
             0,
@@ -219,36 +201,29 @@ fn main() {
             gl::UNSIGNED_BYTE,
             array.as_ptr().cast(),
         );
-        ck();
         drop(array);
         gl::TexParameteri(
             gl::TEXTURE_2D_ARRAY,
             gl::TEXTURE_MIN_FILTER,
             gl::LINEAR_MIPMAP_LINEAR as _,
         );
-        ck();
         gl::TexParameteri(
             gl::TEXTURE_2D_ARRAY,
             gl::TEXTURE_MAG_FILTER,
             gl::LINEAR_MIPMAP_LINEAR as _,
         );
-        ck();
         gl::TexParameteri(
             gl::TEXTURE_2D_ARRAY,
             gl::TEXTURE_WRAP_S,
             gl::CLAMP_TO_EDGE as _,
         );
-        ck();
         gl::TexParameteri(
             gl::TEXTURE_2D_ARRAY,
             gl::TEXTURE_WRAP_T,
             gl::CLAMP_TO_EDGE as _,
         );
-        ck();
         gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAX_LEVEL, 0);
-        ck();
         gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0);
-        ck();
 
         // attributes
         let text = "あいう".chars().collect::<Vec<_>>();
@@ -300,93 +275,63 @@ fn main() {
 
         let mut points_vbo = 0;
         gl::GenBuffers(1, &mut points_vbo);
-        ck();
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        ck();
         gl::BufferData(
             gl::ARRAY_BUFFER,
             size_of_val::<[_]>(points.as_slice()) as isize,
             points.as_ptr().cast(),
             gl::STATIC_DRAW,
         );
-        ck();
 
         let mut uv_tex_vbo = 0;
         gl::GenBuffers(1, &mut uv_tex_vbo);
-        ck();
         gl::BindBuffer(gl::ARRAY_BUFFER, uv_tex_vbo);
-        ck();
         gl::BufferData(
             gl::ARRAY_BUFFER,
             size_of_val::<[_]>(uv_tex.as_slice()) as isize,
             uv_tex.as_ptr().cast(),
             gl::STATIC_DRAW,
         );
-        ck();
 
         let mut points_vao = 0;
         gl::GenVertexArrays(1, &mut points_vao);
-        ck();
         gl::BindVertexArray(points_vao);
-        ck();
 
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        ck();
         gl::EnableVertexAttribArray(in_pos_attrib as _);
-        ck();
         gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 0, null());
-        ck();
 
         gl::BindBuffer(gl::ARRAY_BUFFER, uv_tex_vbo);
-        ck();
         gl::EnableVertexAttribArray(in_uv_tex_attrib as _);
-        ck();
         gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 0, null());
-        ck();
 
         // rendering
         gl::BindFramebuffer(gl::FRAMEBUFFER, gl_framebuffer);
-        ck();
         gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-        ck();
 
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-        ck();
         gl::Clear(gl::COLOR_BUFFER_BIT);
-        ck();
 
         gl::Enable(gl::BLEND);
-        ck();
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        ck();
         gl::UseProgram(shader_program);
-        ck();
 
         gl::BindVertexArray(points_vao);
-        ck();
 
         gl::ActiveTexture(gl::TEXTURE0);
-        ck();
         gl::BindTexture(gl::TEXTURE_2D_ARRAY, font_atlas_texture);
-        ck();
         gl::Uniform1i(font_textures_attrib, 0);
-        ck();
 
         gl::DrawArrays(gl::TRIANGLES, 0, points.len() as i32);
-        ck();
         gl::Disable(gl::BLEND);
-        ck();
 
         gl::Flush();
-        ck();
 
         gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-        ck();
         window.swap_buffers();
 
         let mut download_buffer = vec![0u8; (WINDOW_WIDTH * WINDOW_HEIGHT * 4) as usize];
         gl::BindTexture(gl::TEXTURE_2D, target_texture);
-        ck();
         gl::GetTexImage(
             gl::TEXTURE_2D,
             0,
@@ -394,7 +339,6 @@ fn main() {
             gl::UNSIGNED_BYTE,
             download_buffer.as_mut_ptr().cast(),
         );
-        ck();
 
         {
             let file = std::fs::File::create("canvas.png").unwrap();
@@ -482,13 +426,5 @@ unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
         }
 
         shader_program
-    }
-}
-
-fn ck() {
-    unsafe {
-        while let Some(err) = NonZeroU32::new(gl::GetError()) {
-            error!("gl error: 0x{:x}", err);
-        }
     }
 }
