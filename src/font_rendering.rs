@@ -60,6 +60,10 @@ pub struct FontAtlas {
     /// The minimum 'unit' of line height or glyph width.
     /// This is needed to avoid problems with mipmapping.
     mip_cell_size: u32,
+    /// The size of padding in the glyphs.
+    /// Currently same as mip_cell_size, but in the future I may implement option to
+    /// disable padding when user doesn't consider magnification.
+    pad_size: i32,
 
     // The state of the canvas rendering
     canvas_state: CanvasState,
@@ -147,6 +151,7 @@ impl FontAtlas {
             short_line_height,
             max_texture_size,
             mip_cell_size,
+            pad_size: mip_cell_size as i32,
 
             canvas_state: CanvasState::new(short_line_height as i32, canvas.size),
             canvases: vec![canvas],
@@ -265,7 +270,7 @@ impl FontAtlas {
                                 information.rasterize_position =
                                     Some((canvas_index, canvas_state.short_glyph_cursor));
                                 canvas_state.short_glyph_cursor +=
-                                    vec2i(information.rasterize_size.x(), 0);
+                                    vec2i(information.rasterize_size.x() + self.pad_size, 0);
                             } else {
                                 needs_next_line = true;
                             }
@@ -276,7 +281,9 @@ impl FontAtlas {
                     // We have to move to next line
                     canvas_state.short_glyph_cursor = vec2i(
                         0,
-                        canvas_state.short_glyph_cursor.y() + self.short_line_height as i32,
+                        canvas_state.short_glyph_cursor.y()
+                            + self.short_line_height as i32
+                            + self.pad_size,
                     );
                     if canvas_state.short_glyph_cursor.y() > self.canvas_state.tall_glyph_line_min_y
                     {
@@ -299,22 +306,21 @@ impl FontAtlas {
                     let mut needs_next_line = false;
                     for information in &mut tall_rasterize_information {
                         if information.rasterize_position.is_none() {
+                            let min_y = canvas_state.tall_glyph_cursor.y()
+                                - information.rasterize_size.y()
+                                - self.pad_size as i32;
+
                             if canvas_state.tall_glyph_cursor.x() + information.rasterize_size.x()
                                 < canvas_state.canvas_size.x()
-                                && canvas_state.tall_glyph_cursor.y()
-                                    - information.rasterize_size.y()
-                                    >= canvas_state.short_glyph_cursor.y()
+                                && min_y >= canvas_state.short_glyph_cursor.y()
                             {
                                 // There's space for this glyph in current glyph line so add to this line
                                 information.rasterize_position =
                                     Some((canvas_index, canvas_state.tall_glyph_cursor));
                                 canvas_state.tall_glyph_cursor +=
-                                    vec2i(information.rasterize_size.x(), 0);
+                                    vec2i(information.rasterize_size.x() + self.pad_size as i32, 0);
                                 canvas_state.tall_glyph_line_min_y =
-                                    canvas_state.tall_glyph_line_min_y.min(
-                                        canvas_state.tall_glyph_cursor.y()
-                                            - information.rasterize_size.y(),
-                                    );
+                                    canvas_state.tall_glyph_line_min_y.min(min_y);
                             } else {
                                 needs_next_line = true;
                             }
@@ -325,7 +331,7 @@ impl FontAtlas {
                     // We have to move to next line
                     if canvas_state.tall_glyph_line_min_y != canvas_state.tall_glyph_cursor.y() {
                         canvas_state.tall_glyph_cursor =
-                            vec2i(0, canvas_state.tall_glyph_line_min_y);
+                            vec2i(0, canvas_state.tall_glyph_line_min_y - self.pad_size as i32);
                     } else {
                         // This means we couldn't insert no characters to the last line due to height problem
                         // so we should move to next canvas
