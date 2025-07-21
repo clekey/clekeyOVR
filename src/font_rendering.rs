@@ -4,11 +4,15 @@ use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::error::GlyphLoadingError;
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
+use gl::types::{GLenum, GLint, GLsizei, GLuint};
+use pathfinder_color::ColorF;
+use pathfinder_geometry::rect::RectI;
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2i};
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::mem::offset_of;
 use std::sync::{Arc, Weak};
 // TODO: shrink canvas
 // TODO: resize canvas
@@ -50,6 +54,7 @@ pub struct FontAtlas {
     /// The height of 'short glyphs' line
     short_line_height: u32,
     /// The maximum texture size. This is limited by GPU or graphics API
+    #[allow(unused)]
     max_texture_size: u32,
     /// The minimum 'unit' of line height or glyph width.
     /// This is needed to avoid problems with mipmapping.
@@ -364,5 +369,376 @@ impl FontAtlas {
         }
 
         Ok((result, !glyphs_to_add.is_empty()))
+    }
+}
+
+pub struct FontRenderer {
+    shader_program: GLuint,
+    points_vbo: GLuint,
+    points_vao: GLuint,
+    font_textures_attrib: GLint,
+    font_color_attrib: GLint,
+    font_atlas_texture: GLuint,
+    font_atlas_texture_size: Vector2I,
+    font_atlas_texture_dimension: usize,
+}
+
+// attributes definition
+#[derive(Debug)]
+#[repr(C)]
+struct PointInfo {
+    pos: [f32; 2],
+    uv: [f32; 2],
+    tex: f32,
+}
+
+const _: () = {
+    ["uv and tex must be in a row"][offset_of!(PointInfo, uv) + 8 - offset_of!(PointInfo, tex)];
+};
+
+impl FontRenderer {
+    pub fn new() -> Self {
+        unsafe {
+            // shader
+            let vs = compile_shader(
+                gl::VERTEX_SHADER,
+                "#version 400\n\
+                layout(location = 0) in vec2 in_pos;\n\
+                layout(location = 1) in vec3 in_uv_tex;\n\
+                out vec3 v2f_uv_tex;\n\
+                void main() {\n\
+                    v2f_uv_tex = in_uv_tex;\n\
+                    gl_Position.xy = in_pos;\n\
+                    gl_Position.zw = vec2(0, 1);\n\
+                }\n",
+            );
+            let fs = compile_shader(
+                gl::FRAGMENT_SHADER,
+                "#version 400\n\
+                \n\
+                in vec3 v2f_uv_tex;\n\
+                out vec4 color;\n\
+                \n\
+                uniform sampler2DArray font_textures;\n\
+                uniform vec4 font_color;\n\
+                \n\
+                void main() {\n\
+                    color.rgb = font_color.rgb;\n\
+                    color.a = texture(font_textures, v2f_uv_tex.xyz).r * font_color.a;\n\
+                }\n",
+            );
+            let shader_program = link_shader(&[fs, vs]);
+            let in_pos_attrib = gl::GetAttribLocation(shader_program, c"in_pos".as_ptr()) as GLuint;
+            let in_uv_tex_attrib =
+                gl::GetAttribLocation(shader_program, c"in_uv_tex".as_ptr()) as GLuint;
+            let font_textures_attrib =
+                gl::GetUniformLocation(shader_program, c"font_textures".as_ptr());
+            let font_color_attrib = gl::GetUniformLocation(shader_program, c"font_color".as_ptr());
+            assert!(in_pos_attrib != -1 as GLint as GLuint, "in_pos not found");
+            assert!(
+                in_uv_tex_attrib != -1 as GLint as GLuint,
+                "in_uv_tex not found"
+            );
+            assert!(font_textures_attrib != -1, "font_textures not found");
+            assert!(font_color_attrib != -1, "font_textures not found");
+
+            let mut points_vbo = 0;
+            gl::GenBuffers(1, &mut points_vbo);
+
+            let mut points_vao = 0;
+            gl::GenVertexArrays(1, &mut points_vao);
+            gl::BindVertexArray(points_vao);
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
+            gl::EnableVertexAttribArray(in_pos_attrib as _);
+            gl::VertexAttribPointer(
+                0,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                size_of::<PointInfo>() as _,
+                std::ptr::without_provenance(offset_of!(PointInfo, pos)),
+            );
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
+            gl::EnableVertexAttribArray(in_uv_tex_attrib as _);
+            gl::VertexAttribPointer(
+                1,
+                3,
+                gl::FLOAT,
+                gl::FALSE,
+                size_of::<PointInfo>() as _,
+                std::ptr::without_provenance(offset_of!(PointInfo, uv)),
+            );
+
+            Self {
+                shader_program,
+                points_vbo,
+                points_vao,
+                font_textures_attrib,
+                font_color_attrib,
+                font_atlas_texture: 0,
+                font_atlas_texture_size: Vector2I::zero(),
+                font_atlas_texture_dimension: 0,
+            }
+        }
+    }
+
+    fn alloc_texture(&mut self, atlas: &FontAtlas) {
+        println!("alloc_texture");
+        unsafe {
+            if self.font_atlas_texture != 0 {
+                gl::DeleteTextures(1, &self.font_atlas_texture);
+            }
+            gl::GenTextures(1, &mut self.font_atlas_texture);
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY, self.font_atlas_texture);
+            gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
+            gl::TexStorage3D(
+                gl::TEXTURE_2D_ARRAY,
+                1,
+                gl::R8 as _,
+                atlas.canvas_size().x() as _,
+                atlas.canvas_size().y() as _,
+                atlas.canvases().len() as _,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D_ARRAY,
+                gl::TEXTURE_MIN_FILTER,
+                gl::LINEAR_MIPMAP_LINEAR as _,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D_ARRAY,
+                gl::TEXTURE_MAG_FILTER,
+                gl::LINEAR_MIPMAP_LINEAR as _,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D_ARRAY,
+                gl::TEXTURE_WRAP_S,
+                gl::CLAMP_TO_EDGE as _,
+            );
+            gl::TexParameteri(
+                gl::TEXTURE_2D_ARRAY,
+                gl::TEXTURE_WRAP_T,
+                gl::CLAMP_TO_EDGE as _,
+            );
+            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAX_LEVEL, 0);
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0);
+
+            self.font_atlas_texture_size = atlas.canvas_size();
+            self.font_atlas_texture_dimension = atlas.canvases().len();
+        }
+    }
+
+    /// Updates and uploads font atlas texture this font renderer uses
+    pub fn update_texture(&mut self, atlas: &FontAtlas) {
+        unsafe {
+            if self.font_atlas_texture_size != atlas.canvas_size()
+                || self.font_atlas_texture_dimension != atlas.canvases().len()
+            {
+                self.alloc_texture(atlas);
+            }
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY, self.font_atlas_texture);
+
+            for (index, canvas) in atlas.canvases().iter().enumerate() {
+                gl::TexSubImage3D(
+                    gl::TEXTURE_2D_ARRAY,
+                    0,
+                    0,
+                    0,
+                    index as _,
+                    atlas.canvas_size().x() as _,
+                    atlas.canvas_size().y() as _,
+                    1,
+                    gl::RED,
+                    gl::UNSIGNED_BYTE,
+                    canvas.pixels.as_ptr().cast(),
+                );
+            }
+        }
+    }
+
+    fn generate_points<'a>(
+        &self,
+        glyphs: impl IntoIterator<Item = (&'a GlyphInfo, Transform2F)>,
+    ) -> Vec<PointInfo> {
+        let glyphs = glyphs.into_iter();
+        let uv_scale = Vector2F::splat(1.0) / self.font_atlas_texture_size.to_f32();
+        let mut points = Vec::<PointInfo>::with_capacity(glyphs.size_hint().0 * 6);
+        for (info, transform) in glyphs {
+            let poly_rect = RectI::new(info.rasterize_offset, info.glyph_size).to_f32();
+            let uv_rect =
+                RectI::new(info.glyph_origin, info.glyph_size * vec2i(1, -1)).to_f32() * uv_scale;
+
+            macro_rules! point {
+                ($f: ident) => {
+                    PointInfo {
+                        pos: (transform * poly_rect.$f()).0.0,
+                        uv: uv_rect.$f().0.0,
+                        tex: info.canvas_id as f32,
+                    }
+                };
+            }
+
+            points.push(point!(upper_right));
+            points.push(point!(lower_left));
+            points.push(point!(origin));
+            points.push(point!(lower_left));
+            points.push(point!(upper_right));
+            points.push(point!(lower_right));
+        }
+
+        points
+    }
+
+    /// Renders glyphs in specified color.
+    pub fn draw_glyphs<'a>(
+        &self,
+        color: ColorF,
+        glyphs: impl IntoIterator<Item = (&'a GlyphInfo, Transform2F)>,
+    ) {
+        // prepare buffer
+        inner(self, color, &self.generate_points(glyphs));
+
+        fn inner(this: &FontRenderer, color: ColorF, points: &[PointInfo]) {
+            // update VBO
+            unsafe {
+                gl::BindBuffer(gl::ARRAY_BUFFER, this.points_vbo);
+                gl::BufferData(
+                    gl::ARRAY_BUFFER,
+                    size_of_val::<[_]>(points) as isize,
+                    points.as_ptr().cast(),
+                    gl::STATIC_DRAW,
+                );
+            }
+
+            unsafe {
+                gl::Enable(gl::BLEND);
+                gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+                gl::UseProgram(this.shader_program);
+
+                gl::BindVertexArray(this.points_vao);
+
+                gl::ActiveTexture(gl::TEXTURE0);
+                gl::BindTexture(gl::TEXTURE_2D_ARRAY, this.font_atlas_texture);
+                gl::Uniform1i(this.font_textures_attrib, 0);
+
+                gl::Uniform4f(
+                    this.font_color_attrib,
+                    color.r(),
+                    color.g(),
+                    color.b(),
+                    color.a(),
+                );
+
+                gl::DrawArrays(gl::TRIANGLES, 0, points.len() as i32);
+                gl::Disable(gl::BLEND);
+            }
+        }
+    }
+
+    /// Renders text with extremely simple text layout algorithm: select glyph by one character and
+    /// place glyphs
+    pub fn draw_text_simple(
+        &mut self,
+        atlas: &mut FontAtlas,
+        font: &Arc<Font>,
+        color: ColorF,
+        transform: Transform2F,
+        text: &str,
+    ) {
+        let glyphs = text
+            .chars()
+            .map(|c| font.glyph_for_char(c).unwrap())
+            .collect::<Vec<_>>();
+        let (glyph_info, update) = atlas
+            .prepare_glyphs(&glyphs.iter().map(|&g| (font, g)).collect::<Vec<_>>())
+            .unwrap();
+        if update {
+            self.update_texture(&atlas);
+        }
+
+        let matrix = transform.matrix;
+
+        let mut cursor = transform.vector;
+        self.draw_glyphs(
+            color,
+            glyph_info.iter().map(|info| {
+                let advance = matrix * info.advance;
+                let transform = Transform2F {
+                    matrix,
+                    vector: cursor,
+                };
+                cursor += advance;
+                (info, transform)
+            }),
+        );
+    }
+}
+
+unsafe fn compile_shader(type_: GLenum, script: &str) -> GLuint {
+    unsafe {
+        let shader = gl::CreateShader(type_);
+        gl::ShaderSource(
+            shader,
+            1,
+            &script.as_ptr().cast::<i8>(),
+            &(script.len() as GLint),
+        );
+        gl::CompileShader(shader);
+
+        let mut success = 0;
+        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+
+        if success == 0 {
+            let mut info = Vec::new();
+            let mut len: GLsizei = 512;
+            while info.capacity() < (len as usize) {
+                info.reserve(len as usize);
+                gl::GetShaderInfoLog(shader, info.capacity() as _, &mut len, info.as_mut_ptr());
+            }
+            info.set_len(len as usize);
+            panic!(
+                "compile error: (0x{:x}): {}",
+                success,
+                String::from_utf8_unchecked(std::mem::transmute(info))
+            );
+        }
+
+        shader
+    }
+}
+
+unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
+    unsafe {
+        let shader_program = gl::CreateProgram();
+        for shader in shaders {
+            gl::AttachShader(shader_program, *shader);
+        }
+        gl::LinkProgram(shader_program);
+
+        let mut success = 0;
+        gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
+
+        if success == 0 {
+            let mut info = Vec::new();
+            let mut len: GLsizei = 512;
+            while info.capacity() < (len as usize) {
+                info.reserve(len as usize);
+                gl::GetProgramInfoLog(
+                    shader_program,
+                    info.capacity() as _,
+                    &mut len,
+                    info.as_mut_ptr(),
+                );
+            }
+            info.set_len(len as usize);
+            panic!(
+                "link error: (0x{:x}): {}",
+                success,
+                String::from_utf8_unchecked(std::mem::transmute(info))
+            );
+        }
+
+        shader_program
     }
 }

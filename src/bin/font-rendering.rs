@@ -1,11 +1,11 @@
-use crate::font_rendering::FontAtlas;
+use crate::font_rendering::{FontAtlas, FontRenderer};
 use font_kit::handle::Handle;
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
 use log::error;
-use pathfinder_geometry::rect::RectI;
-use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f, vec2i};
-use std::mem::offset_of;
+use pathfinder_color::ColorF;
+use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
+use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f};
 use std::ptr::null;
 use std::sync::Arc;
 
@@ -139,192 +139,8 @@ fn main() {
         }
         gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
 
-        // shader
-        let vs = compile_shader(
-            gl::VERTEX_SHADER,
-            "#version 400\n\
-            layout(location = 0) in vec2 in_pos;\n\
-            layout(location = 1) in vec3 in_uv_tex;\n\
-            out vec3 v2f_uv_tex;\n\
-            void main() {\n\
-                v2f_uv_tex = in_uv_tex;\n\
-                gl_Position.xy = in_pos;\n\
-                gl_Position.zw = vec2(0, 1);\n\
-            }\n",
-        );
-        let fs = compile_shader(
-            gl::FRAGMENT_SHADER,
-            "#version 400\n\
-            // specify precision of sampler2darray\n\
-            precision highp sampler2DArray;\n\
-            \n\
-            in vec3 v2f_uv_tex;\n\
-            out vec4 color;\n\
-            \n\
-            uniform sampler2DArray font_textures;\n\
-            //uniform sampler2D font_textures;\n\
-            \n\
-            void main() {\n\
-                color.xyz = vec3(1.0);\n\
-                color.w = texture(font_textures, v2f_uv_tex.xyz).r;\n\
-            }\n",
-        );
-        let shader_program = link_shader(&[fs, vs]);
-        let in_pos_attrib = gl::GetAttribLocation(shader_program, c"in_pos".as_ptr());
-        let in_uv_tex_attrib = gl::GetAttribLocation(shader_program, c"in_uv_tex".as_ptr());
-        let font_textures_attrib =
-            gl::GetUniformLocation(shader_program, c"font_textures".as_ptr());
-        println!("in_pos_attrib: {in_pos_attrib}");
-        println!("in_uv_tex_attrib: {in_uv_tex_attrib}");
-        println!("font_textures_attrib: {font_textures_attrib}");
-
-        // upload font atlas
-        let mut font_atlas_texture = 0;
-        gl::GenTextures(1, &mut font_atlas_texture);
-        gl::BindTexture(gl::TEXTURE_2D_ARRAY, font_atlas_texture);
-        gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-        gl::TexStorage3D(
-            gl::TEXTURE_2D_ARRAY,
-            1,
-            gl::R8 as _,
-            atlas.canvas_size().x() as _,
-            atlas.canvas_size().y() as _,
-            atlas.canvases().len() as _,
-        );
-        for (index, canvas) in atlas.canvases().iter().enumerate() {
-            gl::TexSubImage3D(
-                gl::TEXTURE_2D_ARRAY,
-                0,
-                0,
-                0,
-                index as _,
-                atlas.canvas_size().x() as _,
-                atlas.canvas_size().y() as _,
-                1,
-                gl::RED,
-                gl::UNSIGNED_BYTE,
-                canvas.pixels.as_ptr().cast(),
-            );
-        }
-        gl::TexParameteri(
-            gl::TEXTURE_2D_ARRAY,
-            gl::TEXTURE_MIN_FILTER,
-            gl::LINEAR_MIPMAP_LINEAR as _,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_2D_ARRAY,
-            gl::TEXTURE_MAG_FILTER,
-            gl::LINEAR_MIPMAP_LINEAR as _,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_2D_ARRAY,
-            gl::TEXTURE_WRAP_S,
-            gl::CLAMP_TO_EDGE as _,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_2D_ARRAY,
-            gl::TEXTURE_WRAP_T,
-            gl::CLAMP_TO_EDGE as _,
-        );
-        gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAX_LEVEL, 0);
-        gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0);
-
-        // attributes definition
-        struct PointInfo {
-            pos: [f32; 2],
-            uv: [f32; 2],
-            tex: f32,
-        }
-
-        static _POINT_INFO_LAYOUT: () = {
-            ["uv and tex must be in a row"]
-                [std::mem::offset_of!(PointInfo, uv) + 8 - std::mem::offset_of!(PointInfo, tex)];
-        };
-
-        // vbo: vertex buffer object
-        // vao: vertex array object
-
-        let mut points_vbo = 0;
-        gl::GenBuffers(1, &mut points_vbo);
-
-        let mut points_vao = 0;
-        gl::GenVertexArrays(1, &mut points_vao);
-        gl::BindVertexArray(points_vao);
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::EnableVertexAttribArray(in_pos_attrib as _);
-        gl::VertexAttribPointer(
-            0,
-            2,
-            gl::FLOAT,
-            gl::FALSE,
-            size_of::<PointInfo>() as _,
-            std::ptr::without_provenance(offset_of!(PointInfo, pos)),
-        );
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::EnableVertexAttribArray(in_uv_tex_attrib as _);
-        gl::VertexAttribPointer(
-            1,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            size_of::<PointInfo>() as _,
-            std::ptr::without_provenance(offset_of!(PointInfo, uv)),
-        );
-
-        // prepare data
-        let text = "あいう".chars().collect::<Vec<_>>();
-        let glyphs = text
-            .iter()
-            .map(|&c| font.glyph_for_char(c).unwrap())
-            .collect::<Vec<_>>();
-        let (glyph_info, update) = atlas
-            .prepare_glyphs(&glyphs.iter().map(|&g| (&font, g)).collect::<Vec<_>>())
-            .unwrap();
-        assert!(!update, "No update should be performed");
-        let uv_scale = Vector2F::splat(1.0) / atlas.canvas_size().to_f32();
-        let pos_scale =
-            Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.5;
-
-        let mut points = Vec::<PointInfo>::with_capacity(glyphs.len() * 6);
-
-        //let mut cursor = vec2f(0.0, 0.0);
-        let mut cursor = vec2f(0.0, 0.5);
-        for info in glyph_info {
-            let advance = info.advance * pos_scale;
-
-            let poly_rect =
-                RectI::new(info.rasterize_offset, info.glyph_size).to_f32() * pos_scale + cursor;
-            let uv_rect =
-                RectI::new(info.glyph_origin, info.glyph_size * vec2i(1, -1)).to_f32() * uv_scale;
-
-            macro_rules! point {
-                ($f: ident) => {
-                    PointInfo {
-                        pos: poly_rect.$f().0.0,
-                        uv: uv_rect.$f().0.0,
-                        tex: info.canvas_id as f32,
-                    }
-                };
-            }
-
-            points.push(point!(upper_right));
-            points.push(point!(lower_left));
-            points.push(point!(origin));
-            points.push(point!(lower_left));
-            points.push(point!(upper_right));
-            points.push(point!(lower_right));
-
-            cursor += advance;
-        }
-        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            size_of_val::<[_]>(points.as_slice()) as isize,
-            points.as_ptr().cast(),
-            gl::STATIC_DRAW,
-        );
+        let mut font_renderer = FontRenderer::new();
+        font_renderer.update_texture(&atlas);
 
         // rendering
         gl::BindFramebuffer(gl::FRAMEBUFFER, gl_framebuffer);
@@ -333,18 +149,32 @@ fn main() {
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
-        gl::Enable(gl::BLEND);
-        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        gl::UseProgram(shader_program);
+        let color = ColorF::new(1.0, 0.0, 0.0, 0.5);
+        let pos_scale =
+            Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.5;
+        let angle = -45.0 * std::f32::consts::PI / 180.0;
+        let matrix = Matrix2x2F::from_scale(pos_scale) * Matrix2x2F::from_rotation(angle);
 
-        gl::BindVertexArray(points_vao);
-
-        gl::ActiveTexture(gl::TEXTURE0);
-        gl::BindTexture(gl::TEXTURE_2D_ARRAY, font_atlas_texture);
-        gl::Uniform1i(font_textures_attrib, 0);
-
-        gl::DrawArrays(gl::TRIANGLES, 0, points.len() as i32);
-        gl::Disable(gl::BLEND);
+        font_renderer.draw_text_simple(
+            &mut atlas,
+            &font,
+            color,
+            Transform2F {
+                matrix,
+                vector: vec2f(0.0, 0.5),
+            },
+            "あいうえお",
+        );
+        font_renderer.draw_text_simple(
+            &mut atlas,
+            &font,
+            color,
+            Transform2F {
+                matrix,
+                vector: vec2f(0.0, 0.0),
+            },
+            "あいう",
+        );
 
         gl::Flush();
 
@@ -379,73 +209,5 @@ fn main() {
                 .unwrap();
             writer.finish().unwrap();
         }
-    }
-}
-
-unsafe fn compile_shader(type_: GLenum, script: &str) -> GLuint {
-    unsafe {
-        let shader = gl::CreateShader(type_);
-        gl::ShaderSource(
-            shader,
-            1,
-            &script.as_ptr().cast::<i8>(),
-            &(script.len() as GLint),
-        );
-        gl::CompileShader(shader);
-
-        let mut success = 0;
-        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
-
-        if success == 0 {
-            let mut info = Vec::new();
-            let mut len: GLsizei = 512;
-            while info.capacity() < (len as usize) {
-                info.reserve(len as usize);
-                gl::GetShaderInfoLog(shader, info.capacity() as _, &mut len, info.as_mut_ptr());
-            }
-            info.set_len(len as usize);
-            panic!(
-                "compile error: (0x{:x}): {}",
-                success,
-                String::from_utf8_unchecked(std::mem::transmute(info))
-            );
-        }
-
-        shader
-    }
-}
-
-unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
-    unsafe {
-        let shader_program = gl::CreateProgram();
-        for shader in shaders {
-            gl::AttachShader(shader_program, *shader);
-        }
-        gl::LinkProgram(shader_program);
-
-        let mut success = 0;
-        gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
-
-        if success == 0 {
-            let mut info = Vec::new();
-            let mut len: GLsizei = 512;
-            while info.capacity() < (len as usize) {
-                info.reserve(len as usize);
-                gl::GetProgramInfoLog(
-                    shader_program,
-                    info.capacity() as _,
-                    &mut len,
-                    info.as_mut_ptr(),
-                );
-            }
-            info.set_len(len as usize);
-            error!(
-                "link error: (0x{:x}): {}",
-                success,
-                String::from_utf8_unchecked(std::mem::transmute(info))
-            );
-        }
-
-        shader_program
     }
 }
