@@ -5,6 +5,7 @@ use font_kit::error::GlyphLoadingError;
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
+use harfbuzz_rs::{Feature, Font as HFont, Owned, UnicodeBuffer};
 use pathfinder_color::ColorF;
 use pathfinder_geometry::rect::{RectF, RectI};
 use pathfinder_geometry::transform2d::Transform2F;
@@ -654,6 +655,7 @@ impl FontRenderer {
 
     /// Renders text with extremely simple text layout algorithm: select glyph by one character and
     /// place glyphs
+    #[allow(dead_code)]
     pub fn draw_text_simple(
         &mut self,
         atlas: &mut FontAtlas,
@@ -762,5 +764,219 @@ unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
         }
 
         shader_program
+    }
+}
+
+pub struct TextLayout {
+    fonts: Vec<(Arc<Owned<HFont<'static>>>, Arc<Font>)>,
+}
+
+impl TextLayout {
+    pub fn new(
+        handles: impl IntoIterator<Item = font_kit::handle::Handle>,
+    ) -> Result<Self, font_kit::error::FontLoadingError> {
+        let handles = handles.into_iter();
+        let mut fonts = Vec::with_capacity(handles.size_hint().0);
+        for handle in handles {
+            let (harfbuzz, font_kit) = loader::load_font(&handle)?;
+            fonts.push((Arc::new(HFont::new(harfbuzz)), Arc::new(font_kit)));
+        }
+        Ok(Self { fonts })
+    }
+
+    pub fn layout(
+        &self,
+        text: &str,
+        features: &[Feature],
+        transform: Transform2F,
+    ) -> (Vec<(&Arc<Font>, u32)>, Vec<Transform2F>) {
+        // TODO: font fallback feature
+        let buffer = UnicodeBuffer::new().add_str(text);
+        let glyph_buffer = harfbuzz_rs::shape(&self.fonts[0].0, buffer, features);
+
+        let glyph_infos = glyph_buffer.get_glyph_infos();
+        let positions = glyph_buffer.get_glyph_positions();
+
+        let scale = 1. / self.fonts[0].0.scale().0 as f32;
+
+        let mut glyphs = Vec::with_capacity(positions.len());
+        let mut transforms = Vec::with_capacity(positions.len());
+
+        let mut cursor = transform.vector;
+        for glyph_index in 0..glyph_buffer.len() {
+            let glyph = &glyph_infos[glyph_index];
+            let glyph_position = &positions[glyph_index];
+            let glyph_id = glyph.codepoint;
+            let offset =
+                Vector2I::new(glyph_position.x_offset, glyph_position.y_offset).to_f32() * scale;
+            let advance =
+                Vector2I::new(glyph_position.x_advance, glyph_position.y_advance).to_f32() * scale;
+
+            let transform = Transform2F {
+                matrix: transform.matrix,
+                vector: cursor + transform.matrix * offset,
+            };
+
+            glyphs.push((&self.fonts[0].1, glyph_id));
+            transforms.push(transform);
+
+            cursor += transform.matrix * advance;
+        }
+
+        (glyphs, transforms)
+    }
+}
+
+mod loader {
+    use font_kit::canvas::{Canvas, RasterizationOptions};
+    use font_kit::error::{FontLoadingError, GlyphLoadingError};
+    use font_kit::file_type::FileType;
+    use font_kit::font::Font;
+    use font_kit::handle::Handle;
+    use font_kit::hinting::HintingOptions;
+    use font_kit::loader::{FallbackResult, Loader};
+    use font_kit::metrics::Metrics;
+    use font_kit::outline::OutlineSink;
+    use font_kit::properties::Properties;
+    use harfbuzz_rs::{Face, Owned};
+    use std::fs::File;
+    use std::io::Read;
+    use std::rc::Rc;
+    use std::sync::Arc;
+
+    pub(super) fn load_font(
+        handle: &Handle,
+    ) -> Result<(Owned<Face<'static>>, Font), FontLoadingError> {
+        let loader = HarfbuzzLoader::from_handle(handle)?;
+        let harfbuzz = Rc::try_unwrap(loader.0).unwrap();
+        let font = loader.1;
+        Ok((harfbuzz, font))
+    }
+
+    #[derive(Clone)]
+    struct HarfbuzzLoader(Rc<Owned<Face<'static>>>, Font);
+
+    impl Loader for HarfbuzzLoader {
+        type NativeFont = ();
+
+        fn from_bytes(font_data: Arc<Vec<u8>>, font_index: u32) -> Result<Self, FontLoadingError> {
+            let harfbuzz = Rc::new(Face::<'static>::new(Vec::clone(&font_data), font_index));
+            let font_kit = Font::from_bytes(font_data, font_index)?;
+            Ok(HarfbuzzLoader(harfbuzz, font_kit))
+        }
+
+        fn from_file(file: &mut File, font_index: u32) -> Result<Self, FontLoadingError> {
+            let mut font_data = vec![];
+            file.read_to_end(&mut font_data)?;
+            let harfbuzz = Rc::new(Face::<'static>::new(Vec::clone(&font_data), font_index));
+            let font_kit = Font::from_bytes(font_data.into(), font_index)?;
+            Ok(HarfbuzzLoader(harfbuzz, font_kit))
+        }
+
+        // region unimplemented
+        unsafe fn from_native_font(_: Self::NativeFont) -> Self {
+            unimplemented!()
+        }
+
+        fn analyze_bytes(_: Arc<Vec<u8>>) -> Result<FileType, FontLoadingError> {
+            unimplemented!()
+        }
+
+        fn analyze_file(_: &mut File) -> Result<FileType, FontLoadingError> {
+            unimplemented!()
+        }
+
+        fn native_font(&self) -> Self::NativeFont {
+            unimplemented!()
+        }
+
+        fn postscript_name(&self) -> Option<String> {
+            unimplemented!()
+        }
+
+        fn full_name(&self) -> String {
+            unimplemented!()
+        }
+
+        fn family_name(&self) -> String {
+            unimplemented!()
+        }
+
+        fn is_monospace(&self) -> bool {
+            unimplemented!()
+        }
+
+        fn properties(&self) -> Properties {
+            unimplemented!()
+        }
+
+        fn glyph_count(&self) -> u32 {
+            unimplemented!()
+        }
+
+        fn glyph_for_char(&self, _: char) -> Option<u32> {
+            unimplemented!()
+        }
+
+        fn outline<S>(&self, _: u32, _: HintingOptions, _: &mut S) -> Result<(), GlyphLoadingError>
+        where
+            S: OutlineSink,
+        {
+            unimplemented!()
+        }
+
+        fn typographic_bounds(
+            &self,
+            _: u32,
+        ) -> Result<pathfinder_geometry::rect::RectF, GlyphLoadingError> {
+            unimplemented!()
+        }
+
+        fn advance(
+            &self,
+            _: u32,
+        ) -> Result<pathfinder_geometry::vector::Vector2F, GlyphLoadingError> {
+            unimplemented!()
+        }
+
+        fn origin(
+            &self,
+            _: u32,
+        ) -> Result<pathfinder_geometry::vector::Vector2F, GlyphLoadingError> {
+            unimplemented!()
+        }
+
+        fn metrics(&self) -> Metrics {
+            todo!()
+        }
+
+        fn copy_font_data(&self) -> Option<Arc<Vec<u8>>> {
+            unimplemented!()
+        }
+
+        fn supports_hinting_options(&self, _: HintingOptions, _: bool) -> bool {
+            unimplemented!()
+        }
+
+        fn rasterize_glyph(
+            &self,
+            _: &mut Canvas,
+            _: u32,
+            _: f32,
+            _: pathfinder_geometry::transform2d::Transform2F,
+            _: HintingOptions,
+            _: RasterizationOptions,
+        ) -> Result<(), GlyphLoadingError> {
+            unimplemented!()
+        }
+
+        fn get_fallbacks(&self, _: &str, _: &str) -> FallbackResult<Self> {
+            unimplemented!()
+        }
+
+        fn load_font_table(&self, _: u32) -> Option<Box<[u8]>> {
+            unimplemented!()
+        }
+        // endregion
     }
 }

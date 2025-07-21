@@ -1,4 +1,4 @@
-use crate::font_rendering::{FontAtlas, FontRenderer};
+use crate::font_rendering::{FontAtlas, FontRenderer, TextLayout};
 use font_kit::handle::Handle;
 use gl::types::{GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
@@ -16,7 +16,7 @@ const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
 
 fn main() {
-    let mut atlas = FontAtlas::new(100.0, 65536, 16);
+    let mut atlas = FontAtlas::new(200.0, 65536, 16);
 
     let font = Arc::new(
         Handle::from_memory(
@@ -28,6 +28,14 @@ fn main() {
         .load()
         .unwrap(),
     );
+
+    let layout = TextLayout::new([Handle::from_memory(
+        Arc::new(Vec::from(include_bytes!(
+            "../../resources/fonts/NotoSansJP-Medium.otf"
+        ))),
+        0,
+    )])
+    .expect("loading fonts");
 
     let (glyphs, changed) = atlas
         .prepare_glyphs(&[
@@ -95,16 +103,32 @@ fn main() {
 
         let regular_use_ideographs = include_str!("regular_use_utf8.txt");
         let hiragana = [
-            (0x3041..=0x3090)
+            (0x3041..=0x306b)
                 .map(|x| char::from_u32(x as u32).unwrap())
                 .collect::<String>(),
-            (0x3091..=0x3094)
+            (0x306c..=0x3094)
                 .map(|x| char::from_u32(x as u32).unwrap())
                 .collect::<String>(),
         ];
+        let test_texts = [
+            "な\u{3099} test: na + dakuten",
+            "か\u{3099} test: ka + dakuten",
+            "が test: ga",
+            "￣ overline",
+            "_ underscore",
+        ];
+        let ideographs_count = regular_use_ideographs.len() / 3;
+        let per_line = 50;
+        let lines = ideographs_count / per_line;
+        let ideographs =
+            (0..lines).map(|i| &regular_use_ideographs[i * 3 * per_line..][..3 * per_line]);
+        //*
         let chars = (hiragana.iter().map(|x| x.as_str()))
-            .chain((0..52).map(|i| &regular_use_ideographs[i * 3 * 40..][..3 * 40]))
+            .chain(test_texts)
+            .chain(ideographs)
             .collect::<Vec<_>>();
+        // */
+        //let chars = test_texts.into_iter().collect::<Vec<_>>();
 
         // note: opengl coordinate starts at left bottom corner as 0, 0 and increase 1, 1 for right top
 
@@ -115,8 +139,11 @@ fn main() {
         let mut font_renderer = FontRenderer::new();
         font_renderer.update_texture(&atlas);
 
-        let pos_scale = Vector2F::splat(25.6) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
+        //let pos_scale = Vector2F::splat(25.6) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
+        let pos_scale = Vector2F::splat(40.) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
+        //let pos_scale = Vector2F::splat(100.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32();
         let angle = -0.0 * std::f32::consts::PI / 180.0;
+        //let angle = 10.0 * std::f32::consts::PI / 180.0;
         let matrix = Matrix2x2F::from_scale(pos_scale) * Matrix2x2F::from_rotation(angle);
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
 
@@ -125,20 +152,25 @@ fn main() {
         render_target0.prepare_rendering();
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
-        let mut cursor = vec2f(-1.0, 0.975);
+        let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         for text in chars.as_slice() {
-            font_renderer
-                .draw_text_simple(
-                    &mut atlas,
-                    &font,
-                    ColorF::white(),
-                    Transform2F {
-                        matrix,
-                        vector: cursor,
-                    },
-                    text,
-                )
-                .unwrap();
+            let (glyphs, transforms) = layout.layout(
+                text,
+                &[],
+                Transform2F {
+                    matrix,
+                    vector: cursor,
+                },
+            );
+
+            let (glyphs, updated) = atlas.prepare_glyphs(&glyphs).unwrap();
+
+            if updated {
+                font_renderer.update_texture(&atlas);
+            }
+
+            font_renderer.draw_glyphs(ColorF::white(), glyphs.into_iter().zip(transforms));
+
             cursor -= matrix * vec2f(0.0, 1.0);
         }
         let render0_end = Instant::now();
@@ -150,20 +182,28 @@ fn main() {
         render_target1.prepare_rendering();
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
-        let mut cursor = vec2f(-1.0, 0.975);
+        let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         for text in chars.as_slice() {
-            font_renderer
-                .draw_text_simple(
-                    &mut atlas,
-                    &font,
-                    ColorF::new(1.0, 0.0, 0.0, 1.0),
-                    Transform2F {
-                        matrix,
-                        vector: cursor,
-                    },
-                    text,
-                )
-                .unwrap();
+            let (glyphs, transforms) = layout.layout(
+                text,
+                &[],
+                Transform2F {
+                    matrix,
+                    vector: cursor,
+                },
+            );
+
+            let (glyphs, updated) = atlas.prepare_glyphs(&glyphs).unwrap();
+
+            if updated {
+                font_renderer.update_texture(&atlas);
+            }
+
+            font_renderer.draw_glyphs(
+                ColorF::new(1.0, 0.0, 0.0, 1.0),
+                glyphs.into_iter().zip(transforms),
+            );
+
             cursor -= matrix * vec2f(0.0, 1.0);
         }
         let render1_end = Instant::now();
@@ -174,28 +214,23 @@ fn main() {
         render_target2.prepare_rendering();
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
-        let mut cursor0 = vec2f(-1.0, 0.975);
+        let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         let mut info_transforms = Vec::with_capacity(chars.iter().map(|x| x.chars().count()).sum());
         for text in chars.as_slice() {
-            let mut cursor = cursor0;
-            let glyphs = text
-                .chars()
-                .map(|c| font.glyph_for_char(c).unwrap())
-                .collect::<Vec<_>>();
-            let (glyph_info, update) = atlas
-                .prepare_glyphs(&glyphs.iter().map(|&g| (&font, g)).collect::<Vec<_>>())
-                .unwrap();
-            assert!(!update);
-            info_transforms.extend(glyph_info.iter().map(|info| {
-                let advance = matrix * info.advance;
-                let transform = Transform2F {
+            let (glyphs, transforms) = layout.layout(
+                text,
+                &[],
+                Transform2F {
                     matrix,
                     vector: cursor,
-                };
-                cursor += advance;
-                (*info, transform)
-            }));
-            cursor0 -= matrix * vec2f(0.0, 1.0);
+                },
+            );
+
+            let (glyphs, update) = atlas.prepare_glyphs(&glyphs).unwrap();
+            assert!(!update);
+
+            info_transforms.extend(glyphs.into_iter().zip(transforms));
+            cursor -= matrix * vec2f(0.0, 1.0);
         }
         font_renderer.draw_glyphs(ColorF::new(0.0, 1.0, 0.0, 1.0), info_transforms);
         let render2_end = Instant::now();
