@@ -501,7 +501,7 @@ impl FontRenderer {
     }
 
     fn alloc_texture(&mut self, atlas: &FontAtlas) {
-        println!("alloc_texture");
+        //println!("alloc_texture");
         unsafe {
             if self.font_atlas_texture != 0 {
                 gl::DeleteTextures(1, &self.font_atlas_texture);
@@ -792,41 +792,73 @@ impl TextLayout {
 
     pub fn layout(
         &self,
-        text: &str,
+        mut text: &str,
         features: &[Feature],
         transform: Transform2F,
     ) -> (Vec<(&Arc<Font>, u32)>, Vec<Transform2F>) {
-        // TODO: font fallback feature
-        let buffer = UnicodeBuffer::new().add_str(text);
-        let glyph_buffer = harfbuzz_rs::shape(&self.fonts[0].0, buffer, features);
-
-        let glyph_infos = glyph_buffer.get_glyph_infos();
-        let positions = glyph_buffer.get_glyph_positions();
-
-        let scale = 1. / self.fonts[0].0.scale().0 as f32;
-
-        let mut glyphs = Vec::with_capacity(positions.len());
-        let mut transforms = Vec::with_capacity(positions.len());
+        let chars = text.chars().count();
+        let mut glyphs = Vec::with_capacity(chars);
+        let mut transforms = Vec::with_capacity(chars);
 
         let mut cursor = transform.vector;
-        for glyph_index in 0..glyph_buffer.len() {
-            let glyph = &glyph_infos[glyph_index];
-            let glyph_position = &positions[glyph_index];
-            let glyph_id = glyph.codepoint;
-            let offset =
-                Vector2I::new(glyph_position.x_offset, glyph_position.y_offset).to_f32() * scale;
-            let advance =
-                Vector2I::new(glyph_position.x_advance, glyph_position.y_advance).to_f32() * scale;
 
-            let transform = Transform2F {
-                matrix: transform.matrix,
-                vector: cursor + transform.matrix * offset,
-            };
+        let mut buffer = UnicodeBuffer::new().add_str(text);
 
-            glyphs.push((&self.fonts[0].1, glyph_id));
-            transforms.push(transform);
+        let mut font_index = 0;
+        let mut tried_with_primary_font = false;
+        'font_loop: loop {
+            let glyph_buffer = harfbuzz_rs::shape(&self.fonts[font_index].0, buffer, features);
 
-            cursor += transform.matrix * advance;
+            let glyph_infos = glyph_buffer.get_glyph_infos();
+            let positions = glyph_buffer.get_glyph_positions();
+
+            let scale = 1. / self.fonts[font_index].0.scale().0 as f32;
+
+            for glyph_index in 0..glyph_buffer.len() {
+                let glyph = &glyph_infos[glyph_index];
+                let glyph_position = &positions[glyph_index];
+                let glyph_id = glyph.codepoint;
+                let offset = Vector2I::new(glyph_position.x_offset, glyph_position.y_offset)
+                    .to_f32()
+                    * scale;
+                let advance = Vector2I::new(glyph_position.x_advance, glyph_position.y_advance)
+                    .to_f32()
+                    * scale;
+
+                if glyph_id == 0 {
+                    if !tried_with_primary_font || font_index != 0 {
+                        text = &text[glyph.cluster as usize..];
+                        //println!("fall-backing {} with {}", text.chars().next().unwrap(), font_index);
+
+                        if font_index == 0 {
+                            tried_with_primary_font = true;
+                        }
+
+                        buffer = UnicodeBuffer::new().add_str(text);
+                        font_index += 1;
+                        if font_index == self.fonts.len() {
+                            font_index = 0;
+                        }
+                        continue 'font_loop;
+                    } else {
+                        //println!("fall-backing {} with all fonts failed.", text.chars().next().unwrap());
+                        tried_with_primary_font = false;
+                    }
+                } else {
+                    tried_with_primary_font = false;
+                }
+
+                let transform = Transform2F {
+                    matrix: transform.matrix,
+                    vector: cursor + transform.matrix * offset,
+                };
+
+                glyphs.push((&self.fonts[font_index].1, glyph_id));
+                transforms.push(transform);
+
+                cursor += transform.matrix * advance;
+            }
+            break;
         }
 
         (glyphs, transforms)

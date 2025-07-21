@@ -29,12 +29,26 @@ fn main() {
         .unwrap(),
     );
 
-    let layout = TextLayout::new([Handle::from_memory(
-        Arc::new(Vec::from(include_bytes!(
-            "../../resources/fonts/NotoSansJP-Medium.otf"
-        ))),
-        0,
-    )])
+    let layout = TextLayout::new([
+        Handle::from_memory(
+            Arc::new(Vec::from(include_bytes!(
+                "../../resources/fonts/NotoSansJP-Medium.otf"
+            ))),
+            0,
+        ),
+        Handle::from_memory(
+            Arc::new(Vec::from(include_bytes!(
+                "../../resources/fonts/NotoEmoji-VariableFont_wght.ttf"
+            ))),
+            0,
+        ),
+        Handle::from_memory(
+            Arc::new(Vec::from(include_bytes!(
+                "../../resources/fonts/NotoSansSymbols2-Regular.ttf"
+            ))),
+            0,
+        ),
+    ])
     .expect("loading fonts");
 
     let (glyphs, changed) = atlas
@@ -116,6 +130,7 @@ fn main() {
             "が test: ga",
             "￣ overline",
             "_ underscore",
+            "あいabc⌫␣\u{1F310}가", // emojis
         ];
         let ideographs_count = regular_use_ideographs.len() / 3;
         let per_line = 50;
