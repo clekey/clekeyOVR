@@ -5,6 +5,7 @@ use glfw::{Context, OpenGlProfileHint, WindowHint};
 use log::error;
 use pathfinder_geometry::rect::RectI;
 use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f, vec2i};
+use std::mem::offset_of;
 use std::ptr::null;
 use std::sync::Arc;
 
@@ -239,8 +240,18 @@ fn main() {
         let pos_scale =
             Vector2F::splat(1.0) / Vector2I::new(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32() * 0.5;
 
-        let mut points = Vec::<[f32; 2]>::with_capacity(glyphs.len() * 6);
-        let mut uv_tex = Vec::<([f32; 2], f32)>::with_capacity(glyphs.len() * 6);
+        struct PointInfo {
+            pos: [f32; 2],
+            uv: [f32; 2],
+            tex: f32,
+        }
+
+        static _POINT_INFO_LAYOUT: () = {
+            ["uv and tex must be in a row"]
+                [std::mem::offset_of!(PointInfo, uv) + 8 - std::mem::offset_of!(PointInfo, tex)];
+        };
+
+        let mut points = Vec::<PointInfo>::with_capacity(glyphs.len() * 6);
 
         //let mut cursor = vec2f(0.0, 0.0);
         let mut cursor = vec2f(0.0, 0.5);
@@ -252,20 +263,22 @@ fn main() {
             let uv_rect =
                 RectI::new(info.glyph_origin, info.glyph_size * vec2i(1, -1)).to_f32() * uv_scale;
 
-            points.push(poly_rect.upper_right().0.0);
-            points.push(poly_rect.lower_left().0.0);
-            points.push(poly_rect.origin().0.0);
-            points.push(poly_rect.lower_left().0.0);
-            points.push(poly_rect.upper_right().0.0);
-            points.push(poly_rect.lower_right().0.0);
+            macro_rules! point {
+                ($f: ident) => {
+                    PointInfo {
+                        pos: poly_rect.$f().0.0,
+                        uv: uv_rect.$f().0.0,
+                        tex: info.canvas_id as f32,
+                    }
+                };
+            }
 
-            let canvas = info.canvas_id as f32;
-            uv_tex.push((uv_rect.upper_right().0.0, canvas));
-            uv_tex.push((uv_rect.lower_left().0.0, canvas));
-            uv_tex.push((uv_rect.origin().0.0, canvas));
-            uv_tex.push((uv_rect.lower_left().0.0, canvas));
-            uv_tex.push((uv_rect.upper_right().0.0, canvas));
-            uv_tex.push((uv_rect.lower_right().0.0, canvas));
+            points.push(point!(upper_right));
+            points.push(point!(lower_left));
+            points.push(point!(origin));
+            points.push(point!(lower_left));
+            points.push(point!(upper_right));
+            points.push(point!(lower_right));
 
             cursor += advance;
         }
@@ -283,27 +296,31 @@ fn main() {
             gl::STATIC_DRAW,
         );
 
-        let mut uv_tex_vbo = 0;
-        gl::GenBuffers(1, &mut uv_tex_vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, uv_tex_vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            size_of_val::<[_]>(uv_tex.as_slice()) as isize,
-            uv_tex.as_ptr().cast(),
-            gl::STATIC_DRAW,
-        );
-
         let mut points_vao = 0;
         gl::GenVertexArrays(1, &mut points_vao);
         gl::BindVertexArray(points_vao);
 
         gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::EnableVertexAttribArray(in_pos_attrib as _);
-        gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 0, null());
+        gl::VertexAttribPointer(
+            0,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            size_of::<PointInfo>() as _,
+            std::ptr::without_provenance(offset_of!(PointInfo, pos)),
+        );
 
-        gl::BindBuffer(gl::ARRAY_BUFFER, uv_tex_vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, points_vbo);
         gl::EnableVertexAttribArray(in_uv_tex_attrib as _);
-        gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, 0, null());
+        gl::VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            size_of::<PointInfo>() as _,
+            std::ptr::without_provenance(offset_of!(PointInfo, uv)),
+        );
 
         // rendering
         gl::BindFramebuffer(gl::FRAMEBUFFER, gl_framebuffer);
