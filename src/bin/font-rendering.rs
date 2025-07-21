@@ -193,7 +193,7 @@ fn main() {
         gl::TexImage3D(
             gl::TEXTURE_2D_ARRAY,
             0,
-            gl::RGBA8 as _, //gl::R8 as _,
+            gl::R8 as _,
             atlas.canvas_size().x() as _,
             atlas.canvas_size().y() as _,
             atlas.canvases().len() as _,
