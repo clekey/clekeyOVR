@@ -182,27 +182,30 @@ fn main() {
         let mut font_atlas_texture = 0;
         gl::GenTextures(1, &mut font_atlas_texture);
         gl::BindTexture(gl::TEXTURE_2D_ARRAY, font_atlas_texture);
-        let array = atlas
-            .canvases()
-            .iter()
-            .flat_map(|x| &x.pixels)
-            .copied()
-            .collect::<Vec<_>>();
-        println!("array: {:?}", array.as_ptr());
         gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-        gl::TexImage3D(
+        gl::TexStorage3D(
             gl::TEXTURE_2D_ARRAY,
-            0,
+            1,
             gl::R8 as _,
             atlas.canvas_size().x() as _,
             atlas.canvas_size().y() as _,
             atlas.canvases().len() as _,
-            0,
-            gl::RED,
-            gl::UNSIGNED_BYTE,
-            array.as_ptr().cast(),
         );
-        drop(array);
+        for (index, canvas) in atlas.canvases().iter().enumerate() {
+            gl::TexSubImage3D(
+                gl::TEXTURE_2D_ARRAY,
+                0,
+                0,
+                0,
+                index as _,
+                atlas.canvas_size().x() as _,
+                atlas.canvas_size().y() as _,
+                1,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                canvas.pixels.as_ptr().cast(),
+            );
+        }
         gl::TexParameteri(
             gl::TEXTURE_2D_ARRAY,
             gl::TEXTURE_MIN_FILTER,
