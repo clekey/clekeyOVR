@@ -12,8 +12,10 @@ trait MergeSerialize {
     fn merge(&mut self, parital: Self::PartialType);
 }
 
+#[derive(Default)]
 enum OptionalValue<T: MergeSerialize> {
     Value(T::PartialType),
+    #[default]
     Omitted,
 }
 
@@ -22,12 +24,6 @@ impl<T: MergeSerialize> OptionalValue<T> {
         if let OptionalValue::Value(partial) = self {
             MergeSerialize::merge(target, partial)
         }
-    }
-}
-
-impl<T: MergeSerialize> Default for OptionalValue<T> {
-    fn default() -> Self {
-        OptionalValue::Omitted
     }
 }
 
@@ -382,7 +378,7 @@ impl Default for RingOverlayConfig {
 //CleKeyConfig loadConfig(CleKeyConfig &config);
 
 fn get_config_path() -> PathBuf {
-    return get_appdata_dir().join("config.json");
+    get_appdata_dir().join("config.json")
 }
 
 fn do_load_config(config: &mut CleKeyConfig) -> io::Result<()> {
@@ -403,10 +399,10 @@ fn write_config(config: &CleKeyConfig) -> io::Result<()> {
 
 pub fn load_config(config: &mut CleKeyConfig) {
     if let Err(err) = do_load_config(config) {
-        log::error!("loading config: {}", err);
+        log::error!("loading config: {err}");
     }
     if let Err(err) = write_config(config) {
-        log::error!("saving config: {}", err);
+        log::error!("saving config: {err}");
     }
 }
 

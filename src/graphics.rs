@@ -102,7 +102,7 @@ pub fn draw_cursor_circle(
 fn calc_offsets(size: scalar) -> [Point; 8] {
     let axis = 0.75 * size;
     let diagonal = axis * FRAC_1_SQRT_2;
-    return [
+    [
         Point::new(0.0, -axis),
         Point::new(diagonal, -diagonal),
         Point::new(axis, 0.0),
@@ -111,7 +111,7 @@ fn calc_offsets(size: scalar) -> [Point; 8] {
         Point::new(-diagonal, diagonal),
         Point::new(-axis, 0.0),
         Point::new(-diagonal, -diagonal),
-    ];
+    ]
 }
 
 fn render_text_in_box(
@@ -128,7 +128,7 @@ fn render_text_in_box(
             ParagraphStyle::new().set_text_style(
                 TextStyle::new()
                     .set_font_size(box_size)
-                    .set_font_families(&fonts.families),
+                    .set_font_families(fonts.families),
             ),
             &fonts.collection,
         )
@@ -150,11 +150,11 @@ fn render_text_in_box(
                 TextStyle::new()
                     .set_color(color.to_color())
                     .set_font_size(actual_font_size)
-                    .set_font_families(&fonts.families),
+                    .set_font_families(fonts.families),
             ),
         &fonts.collection,
     )
-    .add_text(&text)
+    .add_text(text)
     .build();
 
     paragraph.layout(width);
@@ -162,7 +162,7 @@ fn render_text_in_box(
     paragraph.paint(canvas, text_pos);
 }
 
-fn render_ring_chars<'a>(canvas: &Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
+fn render_ring_chars(canvas: &Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
     let font_size = ring.ring_size * 0.4;
     let offsets = calc_offsets(ring.ring_size);
 
@@ -173,11 +173,12 @@ fn render_ring_chars<'a>(canvas: &Canvas, fonts: &FontInfo, center: Point, ring:
             font_size * char.size,
             char.show,
             char.color,
-            center + offsets[i as usize],
+            center + offsets[i],
         );
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_ring<'a, const ALWAYS_SHOW_IN_CIRCLE: bool>(
     surface: &mut Surface,
     config: &RingOverlayConfig,
@@ -355,7 +356,7 @@ pub fn draw_center(
             };
 
             let mut builder = ParagraphBuilder::new(
-                &ParagraphStyle::new()
+                ParagraphStyle::new()
                     .set_text_align(TextAlign::Left)
                     .set_max_lines(1)
                     .set_text_style(&style),
@@ -407,7 +408,7 @@ pub fn draw_center(
             .iter()
             .map(|txt| {
                 let mut builder = ParagraphBuilder::new(
-                    &ParagraphStyle::new()
+                    ParagraphStyle::new()
                         .set_text_align(TextAlign::Left)
                         .set_max_lines(1)
                         .set_text_style(&style),

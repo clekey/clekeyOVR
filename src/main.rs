@@ -5,7 +5,6 @@ mod utils;
 mod config;
 #[cfg(feature = "debug_window")]
 mod debug_graphics;
-mod font_rendering;
 mod global;
 mod graphics;
 mod input_method;
@@ -151,10 +150,10 @@ fn main() {
                 .new_from_data(&std::fs::read(e.path()).expect("read data"), None)
                 .expect("new from data");
             font_families.push(face.family_name());
-            info!("loaded: {:?}", face);
+            info!("loaded: {face:?}");
         }
     }
-    info!("font_families: {:?}", font_families);
+    info!("font_families: {font_families:?}");
 
     // TODO: find way to use Noto Sans in rendering instead of system fonts
     fonts.set_default_font_manager(Some(font_mgr), None);
@@ -679,6 +678,7 @@ impl HandInfo {
 }
 
 impl HandInfo {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             stick: Vec2::new(0.0, 0.0),
@@ -758,7 +758,7 @@ impl<'a> Application<'a> {
                 self.click_started = Instant::now();
                 self.kbd_status.button_idx = 0
             } else if self.kbd_status.clicking() {
-                if button.0.len() != 0 {
+                if !button.0.is_empty() {
                     let dur = Instant::now().duration_since(self.click_started);
                     let millis = dur.as_millis();
                     self.kbd_status.button_idx =
@@ -797,7 +797,7 @@ impl<'a> Application<'a> {
                 }
             }
         }
-        return false;
+        false
     }
 
     pub(crate) fn kbd_henkan_tick(&mut self) -> bool {
@@ -811,19 +811,23 @@ impl<'a> Application<'a> {
                 } else {
                     &ime_specific::BUTTONS_PASTE_OPTIONAL
                 };
-                if let Some(action) = buttons[hand.selection as usize].0.get(0).map(|x| &x.action) {
+                if let Some(action) = buttons[hand.selection as usize]
+                    .0
+                    .first()
+                    .map(|x| &x.action)
+                {
                     return Some(action);
                 }
             }
             None
         }
         fn action_left(app: &mut Application) {
-            if let Some(action) = get_input_action(&app.config, &app.kbd_status.left) {
+            if let Some(action) = get_input_action(app.config, &app.kbd_status.left) {
                 app.do_input_action(action);
             }
         }
         fn action_right(app: &mut Application) {
-            if let Some(action) = get_input_action(&app.config, &app.kbd_status.right) {
+            if let Some(action) = get_input_action(app.config, &app.kbd_status.right) {
                 app.do_input_action(action);
             }
         }
@@ -856,17 +860,17 @@ impl<'a> Application<'a> {
         }
 
         for x in HardKeyButton::VALUES {
+            #[allow(unreachable_patterns, clippy::single_match)]
             if self.ovr_controller.click_started(x) {
                 match x {
                     HardKeyButton::CloseButton => return true,
                     // nop
-                    #[allow(unreachable_patterns)]
                     _ => (),
                 }
             }
         }
 
-        return false;
+        false
     }
 
     fn do_input_action(&mut self, action: &InputNextAction) {
@@ -908,7 +912,7 @@ impl<'a> Application<'a> {
     pub fn flush(&mut self, force_paste: bool) -> bool {
         let mut builder = String::new();
         let buffer = if self.kbd_status.candidates.is_empty() {
-            &self.kbd_status.buffer
+            self.kbd_status.buffer.as_str()
         } else {
             for x in &self.kbd_status.candidates {
                 builder.push_str(&x.candidates[x.index]);
@@ -919,9 +923,9 @@ impl<'a> Application<'a> {
         if !buffer.is_empty() {
             let enter = force_paste || self.config.always_enter_paste;
             if enter {
-                success = os::enter_text(&buffer)
+                success = os::enter_text(buffer)
             } else {
-                success = os::copy_text(&buffer);
+                success = os::copy_text(buffer);
             }
         }
         if success {
@@ -929,7 +933,7 @@ impl<'a> Application<'a> {
             self.kbd_status.buffer.clear();
             self.kbd_status.candidates.clear();
         }
-        return success;
+        success
     }
 
     fn close_key(mgr: &mut Application) {
@@ -974,13 +978,12 @@ impl<'a> Application<'a> {
             .add(b'+')
             .add(b',');
 
-        if let Some(response) = reqwest::blocking::get(format!(
+        if let Ok(response) = reqwest::blocking::get(format!(
             "https://www.google.com/transliterate?langpair=ja-Hira|ja&text={text}",
             text =
                 percent_encoding::utf8_percent_encode(&mgr.kbd_status.buffer, COMPONENT_ENCODE_SET)
         ))
         .and_then(|x| x.json::<Vec<(String, Vec<String>)>>())
-        .ok()
         {
             mgr.kbd_status.candidates_idx = 0;
             mgr.kbd_status.henkan_using = None;
@@ -1011,7 +1014,7 @@ impl<'a> Application<'a> {
     }
 
     fn backspace_key(mgr: &mut Application) {
-        if let Some(_) = mgr.kbd_status.buffer.pop() {
+        if mgr.kbd_status.buffer.pop().is_some() {
             if mgr.kbd_status.buffer.is_empty() {
                 mgr.set_inputted_table();
             }

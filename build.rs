@@ -59,7 +59,7 @@ fn hash_resources() {
 
 fn hash_read(mut read: impl io::Read) -> io::Result<Vec<u8>> {
     let mut hasher = Sha256::new();
-    let mut buf = [0 as u8; 8 * 1024];
+    let mut buf = [0u8; 8 * 1024];
     loop {
         match read.read(&mut buf) {
             Ok(0) => break,

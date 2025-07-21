@@ -8,11 +8,11 @@ pub fn get_appdata_dir() -> &'static Path {
         std::env::current_dir().expect("cwd")
             .join("appdata")
     });
-    return &*VALUE;
+    &VALUE
 }
 
 pub fn enter_char(c: char) {
-    info!("mock: enter_char: {}", c);
+    info!("mock: enter_char: {c}");
 }
 
 pub fn enter_backspace() {
@@ -24,11 +24,11 @@ pub fn enter_enter() {
 }
 
 pub fn enter_text(text: &str) -> bool {
-    info!("mock: copy: {}", text);
-    return true
+    info!("mock: copy: {text}");
+    true
 }
 
 pub fn copy_text(copy: &str) -> bool {
-    info!("mock: copy: {}", copy);
-    return true
+    info!("mock: copy: {copy}");
+    true
 }

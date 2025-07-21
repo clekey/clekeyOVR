@@ -10,7 +10,7 @@ static RESOURCES_TAR_GZ: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/resou
 static RESOURCES_HASH: &str = env!("RESOURCES_HASH");
 
 pub(crate) fn init() {
-    info!("resources hash: {}", RESOURCES_HASH);
+    info!("resources hash: {RESOURCES_HASH}");
     let resources = get_resources_dir();
     if check_hash(&resources.join("hash")) {
         info!("hash matched. skipping expanding resources");
@@ -33,5 +33,5 @@ fn check_hash(hash_file: &Path) -> bool {
 }
 
 pub fn get_resources_dir() -> PathBuf {
-    return get_appdata_dir().join("resources");
+    get_appdata_dir().join("resources")
 }

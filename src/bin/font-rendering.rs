@@ -1,8 +1,7 @@
 use crate::font_rendering::{FontAtlas, FontRenderer};
 use font_kit::handle::Handle;
-use gl::types::{GLenum, GLint, GLsizei, GLuint};
+use gl::types::{GLsizei, GLuint};
 use glfw::{Context, OpenGlProfileHint, WindowHint};
-use log::error;
 use pathfinder_color::ColorF;
 use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
 use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f};
@@ -72,7 +71,7 @@ fn main() {
     glfw.window_hint(WindowHint::Visible(false));
     glfw.window_hint(WindowHint::ContextNoError(false));
 
-    let (mut window, events) = glfw
+    let (mut window, _events) = glfw
         .create_window(
             WINDOW_WIDTH as _,
             WINDOW_HEIGHT as _,

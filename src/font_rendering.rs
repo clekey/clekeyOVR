@@ -114,6 +114,7 @@ impl Hash for GlyphId {
 #[non_exhaustive]
 pub struct GlyphInfo {
     pub canvas_id: usize,
+    #[allow(dead_code)]
     pub glyph_id: u32,
     pub advance: Vector2F,
     pub rasterize_offset: Vector2I,
@@ -654,7 +655,7 @@ impl FontRenderer {
             .prepare_glyphs(&glyphs.iter().map(|&g| (font, g)).collect::<Vec<_>>())
             .unwrap();
         if update {
-            self.update_texture(&atlas);
+            self.update_texture(atlas);
         }
 
         let matrix = transform.matrix;
@@ -690,17 +691,22 @@ unsafe fn compile_shader(type_: GLenum, script: &str) -> GLuint {
         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
 
         if success == 0 {
-            let mut info = Vec::new();
+            let mut info = Vec::<u8>::new();
             let mut len: GLsizei = 512;
             while info.capacity() < (len as usize) {
                 info.reserve(len as usize);
-                gl::GetShaderInfoLog(shader, info.capacity() as _, &mut len, info.as_mut_ptr());
+                gl::GetShaderInfoLog(
+                    shader,
+                    info.capacity() as _,
+                    &mut len,
+                    info.as_mut_ptr().cast(),
+                );
             }
             info.set_len(len as usize);
             panic!(
                 "compile error: (0x{:x}): {}",
                 success,
-                String::from_utf8_unchecked(std::mem::transmute(info))
+                String::from_utf8_unchecked(info)
             );
         }
 
@@ -720,7 +726,7 @@ unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
         gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
 
         if success == 0 {
-            let mut info = Vec::new();
+            let mut info = Vec::<u8>::new();
             let mut len: GLsizei = 512;
             while info.capacity() < (len as usize) {
                 info.reserve(len as usize);
@@ -728,14 +734,14 @@ unsafe fn link_shader(shaders: &[GLuint]) -> GLuint {
                     shader_program,
                     info.capacity() as _,
                     &mut len,
-                    info.as_mut_ptr(),
+                    info.as_mut_ptr().cast(),
                 );
             }
             info.set_len(len as usize);
             panic!(
                 "link error: (0x{:x}): {}",
                 success,
-                String::from_utf8_unchecked(std::mem::transmute(info))
+                String::from_utf8_unchecked(info)
             );
         }
 
