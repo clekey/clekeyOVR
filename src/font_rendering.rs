@@ -212,7 +212,7 @@ impl FontAtlas {
                     (rasterize_size.y() as u32).next_multiple_of(self.mip_cell_size) as i32,
                 );
                 let is_short = rasterize_size.y() as u32 <= self.short_line_height;
-                let advance = font.advance(glyph_id).unwrap() * raster_scale;
+                let advance = font.advance(glyph_id)? * raster_scale;
 
                 if rasterize_size.x() >= self.canvas_state.canvas_size.x()
                     || rasterize_size.y() >= self.canvas_state.canvas_size.y()
@@ -651,14 +651,13 @@ impl FontRenderer {
         color: ColorF,
         transform: Transform2F,
         text: &str,
-    ) {
+    ) -> Result<(), GlyphLoadingError> {
         let glyphs = text
             .chars()
-            .map(|c| font.glyph_for_char(c).unwrap())
-            .collect::<Vec<_>>();
-        let (glyph_info, update) = atlas
-            .prepare_glyphs(&glyphs.iter().map(|&g| (font, g)).collect::<Vec<_>>())
-            .unwrap();
+            .map(|c| font.glyph_for_char(c).ok_or(GlyphLoadingError::NoSuchGlyph))
+            .collect::<Result<Vec<_>, _>>()?;
+        let (glyph_info, update) =
+            atlas.prepare_glyphs(&glyphs.iter().map(|&g| (font, g)).collect::<Vec<_>>())?;
         if update {
             self.update_texture(atlas);
         }
@@ -678,6 +677,8 @@ impl FontRenderer {
                 (info, transform)
             }),
         );
+
+        Ok(())
     }
 }
 

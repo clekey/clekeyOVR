@@ -128,16 +128,18 @@ fn main() {
 
         let mut cursor = vec2f(-1.0, 0.975);
         for text in chars.as_slice() {
-            font_renderer.draw_text_simple(
-                &mut atlas,
-                &font,
-                ColorF::white(),
-                Transform2F {
-                    matrix,
-                    vector: cursor,
-                },
-                text,
-            );
+            font_renderer
+                .draw_text_simple(
+                    &mut atlas,
+                    &font,
+                    ColorF::white(),
+                    Transform2F {
+                        matrix,
+                        vector: cursor,
+                    },
+                    text,
+                )
+                .unwrap();
             cursor -= matrix * vec2f(0.0, atlas.font_em_size());
         }
         let render0_end = Instant::now();
@@ -151,16 +153,18 @@ fn main() {
 
         let mut cursor = vec2f(-1.0, 0.975);
         for text in chars.as_slice() {
-            font_renderer.draw_text_simple(
-                &mut atlas,
-                &font,
-                ColorF::new(1.0, 0.0, 0.0, 1.0),
-                Transform2F {
-                    matrix,
-                    vector: cursor,
-                },
-                text,
-            );
+            font_renderer
+                .draw_text_simple(
+                    &mut atlas,
+                    &font,
+                    ColorF::new(1.0, 0.0, 0.0, 1.0),
+                    Transform2F {
+                        matrix,
+                        vector: cursor,
+                    },
+                    text,
+                )
+                .unwrap();
             cursor -= matrix * vec2f(0.0, atlas.font_em_size());
         }
         let render1_end = Instant::now();
