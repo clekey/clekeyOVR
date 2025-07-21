@@ -557,9 +557,9 @@ impl FontRenderer {
         }
     }
 
-    fn generate_points<'a>(
+    fn generate_points(
         &self,
-        glyphs: impl IntoIterator<Item = (&'a GlyphInfo, Transform2F)>,
+        glyphs: impl IntoIterator<Item = (GlyphInfo, Transform2F)>,
     ) -> Vec<PointInfo> {
         let glyphs = glyphs.into_iter();
         let uv_scale = Vector2F::splat(1.0) / self.font_atlas_texture_size.to_f32();
@@ -587,15 +587,14 @@ impl FontRenderer {
             points.push(point!(upper_right));
             points.push(point!(lower_right));
         }
-
         points
     }
 
     /// Renders glyphs in specified color.
-    pub fn draw_glyphs<'a>(
+    pub fn draw_glyphs(
         &self,
         color: ColorF,
-        glyphs: impl IntoIterator<Item = (&'a GlyphInfo, Transform2F)>,
+        glyphs: impl IntoIterator<Item = (GlyphInfo, Transform2F)>,
     ) {
         // prepare buffer
         inner(self, color, &self.generate_points(glyphs));
@@ -663,7 +662,7 @@ impl FontRenderer {
         let mut cursor = transform.vector;
         self.draw_glyphs(
             color,
-            glyph_info.iter().map(|info| {
+            glyph_info.iter().map(|&info| {
                 let advance = matrix * info.advance;
                 let transform = Transform2F {
                     matrix,
