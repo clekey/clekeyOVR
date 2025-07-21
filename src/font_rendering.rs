@@ -531,7 +531,6 @@ impl FontRenderer {
                 gl::TEXTURE_WRAP_T,
                 gl::CLAMP_TO_EDGE as _,
             );
-            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAX_LEVEL, 0);
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0);
 
             self.font_atlas_texture_size = atlas.canvas_size();
@@ -564,6 +563,7 @@ impl FontRenderer {
                     canvas.pixels.as_ptr().cast(),
                 );
             }
+            gl::GenerateMipmap(gl::TEXTURE_2D_ARRAY);
         }
     }
 
