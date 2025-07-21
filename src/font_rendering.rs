@@ -385,7 +385,7 @@ pub struct FontRenderer {
 }
 
 // attributes definition
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 struct PointInfo {
     pos: [f32; 2],
@@ -581,12 +581,17 @@ impl FontRenderer {
                 };
             }
 
-            points.push(point!(upper_right));
-            points.push(point!(lower_left));
-            points.push(point!(origin));
-            points.push(point!(lower_left));
-            points.push(point!(upper_right));
-            points.push(point!(lower_right));
+            let origin = point!(origin);
+            let lower_left = point!(lower_left);
+            let upper_right = point!(upper_right);
+            let lower_right = point!(lower_right);
+
+            points.push(upper_right);
+            points.push(lower_left);
+            points.push(origin);
+            points.push(lower_left);
+            points.push(upper_right);
+            points.push(lower_right);
         }
         points
     }
