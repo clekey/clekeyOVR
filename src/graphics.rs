@@ -3,8 +3,10 @@ use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
 use crate::font_rendering::{FontAtlas, FontMetrics, FontRenderer, Layout, TextArranger};
 use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer};
 use crate::input_method::CleKeyButton;
+use font_kit::font::Font as FKFont;
 use font_kit::handle::Handle;
 use glam::Vec2;
+use log::error;
 use pathfinder_color::ColorF;
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
@@ -22,11 +24,17 @@ pub struct GraphicsContext {
     circle_renderer: CircleRenderer,
     rectangle_renderer: RectangleRenderer,
     base_background_renderer: BaseBackgroundRenderer,
+
+    to_background_channel_sender: std::sync::mpsc::Sender<Vec<(Arc<FKFont>, u32)>>,
+    from_background_channel_receiver: std::sync::mpsc::Receiver<FontAtlas>,
 }
 
 impl GraphicsContext {
     pub fn new() -> Self {
-        Self {
+        let (to_background_channel_sender, _) = std::sync::mpsc::channel::<Vec<_>>();
+        let (_, from_background_channel_receiver) = std::sync::mpsc::channel();
+
+        let mut context = Self {
             font_atlas: FontAtlas::new(200.0, 65536, 16),
             font_renderer: FontRenderer::new(),
             font_layout: TextArranger::new([
@@ -54,15 +62,73 @@ impl GraphicsContext {
             circle_renderer: CircleRenderer::new(),
             rectangle_renderer: RectangleRenderer::new(),
             base_background_renderer: BaseBackgroundRenderer::new(),
+
+            to_background_channel_sender,
+            from_background_channel_receiver,
+        };
+
+        context.font_renderer.update_texture(&context.font_atlas);
+
+        context
+    }
+
+    pub fn receive_atlas(&mut self) {
+        if let Ok(atlas) = self.from_background_channel_receiver.try_recv() {
+            self.font_atlas = atlas;
+            while let Ok(atlas) = self.from_background_channel_receiver.try_recv() {
+                self.font_atlas = atlas;
+            }
+
+            self.font_renderer.update_texture(&self.font_atlas);
+        }
+    }
+
+    fn send_glyphs(&mut self, mut glyphs: Vec<(Arc<FKFont>, u32)>) {
+        while let Err(e) = self.to_background_channel_sender.send(glyphs) {
+            glyphs = e.0;
+            let to_background_channel_receiver;
+            let from_background_channel_sender;
+
+            (
+                self.to_background_channel_sender,
+                to_background_channel_receiver,
+            ) = std::sync::mpsc::channel::<Vec<_>>();
+            (
+                from_background_channel_sender,
+                self.from_background_channel_receiver,
+            ) = std::sync::mpsc::channel();
+
+            std::thread::spawn({
+                let mut font_atlas = self.font_atlas.clone();
+                move || {
+                    log::debug!("graphics context background thread: started");
+                    while let Ok(glyphs_to_add) = to_background_channel_receiver.recv() {
+                        match font_atlas.rasterize_glyphs(&glyphs_to_add) {
+                            Ok(true) => {
+                                log::debug!("graphics context background thread: updated glyphs");
+                                if from_background_channel_sender
+                                    .send(font_atlas.clone())
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            Ok(false) => {}
+                            Err(e) => {
+                                error!("Error while rasterize font: {}", e);
+                            }
+                        }
+                    }
+                    log::debug!("graphics context background thread: exiting");
+                }
+            });
         }
     }
 
     pub fn render_text(&mut self, color: ColorF, layout: &Layout) {
-        let (glyphs, update) = self.font_atlas.prepare_glyphs(layout.glyphs()).unwrap();
+        let (glyphs, updated) = self.font_atlas.get_glyphs(layout.glyphs()).unwrap();
 
-        if update {
-            self.font_renderer.update_texture(&self.font_atlas);
-        }
+        self.send_glyphs(updated);
 
         self.font_renderer.draw_glyphs(
             color,

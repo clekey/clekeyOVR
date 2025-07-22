@@ -45,10 +45,11 @@ use std::sync::{Arc, Weak};
 //  +-----*--------------------------+  -------------------------
 //        ^ tall_glyph_cursor
 
+#[derive(Clone)]
 pub struct FontAtlas {
     /// The canvas we have drawn glyphs.
     /// When we have too many characters to use, we might need multiple canvas to fit all characters
-    canvases: Vec<Canvas>,
+    canvases: Vec<CanvasClone>,
 
     // static information of the glyphs / canvas
     /// The size of text in em units
@@ -71,6 +72,26 @@ pub struct FontAtlas {
 
     /// The location information of the rendered glyphs
     glyphs: HashMap<GlyphId, GlyphInfo>,
+}
+
+#[repr(transparent)]
+struct CanvasClone(Canvas);
+
+impl CanvasClone {
+    pub fn new(size: Vector2I, format: Format) -> Self {
+        CanvasClone(Canvas::new(size, format))
+    }
+}
+
+impl Clone for CanvasClone {
+    fn clone(&self) -> Self {
+        Self(Canvas {
+            pixels: self.0.pixels.clone(),
+            size: self.0.size,
+            stride: self.0.stride,
+            format: self.0.format,
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -99,6 +120,7 @@ impl CanvasState {
     }
 }
 
+#[derive(Clone)]
 struct GlyphId(Weak<FKFont>, u32);
 
 impl PartialEq<Self> for GlyphId {
@@ -146,7 +168,7 @@ impl FontAtlas {
         let size = (expected_lines * short_line_height)
             .next_power_of_two()
             .min(max_texture_size);
-        let canvas = Canvas::new(Vector2I::splat(size as i32), Format::A8);
+        let canvas = CanvasClone::new(Vector2I::splat(size as i32), Format::A8);
         Self {
             font_em_size,
             short_line_height,
@@ -154,7 +176,7 @@ impl FontAtlas {
             mip_cell_size,
             pad_size: mip_cell_size as i32,
 
-            canvas_state: CanvasState::new(short_line_height as i32, canvas.size),
+            canvas_state: CanvasState::new(short_line_height as i32, canvas.0.size),
             canvases: vec![canvas],
             glyphs: HashMap::new(),
         }
@@ -170,7 +192,10 @@ impl FontAtlas {
     }
 
     pub fn canvases(&self) -> &[Canvas] {
-        &self.canvases
+        unsafe {
+            // SAFETY: CloneCanvas is transparent to Canvas
+            std::slice::from_raw_parts(self.canvases.as_ptr().cast(), self.canvases.len())
+        }
     }
 
     /// Prepares glyphs and returns list of UV location
@@ -223,7 +248,7 @@ impl FontAtlas {
     pub fn rasterize_glyphs(
         &mut self,
         glyphs_to_add: &[(Arc<FKFont>, u32)],
-    ) -> Result<(), GlyphLoadingError> {
+    ) -> Result<bool, GlyphLoadingError> {
         {
             let hinting = HintingOptions::None;
             let options = RasterizationOptions::GrayscaleAa;
@@ -243,6 +268,11 @@ impl FontAtlas {
             }
 
             for &(ref font, glyph_id) in glyphs_to_add {
+                let id = GlyphId(Arc::downgrade(&font), glyph_id);
+                if self.glyphs.contains_key(&id) {
+                    continue;
+                }
+
                 let raster_scale = self.font_em_size / font.metrics().units_per_em as f32;
                 let typographic_bounds = font.typographic_bounds(glyph_id)?;
                 let rasterize_bounds = (typographic_bounds * raster_scale).round_out().to_i32();
@@ -278,6 +308,10 @@ impl FontAtlas {
                     advance,
                     rasterize_position: None,
                 })
+            }
+
+            if short_rasterize_information.is_empty() && tall_rasterize_information.is_empty() {
+                return Ok(false);
             }
 
             // We try to layout by wider to shorter. I hope this should reduce unused space
@@ -321,7 +355,7 @@ impl FontAtlas {
                         // We don't have space for new line in this canvas so we create new canvas.
                         // TODO: We should resize the canvas size if current canvas is the first canvas in the row.
                         self.canvases
-                            .push(Canvas::new(self.canvas_state.canvas_size, Format::A8));
+                            .push(CanvasClone::new(self.canvas_state.canvas_size, Format::A8));
                         canvas_index += 1;
                         canvas_state = CanvasState::new(
                             self.short_line_height as i32,
@@ -368,7 +402,7 @@ impl FontAtlas {
                         // so we should move to next canvas
                         // TODO: We should resize the canvas size if current canvas is the first canvas in the row.
                         self.canvases
-                            .push(Canvas::new(self.canvas_state.canvas_size, Format::A8));
+                            .push(CanvasClone::new(self.canvas_state.canvas_size, Format::A8));
                         canvas_index += 1;
                         canvas_state = CanvasState::new(
                             self.short_line_height as i32,
@@ -388,7 +422,7 @@ impl FontAtlas {
                 let (canvas_id, rasterize_position) = information.rasterize_position.unwrap();
 
                 information.font.rasterize_glyph(
-                    &mut self.canvases[canvas_id],
+                    &mut self.canvases[canvas_id].0,
                     information.glyph_id,
                     self.font_em_size,
                     Transform2F::from_translation(
@@ -415,7 +449,7 @@ impl FontAtlas {
             }
         }
 
-        Ok(())
+        Ok(true)
     }
 
     /// Prepares glyphs and returns list of UV location

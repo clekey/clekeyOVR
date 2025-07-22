@@ -151,6 +151,8 @@ fn main() {
             ovr_controller.accept_debug_control(_event);
         }
 
+        graphics_context.receive_atlas();
+
         // TODO: openvr tick
 
         app.app_status.clone().tick(&mut app);
