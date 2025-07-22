@@ -7,7 +7,7 @@ use font_kit::handle::Handle;
 use glam::Vec2;
 use pathfinder_color::ColorF;
 use pathfinder_geometry::rect::RectF;
-use pathfinder_geometry::transform2d::Transform2F;
+use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
 use pathfinder_geometry::vector::{Vector2F, vec2f};
 use std::array::from_fn;
 use std::f32::consts::FRAC_1_SQRT_2;
@@ -258,145 +258,129 @@ pub fn draw_center(
     context: &mut GraphicsContext,
 ) {
     crate::gl_primitives::gl_clear(ColorF::transparent_black());
-    /*
-       const SPACE_RATIO: f32 = 0.1;
-       const FONT_SIZE_RATIO: f32 = 0.7;
+    const SPACE_RATIO: f32 = 0.1;
+    const FONT_SIZE_RATIO: f32 = 0.7;
 
-       fn render(
-           context: &mut GraphicsContext,
-           rect: RectF,
-           background_color: ColorF,
-           paragraph: impl FnOnce(/*font_size: */ f32) -> Paragraph,
-       ) {
-           let space = rect.height() * SPACE_RATIO;
-           let font_size = rect.height() * FONT_SIZE_RATIO;
+    let width = 2.0;
+    let lane_height = 0.36;
+    let space = lane_height * SPACE_RATIO * 0.5;
+    let font_size = lane_height * FONT_SIZE_RATIO;
 
-           context.rectangle_renderer.draw(rect, 0.0, background_color);
+    // configure font settings
+    struct TextRenderer<'a> {
+        context: &'a mut GraphicsContext,
+        cursor: Vector2F,
+        font_size: Vector2F,
+        height: f32,
+    }
+    impl<'a> TextRenderer<'a> {
+        fn draw(&mut self, text: &str, color: ColorF, underline: bool) {
+            let metrics = self.context.font_layout.metrics();
+            let mut layout = self.context.font_layout.layout(text, &[]);
 
-           let mut paragraph = paragraph(font_size);
-           paragraph.layout(rect.width() - space - space);
+            let mut cursor = self.cursor;
+            cursor.0[1] += self.height / 2.0;
+            cursor.0[1] -= metrics.cap_height * self.font_size.y() / 2.0;
 
-           paragraph.paint(
-               canvas,
-               Vector2F::new(rect.left() + space, rect.top() + space * 2.0),
-           );
-       }
+            layout.apply_transform(Transform2F {
+                matrix: Matrix2x2F::from_scale(self.font_size),
+                vector: cursor,
+            });
 
-       let width = 2.0;
-       let lane_height = 0.18 * 2;
+            let (glyphs, updated) = self
+                .context
+                .font_atlas
+                .prepare_glyphs(layout.glyphs())
+                .unwrap();
 
-       render(
-           context,
-           RectF::new(vec2f(-1.0, 1.0), vec2f(width, lane_height)),
-           config.background_color,
-           |font_size| {
-               let style = {
-                   let mut style = TextStyle::new();
-                   style.set_color(BLACK.to_color());
-                   style.set_height_override(true);
-                   style.set_height(1.0);
-                   style.set_font_families(fonts.families);
-                   style.set_font_size(font_size);
-                   style
-               };
-               let not_changing = {
-                   let mut style: TextStyle = style.clone();
-                   style.set_decoration_type(TextDecoration::UNDERLINE);
-                   style
-               };
+            if updated {
+                self.context
+                    .font_renderer
+                    .update_texture(&self.context.font_atlas);
+            }
 
-               let changing = {
-                   let mut style: TextStyle = style.clone();
-                   style.set_decoration_type(TextDecoration::UNDERLINE);
-                   style.set_color(config.inputting_char_color.to_color());
-                   style
-               };
+            self.context.font_renderer.draw_glyphs(
+                color,
+                glyphs.into_iter().zip(layout.transforms().iter().copied()),
+            );
 
-               let mut builder = ParagraphBuilder::new(
-                   ParagraphStyle::new()
-                       .set_text_align(TextAlign::Left)
-                       .set_max_lines(1)
-                       .set_text_style(&style),
-                   &fonts.collection,
-               );
+            if underline {
+                let underline_space = self.font_size.x() * 0.05;
+                if layout.cursor_advance().x() > underline_space * 2.0 {
+                    let underline = RectF::new(
+                        cursor - (vec2f(0.0, -metrics.underline_position)) * self.font_size
+                            + vec2f(underline_space, 0.0),
+                        (vec2f(0.0, -metrics.underline_thickness)) * self.font_size
+                            + layout.cursor_advance()
+                            + vec2f(-2.0 * underline_space, 0.0),
+                    );
 
-               if status.candidates.is_empty() {
-                   builder.push_style(&changing);
-                   builder.add_text(&status.buffer);
-                   builder.pop();
-               } else {
-                   for (i, can) in status.candidates.iter().enumerate() {
-                       if i == status.candidates_idx {
-                           builder.push_style(&changing);
-                       } else {
-                           builder.push_style(&not_changing);
-                       }
-                       builder.add_text(&can.candidates[can.index]);
-                       builder.pop();
+                    self.context.rectangle_renderer.draw(underline, 0.0, color);
+                }
+            }
 
-                       builder.add_text(" ");
-                   }
-               }
+            self.cursor += layout.cursor_advance();
+        }
+    }
 
-               builder.build()
-           },
-       );
+    let mut text_renderer = TextRenderer {
+        context,
+        font_size: vec2f(font_size * 0.5, font_size),
+        cursor: vec2f(-1., 1. - lane_height) + vec2f(space, 0.),
+        height: lane_height,
+    };
 
-       let base = lane_height;
-       let lane_height = 2.0 * 0.13;
-       let font_size = lane_height * FONT_SIZE_RATIO;
-       let space = lane_height * SPACE_RATIO;
-       if !status.candidates.is_empty() {
-           let recommendations = status.candidates[status.candidates_idx]
-               .candidates
-               .as_slice();
+    text_renderer.context.rectangle_renderer.draw(
+        RectF::new(vec2f(-1.0, 1.0), vec2f(width, -lane_height)),
+        0.,
+        config.background_color,
+    );
 
-           let style = {
-               let mut style = TextStyle::new();
-               style.set_color(config.inputting_char_color.to_color());
-               style.set_height_override(true);
-               style.set_height(1.0);
-               style.set_font_families(fonts.families);
-               style.set_font_size(font_size);
-               style
-           };
+    // TODO: scroll horizontally to show the end of input or currently changing text.
+    if status.candidates.is_empty() {
+        text_renderer.draw(&status.buffer, config.inputting_char_color, true);
+    } else {
+        for (i, can) in status.candidates.iter().enumerate() {
+            if i == status.candidates_idx {
+                text_renderer.draw(
+                    &can.candidates[can.index],
+                    config.inputting_char_color,
+                    true,
+                );
+            } else {
+                text_renderer.draw(&can.candidates[can.index], ColorF::black(), true);
+            }
+        }
+    }
 
-           let paragraphs = recommendations
-               .iter()
-               .map(|txt| {
-                   let mut builder = ParagraphBuilder::new(
-                       ParagraphStyle::new()
-                           .set_text_align(TextAlign::Left)
-                           .set_max_lines(1)
-                           .set_text_style(&style),
-                       &fonts.collection,
-                   );
+    let base = lane_height;
+    let lane_height = 2.0 * 0.13;
+    let font_size = lane_height * FONT_SIZE_RATIO;
+    let space = lane_height * SPACE_RATIO;
+    let font_size = vec2f(font_size * 0.5, font_size);
+    text_renderer.font_size = font_size;
+    text_renderer.height = lane_height;
+    if !status.candidates.is_empty() {
+        let candidates = status.candidates[status.candidates_idx]
+            .candidates
+            .as_slice();
 
-                   builder.add_text(txt);
-                   let mut p = builder.build();
-                   p.layout(width);
-                   p
-               })
-               .collect::<Vec<_>>();
+        for (i, text) in candidates.iter().enumerate() {
+            let mut layout = text_renderer.context.font_layout.layout(text, &[]);
+            layout.apply_transform(Transform2F::from_scale(font_size));
+            let width = layout.cursor_advance().x() + space * 2.0;
+            let rect = RectF::new(
+                vec2f(-1.0, 1. - (base + lane_height * (i as f32))),
+                vec2f(width, -lane_height),
+            );
 
-           let width = paragraphs
-               .iter()
-               .map(|x| x.max_intrinsic_width())
-               .fold(f32::NAN, f32::max)
-               + space * 2.0;
+            text_renderer
+                .context
+                .rectangle_renderer
+                .draw(rect, 0.0, config.background_color);
 
-           for (i, p) in paragraphs.into_iter().enumerate() {
-               render(
-                   context,
-                   RectF::new(
-                       vec2f(0.0, base + lane_height * (i as f32)),
-                       vec2f(width, lane_height),
-                   ),
-                   config.background_color,
-                   |_font_size| p,
-               );
-           }
-       }
-
-    */
+            text_renderer.cursor = rect.lower_left() + vec2f(space, 0.);
+            text_renderer.draw(text, config.inputting_char_color, false);
+        }
+    }
 }
