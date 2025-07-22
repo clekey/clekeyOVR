@@ -12,7 +12,7 @@ use pathfinder_geometry::rect::{RectF, RectI};
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f, vec2i};
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::mem::offset_of;
 use std::sync::{Arc, Weak};
@@ -174,32 +174,66 @@ impl FontAtlas {
     }
 
     /// Prepares glyphs and returns list of UV location
-    pub fn prepare_glyphs(
+    pub fn get_glyphs(
         &mut self,
         glyphs: &[(Arc<FKFont>, u32)],
-    ) -> Result<(Vec<GlyphInfo>, bool), GlyphLoadingError> {
-        let hinting = HintingOptions::None;
-        let options = RasterizationOptions::GrayscaleAa;
-
+    ) -> Result<(Vec<GlyphInfo>, Vec<(Arc<FKFont>, u32)>), GlyphLoadingError> {
         let mut result = vec![GlyphInfo::default(); glyphs.len()];
-        let mut glyphs_to_add = HashMap::new();
+        let mut glyphs_to_add = HashSet::new();
 
         for (i, &(ref font, glyph_id)) in glyphs.iter().enumerate() {
             let id = GlyphId(Arc::downgrade(font), glyph_id);
             if let Some(&info) = self.glyphs.get(&id) {
                 result[i] = info;
             } else {
-                glyphs_to_add.entry(id).or_insert_with(Vec::new).push(i);
+                let raster_scale = self.font_em_size / font.metrics().units_per_em as f32;
+                let typographic_bounds = font.typographic_bounds(glyph_id)?;
+                let rasterize_bounds = (typographic_bounds * raster_scale).round_out().to_i32();
+                let rasterize_offset = vec2i(
+                    -rasterize_bounds.origin().x(),
+                    rasterize_bounds.origin().y(),
+                );
+                let rasterize_size = rasterize_bounds.size();
+                let rasterize_size = vec2i(
+                    (rasterize_size.x() as u32).next_multiple_of(self.mip_cell_size) as i32,
+                    (rasterize_size.y() as u32).next_multiple_of(self.mip_cell_size) as i32,
+                );
+                let advance = font.advance(glyph_id)? * raster_scale;
+
+                result[i] = GlyphInfo {
+                    canvas_id: 0,
+                    glyph_id,
+                    advance: advance / self.font_em_size,
+                    rasterize_offset: rasterize_offset.to_f32() / self.font_em_size,
+                    rasterize_size: rasterize_size.to_f32() / self.font_em_size,
+                    atlas_origin: Vector2I::zero(),
+                    atlas_size: Vector2I::zero(),
+                };
+                glyphs_to_add.insert(id);
             }
         }
 
-        if !glyphs_to_add.is_empty() {
+        let glyphs_to_add = glyphs_to_add
+            .into_iter()
+            .map(|GlyphId(font, glyph)| (Weak::upgrade(&font).unwrap(), glyph))
+            .collect();
+        Ok((result, glyphs_to_add))
+    }
+
+    pub fn rasterize_glyphs(
+        &mut self,
+        glyphs_to_add: &[(Arc<FKFont>, u32)],
+    ) -> Result<(), GlyphLoadingError> {
+        {
+            let hinting = HintingOptions::None;
+            let options = RasterizationOptions::GrayscaleAa;
+
             // process glyphs not added to this atlas
             let mut short_rasterize_information = vec![];
             let mut tall_rasterize_information = vec![];
 
-            struct RasterizeInformation {
-                font: Arc<FKFont>,
+            struct RasterizeInformation<'a> {
+                font: &'a Arc<FKFont>,
                 glyph_id: u32,
                 rasterize_offset: Vector2I,
                 rasterize_size: Vector2I,
@@ -208,13 +242,9 @@ impl FontAtlas {
                 rasterize_position: Option<(usize, Vector2I)>,
             }
 
-            for &GlyphId(ref font, glyph_id) in glyphs_to_add.keys() {
-                let font = Weak::upgrade(font).unwrap(); // held by glyphs span
-
+            for &(ref font, glyph_id) in glyphs_to_add {
                 let raster_scale = self.font_em_size / font.metrics().units_per_em as f32;
-                let typographic_bounds = font
-                    .typographic_bounds(glyph_id)
-                    .expect("Error getting glyph info");
+                let typographic_bounds = font.typographic_bounds(glyph_id)?;
                 let rasterize_bounds = (typographic_bounds * raster_scale).round_out().to_i32();
                 let rasterize_offset = vec2i(
                     -rasterize_bounds.origin().x(),
@@ -369,23 +399,42 @@ impl FontAtlas {
                 )?;
 
                 let id = GlyphId(Arc::downgrade(&information.font), information.glyph_id);
-                let glyph_info = GlyphInfo {
-                    canvas_id,
-                    glyph_id: information.glyph_id,
-                    advance: information.advance / self.font_em_size,
-                    rasterize_offset: information.rasterize_offset.to_f32() / self.font_em_size,
-                    rasterize_size: information.rasterize_size.to_f32() / self.font_em_size,
-                    atlas_origin: rasterize_position,
-                    atlas_size: information.rasterize_size,
-                };
-                for &index in &glyphs_to_add[&id] {
-                    result[index] = glyph_info;
-                }
-                self.glyphs.insert(id, glyph_info);
+
+                self.glyphs.insert(
+                    id,
+                    GlyphInfo {
+                        canvas_id,
+                        glyph_id: information.glyph_id,
+                        advance: information.advance / self.font_em_size,
+                        rasterize_offset: information.rasterize_offset.to_f32() / self.font_em_size,
+                        rasterize_size: information.rasterize_size.to_f32() / self.font_em_size,
+                        atlas_origin: rasterize_position,
+                        atlas_size: information.rasterize_size,
+                    },
+                );
             }
         }
 
-        Ok((result, !glyphs_to_add.is_empty()))
+        Ok(())
+    }
+
+    /// Prepares glyphs and returns list of UV location
+    pub fn prepare_glyphs(
+        &mut self,
+        glyphs: &[(Arc<FKFont>, u32)],
+    ) -> Result<(Vec<GlyphInfo>, bool), GlyphLoadingError> {
+        let (glyph_infos, glyphs_to_add) = self.get_glyphs(glyphs)?;
+
+        if glyphs_to_add.is_empty() {
+            return Ok((glyph_infos, false));
+        }
+
+        self.rasterize_glyphs(&glyphs_to_add)?;
+
+        let (glyph_infos, glyphs_to_add) = self.get_glyphs(&glyphs)?;
+        assert!(glyphs_to_add.is_empty());
+
+        Ok((glyph_infos, true))
     }
 }
 
