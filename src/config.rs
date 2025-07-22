@@ -1,7 +1,7 @@
 use crate::global::get_appdata_dir;
 use glam::{Vec3, Vec4};
+use pathfinder_color::ColorF;
 use serde::{Deserialize, Serialize};
-use skia_safe::Color4f;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -100,28 +100,28 @@ merging_serde! {
     pub struct RingOverlayConfig {
         pub position: OverlayPositionConfig,
         #[serde(rename="centerColor", with="serialize_color4f_3f")]
-        pub center_color: Color4f,
+        pub center_color: ColorF,
         #[serde(rename="backgroundColor", with="serialize_color4f_3f")]
-        pub background_color: Color4f,
+        pub background_color: ColorF,
         #[serde(rename="edgeColor", with="serialize_color4f_3f")]
-        pub edge_color: Color4f,
+        pub edge_color: ColorF,
         #[serde(rename="normalCharColor", with="serialize_color4f_3f")]
-        pub normal_char_color: Color4f,
+        pub normal_char_color: ColorF,
         #[serde(rename="unSelectingCharColor", with="serialize_color4f_3f")]
-        pub un_selecting_char_color: Color4f,
+        pub un_selecting_char_color: ColorF,
         #[serde(rename="selectingCharColor", with="serialize_color4f_3f")]
-        pub selecting_char_color: Color4f,
+        pub selecting_char_color: ColorF,
         #[serde(rename="selectingCharInRingColor", with="serialize_color4f_3f")]
-        pub selecting_char_in_ring_color: Color4f,
+        pub selecting_char_in_ring_color: ColorF,
     }
 
     #[derive(Debug)]
     pub struct CompletionOverlayConfig {
         pub position: OverlayPositionConfig,
         #[serde(rename="backgroundColor", with="serialize_color4f_3f")]
-        pub background_color: Color4f,
+        pub background_color: ColorF,
         #[serde(rename="inputtingCharColor", with="serialize_color4f_3f")]
-        pub inputting_char_color: Color4f,
+        pub inputting_char_color: ColorF,
     }
 
     #[derive(Debug)]
@@ -245,36 +245,36 @@ pub enum UIMode {
 #[allow(dead_code)]
 mod serialize_color4f_4f {
     use super::OptionalValue;
+    use pathfinder_color::ColorF;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use skia_safe::{Color4f, scalar};
 
-    pub fn serialize<S: Serializer>(value: &Color4f, serializer: S) -> Result<S::Ok, S::Error> {
-        Serialize::serialize(value.as_array(), serializer)
+    pub fn serialize<S: Serializer>(value: &ColorF, serializer: S) -> Result<S::Ok, S::Error> {
+        Serialize::serialize(&value.0.0, serializer)
     }
 
     pub(super) fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
-    ) -> Result<OptionalValue<Color4f>, D::Error> {
-        <[scalar; 4] as Deserialize>::deserialize(deserializer)
-            .map(|[r, g, b, a]| Color4f::new(r, g, b, a))
+    ) -> Result<OptionalValue<ColorF>, D::Error> {
+        <[f32; 4] as Deserialize>::deserialize(deserializer)
+            .map(|[r, g, b, a]| ColorF::new(r, g, b, a))
             .map(OptionalValue::Value)
     }
 }
 
 mod serialize_color4f_3f {
     use super::OptionalValue;
+    use pathfinder_color::ColorF;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use skia_safe::{Color4f, scalar};
 
-    pub fn serialize<S: Serializer>(value: &Color4f, serializer: S) -> Result<S::Ok, S::Error> {
-        Serialize::serialize(&value.as_array()[..3], serializer)
+    pub fn serialize<S: Serializer>(value: &ColorF, serializer: S) -> Result<S::Ok, S::Error> {
+        Serialize::serialize(&value.0.0[..3], serializer)
     }
 
     pub(super) fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
-    ) -> Result<OptionalValue<Color4f>, D::Error> {
-        <[scalar; 3] as Deserialize>::deserialize(deserializer)
-            .map(|[r, g, b]| Color4f::new(r, g, b, 1.0))
+    ) -> Result<OptionalValue<ColorF>, D::Error> {
+        <[f32; 3] as Deserialize>::deserialize(deserializer)
+            .map(|[r, g, b]| ColorF::new(r, g, b, 1.0))
             .map(OptionalValue::Value)
     }
 }
@@ -310,8 +310,8 @@ impl Default for TwoRingMode {
                     width_radio: 0.333,
                     alpha: 1.0,
                 },
-                background_color: Color4f::new(0.188, 0.345, 0.749, 1.0),
-                inputting_char_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
+                background_color: ColorF::new(0.188, 0.345, 0.749, 1.0),
+                inputting_char_color: ColorF::new(1.0, 0.0, 0.0, 1.0),
             },
         }
     }
@@ -338,8 +338,8 @@ impl Default for OneRingMode {
                     width_radio: 0.333,
                     alpha: 1.0,
                 },
-                background_color: Color4f::new(0.188, 0.345, 0.749, 1.0),
-                inputting_char_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
+                background_color: ColorF::new(0.188, 0.345, 0.749, 1.0),
+                inputting_char_color: ColorF::new(1.0, 0.0, 0.0, 1.0),
             },
         }
     }
@@ -364,13 +364,13 @@ impl Default for RingOverlayConfig {
                 width_radio: 0.0,
                 alpha: 0.0,
             },
-            center_color: Color4f::new(0.83, 0.83, 0.83, 1.0),
-            background_color: Color4f::new(0.686, 0.686, 0.686, 1.0),
-            edge_color: Color4f::new(1.0, 1.0, 1.0, 1.0),
-            normal_char_color: Color4f::new(0.0, 0.0, 0.0, 1.0),
-            un_selecting_char_color: Color4f::new(0.5, 0.5, 0.5, 1.0),
-            selecting_char_color: Color4f::new(0.0, 0.0, 0.0, 1.0),
-            selecting_char_in_ring_color: Color4f::new(1.0, 0.0, 0.0, 1.0),
+            center_color: ColorF::new(0.83, 0.83, 0.83, 1.0),
+            background_color: ColorF::new(0.686, 0.686, 0.686, 1.0),
+            edge_color: ColorF::new(1.0, 1.0, 1.0, 1.0),
+            normal_char_color: ColorF::new(0.0, 0.0, 0.0, 1.0),
+            un_selecting_char_color: ColorF::new(0.5, 0.5, 0.5, 1.0),
+            selecting_char_color: ColorF::new(0.0, 0.0, 0.0, 1.0),
+            selecting_char_in_ring_color: ColorF::new(1.0, 0.0, 0.0, 1.0),
         }
     }
 }
@@ -436,7 +436,7 @@ impl MergeSerializePrimitive for bool {}
 impl MergeSerializePrimitive for Vec3 {}
 impl MergeSerializePrimitive for Vec4 {}
 impl MergeSerializePrimitive for String {}
-impl MergeSerializePrimitive for Color4f {}
+impl MergeSerializePrimitive for ColorF {}
 impl MergeSerializePrimitive for UIMode {}
 
 ////////////////////////////////////////

@@ -1,176 +1,144 @@
 use crate::KeyboardStatus;
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
+use crate::font_rendering::{FontAtlas, FontRenderer, TextArranger};
+use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer};
 use crate::input_method::CleKeyButton;
+use font_kit::handle::Handle;
 use glam::Vec2;
-use skia_safe::colors::{BLACK, TRANSPARENT};
-use skia_safe::paint::Style;
-use skia_safe::textlayout::{
-    FontCollection, Paragraph, ParagraphBuilder, ParagraphStyle, TextAlign, TextDecoration,
-    TextStyle,
-};
-use skia_safe::{Canvas, Color4f, Paint, Point, Rect, Surface, scalar};
+use pathfinder_color::ColorF;
+use pathfinder_geometry::rect::RectF;
+use pathfinder_geometry::transform2d::Transform2F;
+use pathfinder_geometry::vector::{Vector2F, vec2f};
 use std::array::from_fn;
-use std::f32::consts::{FRAC_1_SQRT_2, PI};
+use std::f32::consts::FRAC_1_SQRT_2;
+use std::sync::Arc;
 
-pub struct FontInfo<'a> {
-    pub(crate) collection: FontCollection,
-    pub(crate) families: &'a [String],
+/// This context holds multiple renderers, that holds shader, uniform and other information
+pub struct GraphicsContext {
+    font_atlas: FontAtlas,
+    font_renderer: FontRenderer,
+    font_layout: TextArranger,
+
+    circle_renderer: CircleRenderer,
+    rectangle_renderer: RectangleRenderer,
+    base_background_renderer: BaseBackgroundRenderer,
+}
+
+impl GraphicsContext {
+    pub fn new() -> Self {
+        Self {
+            font_atlas: FontAtlas::new(200.0, 65536, 16),
+            font_renderer: FontRenderer::new(),
+            font_layout: TextArranger::new([
+                Handle::from_memory(
+                    Arc::new(Vec::from(include_bytes!(
+                        "../resources/fonts/NotoSansJP-Medium.otf"
+                    ))),
+                    0,
+                ),
+                Handle::from_memory(
+                    Arc::new(Vec::from(include_bytes!(
+                        "../resources/fonts/NotoEmoji-VariableFont_wght.ttf"
+                    ))),
+                    0,
+                ),
+                Handle::from_memory(
+                    Arc::new(Vec::from(include_bytes!(
+                        "../resources/fonts/NotoSansSymbols2-Regular.ttf"
+                    ))),
+                    0,
+                ),
+            ])
+            .expect("loading fonts"),
+
+            circle_renderer: CircleRenderer::new(),
+            rectangle_renderer: RectangleRenderer::new(),
+            base_background_renderer: BaseBackgroundRenderer::new(),
+        }
+    }
 }
 
 #[derive(Clone)]
 struct RingChar<'a> {
     show: &'a str,
-    color: Color4f,
-    size: scalar,
+    color: ColorF,
+    size: f32,
 }
 #[derive(Clone)]
 struct RingInfo<'a> {
-    ring_size: scalar,
+    ring_size: f32,
     chars: [RingChar<'a>; 8],
 }
 
-pub fn draw_background_ring(
-    canvas: &Canvas,
-    center: Point,
-    radius: f32,
-    center_color: Color4f,
-    background_color: Color4f,
-    edge_color: Color4f,
-) {
-    let edge_width = radius * 0.04;
-    let background_radius = radius - edge_width / 2.0;
-
-    // background
-    canvas.draw_circle(
-        center,
-        background_radius,
-        Paint::new(background_color, None).set_style(Style::Fill),
-    );
-
-    // edge
-    let mut edge = Paint::new(edge_color, None);
-    edge.set_anti_alias(true)
-        .set_style(Style::Stroke)
-        .set_stroke_width(edge_width);
-    canvas.draw_circle(center, background_radius, &edge);
-
-    macro_rules! draw_lines {
-            ($(($a: expr, $b: expr)),* $(,)?) => {
-                canvas
-                    $(.draw_line(center + Point::new(-$a, -$b), center + Point::new($a, $b), &edge))*
-            };
-        }
-    let x = (PI / 8.0).sin() * background_radius;
-    let y = (PI / 8.0).cos() * background_radius;
-    draw_lines!(
-        (x, y),
-        (x, -y),
-        (-x, y),
-        (-x, -y),
-        (y, x),
-        (-y, x),
-        (y, -x),
-        (-y, -x),
-    );
-
-    canvas.draw_circle(
-        center,
-        radius / 2.0,
-        Paint::new(center_color, None)
-            .set_anti_alias(true)
-            .set_style(Style::Fill),
+pub fn draw_cursor_circle(context: &GraphicsContext, stick: Vec2, color: ColorF) {
+    let stick = Vector2F::new(stick.x, stick.y);
+    context.circle_renderer.draw(
+        Transform2F::from_scale_rotation_translation(Vector2F::splat(0.25), 0.0, stick),
+        color,
     );
 }
 
-pub fn draw_cursor_circle(
-    canvas: &Canvas,
-    center: Point,
-    radius: f32,
-    stick: Vec2,
-    color: Color4f,
-) {
-    let stick = Point::new(stick.x, -stick.y);
-    canvas.draw_circle(
-        center + stick * (radius / 4.0),
-        radius / 4.0,
-        Paint::new(color, None)
-            .set_anti_alias(true)
-            .set_style(Style::Fill),
-    );
-}
-
-fn calc_offsets(size: scalar) -> [Point; 8] {
+fn calc_offsets(size: f32) -> [Vector2F; 8] {
     let axis = 0.75 * size;
     let diagonal = axis * FRAC_1_SQRT_2;
     [
-        Point::new(0.0, -axis),
-        Point::new(diagonal, -diagonal),
-        Point::new(axis, 0.0),
-        Point::new(diagonal, diagonal),
-        Point::new(0.0, axis),
-        Point::new(-diagonal, diagonal),
-        Point::new(-axis, 0.0),
-        Point::new(-diagonal, -diagonal),
+        Vector2F::new(0.0, axis),
+        Vector2F::new(diagonal, diagonal),
+        Vector2F::new(axis, 0.0),
+        Vector2F::new(diagonal, -diagonal),
+        Vector2F::new(0.0, -axis),
+        Vector2F::new(-diagonal, -diagonal),
+        Vector2F::new(-axis, 0.0),
+        Vector2F::new(-diagonal, diagonal),
     ]
 }
 
 fn render_text_in_box(
-    canvas: &Canvas,
-    fonts: &FontInfo,
-    box_size: scalar,
+    context: &mut GraphicsContext,
+    box_size: Vector2F,
     text: &str,
-    color: Color4f,
-    center: Point,
+    color: ColorF,
+    center: Vector2F,
 ) {
+    let metrics = context.font_layout.metrics();
+    let mut layout = context.font_layout.layout(text, &[]);
     // first, compute actual font size
-    let computed_font_size: scalar = {
-        let mut paragraph = ParagraphBuilder::new(
-            ParagraphStyle::new().set_text_style(
-                TextStyle::new()
-                    .set_font_size(box_size)
-                    .set_font_families(fonts.families),
-            ),
-            &fonts.collection,
-        )
-        .add_text(text)
-        .build();
-        paragraph.layout(10000 as _);
-        let width = paragraph.max_intrinsic_width() + 1.0;
-        let computed_font_size = box_size * box_size / width;
-        computed_font_size.min(box_size)
+    let computed_font_size: f32 = {
+        // assumption: height of characters are 1em.
+        let char_height = 1.;
+        let y_scale = box_size.y() / char_height;
+        let x_scale = box_size.x() / layout.cursor_advance().x();
+        y_scale.min(x_scale)
     };
+    let text_transform = Transform2F::from_translation(vec2f(
+        -layout.cursor_advance().x() * 0.5,
+        -metrics.cap_height * 0.5,
+    ));
+    let text_transform = Transform2F::from_scale(computed_font_size) * text_transform;
+    let text_transform = Transform2F::from_translation(center) * text_transform;
 
-    let width = box_size + 10.0;
-    let actual_font_size = computed_font_size;
+    layout.apply_transform(text_transform);
 
-    let mut paragraph = ParagraphBuilder::new(
-        ParagraphStyle::new()
-            .set_text_align(TextAlign::Center)
-            .set_text_style(
-                TextStyle::new()
-                    .set_color(color.to_color())
-                    .set_font_size(actual_font_size)
-                    .set_font_families(fonts.families),
-            ),
-        &fonts.collection,
-    )
-    .add_text(text)
-    .build();
+    let (glyphs, update) = context.font_atlas.prepare_glyphs(layout.glyphs()).unwrap();
 
-    paragraph.layout(width);
-    let text_pos = center - Point::new(width / 2.0, paragraph.height() / 2.0);
-    paragraph.paint(canvas, text_pos);
+    if update {
+        context.font_renderer.update_texture(&context.font_atlas);
+    }
+
+    context.font_renderer.draw_glyphs(
+        color,
+        glyphs.into_iter().zip(layout.transforms().iter().copied()),
+    );
 }
 
-fn render_ring_chars(canvas: &Canvas, fonts: &FontInfo, center: Point, ring: &RingInfo) {
+fn render_ring_chars(context: &mut GraphicsContext, center: Vector2F, ring: &RingInfo) {
     let font_size = ring.ring_size * 0.4;
     let offsets = calc_offsets(ring.ring_size);
 
     for (i, char) in ring.chars.iter().enumerate() {
         render_text_in_box(
-            canvas,
-            fonts,
-            font_size * char.size,
+            context,
+            Vector2F::splat(font_size * char.size),
             char.show,
             char.color,
             center + offsets[i],
@@ -180,24 +148,20 @@ fn render_ring_chars(canvas: &Canvas, fonts: &FontInfo, center: Point, ring: &Ri
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_ring<'a, const ALWAYS_SHOW_IN_CIRCLE: bool>(
-    surface: &mut Surface,
+    context: &mut GraphicsContext,
     config: &RingOverlayConfig,
-    fonts: &FontInfo,
     button_idx: usize,
     current: i8,
     opposite: i8,
     stick_pos: Vec2,
     get_key: impl Fn(/*cur*/ usize, /*oppo*/ usize) -> CleKeyButton<'a>,
 ) {
-    surface.canvas().clear(TRANSPARENT);
+    crate::gl_primitives::gl_clear(ColorF::transparent_black());
 
-    let center = Point::new(surface.width() as scalar, surface.height() as scalar) * 0.5;
-    let radius = center.x;
+    let radius = 1.0;
 
-    draw_background_ring(
-        surface.canvas(),
-        center,
-        radius,
+    context.base_background_renderer.draw(
+        Transform2F::default(),
         config.center_color,
         config.background_color,
         config.edge_color,
@@ -257,7 +221,7 @@ pub(crate) fn draw_ring<'a, const ALWAYS_SHOW_IN_CIRCLE: bool>(
 
         let offsets = calc_offsets(radius);
         for (pos, ring) in prove.iter().enumerate() {
-            render_ring_chars(surface.canvas(), fonts, offsets[pos] + center, ring)
+            render_ring_chars(context, offsets[pos], ring)
         }
     } else {
         let default_color = if current == -1 {
@@ -282,159 +246,157 @@ pub(crate) fn draw_ring<'a, const ALWAYS_SHOW_IN_CIRCLE: bool>(
             ring.chars[current as usize].color = config.selecting_char_color;
             ring.chars[current as usize].size = 1.1;
         }
-        render_ring_chars(surface.canvas(), fonts, center, &ring)
+        render_ring_chars(context, Vector2F::zero(), &ring)
     }
 
-    draw_cursor_circle(
-        surface.canvas(),
-        center,
-        radius,
-        stick_pos,
-        Color4f::new(0.22, 0.22, 0.22, 1.0),
-    );
+    draw_cursor_circle(context, stick_pos, ColorF::new(0.22, 0.22, 0.22, 1.0));
 }
 
 pub fn draw_center(
     status: &KeyboardStatus,
     config: &CompletionOverlayConfig,
-    fonts: &FontInfo,
-    surface: &mut Surface,
+    context: &mut GraphicsContext,
 ) {
-    surface.canvas().clear(TRANSPARENT);
+    crate::gl_primitives::gl_clear(ColorF::transparent_black());
+    /*
+       const SPACE_RATIO: f32 = 0.1;
+       const FONT_SIZE_RATIO: f32 = 0.7;
 
-    const SPACE_RATIO: scalar = 0.1;
-    const FONT_SIZE_RATIO: scalar = 0.7;
+       fn render(
+           context: &mut GraphicsContext,
+           rect: RectF,
+           background_color: ColorF,
+           paragraph: impl FnOnce(/*font_size: */ f32) -> Paragraph,
+       ) {
+           let space = rect.height() * SPACE_RATIO;
+           let font_size = rect.height() * FONT_SIZE_RATIO;
 
-    fn render(
-        canvas: &Canvas,
-        rect: Rect,
-        background_color: Color4f,
-        paragraph: impl FnOnce(/*font_size: */ f32) -> Paragraph,
-    ) {
-        let space = rect.height() * SPACE_RATIO;
-        let font_size = rect.height() * FONT_SIZE_RATIO;
+           context.rectangle_renderer.draw(rect, 0.0, background_color);
 
-        canvas.draw_rect(rect, &Paint::new(background_color, None));
+           let mut paragraph = paragraph(font_size);
+           paragraph.layout(rect.width() - space - space);
 
-        let mut paragraph = paragraph(font_size);
-        paragraph.layout(rect.width() - space - space);
+           paragraph.paint(
+               canvas,
+               Vector2F::new(rect.left() + space, rect.top() + space * 2.0),
+           );
+       }
 
-        paragraph.paint(
-            canvas,
-            Point::new(rect.left() + space, rect.top() + space * 2.0),
-        );
-    }
+       let width = 2.0;
+       let lane_height = 0.18 * 2;
 
-    let width = surface.width() as scalar;
-    let lane_height = surface.height() as scalar * 0.18;
+       render(
+           context,
+           RectF::new(vec2f(-1.0, 1.0), vec2f(width, lane_height)),
+           config.background_color,
+           |font_size| {
+               let style = {
+                   let mut style = TextStyle::new();
+                   style.set_color(BLACK.to_color());
+                   style.set_height_override(true);
+                   style.set_height(1.0);
+                   style.set_font_families(fonts.families);
+                   style.set_font_size(font_size);
+                   style
+               };
+               let not_changing = {
+                   let mut style: TextStyle = style.clone();
+                   style.set_decoration_type(TextDecoration::UNDERLINE);
+                   style
+               };
 
-    render(
-        surface.canvas(),
-        Rect::from_xywh(0.0, 0.0, width, lane_height),
-        config.background_color,
-        |font_size| {
-            let style = {
-                let mut style = TextStyle::new();
-                style.set_color(BLACK.to_color());
-                style.set_height_override(true);
-                style.set_height(1.0);
-                style.set_font_families(fonts.families);
-                style.set_font_size(font_size);
-                style
-            };
-            let not_changing = {
-                let mut style: TextStyle = style.clone();
-                style.set_decoration_type(TextDecoration::UNDERLINE);
-                style
-            };
+               let changing = {
+                   let mut style: TextStyle = style.clone();
+                   style.set_decoration_type(TextDecoration::UNDERLINE);
+                   style.set_color(config.inputting_char_color.to_color());
+                   style
+               };
 
-            let changing = {
-                let mut style: TextStyle = style.clone();
-                style.set_decoration_type(TextDecoration::UNDERLINE);
-                style.set_color(config.inputting_char_color.to_color());
-                style
-            };
+               let mut builder = ParagraphBuilder::new(
+                   ParagraphStyle::new()
+                       .set_text_align(TextAlign::Left)
+                       .set_max_lines(1)
+                       .set_text_style(&style),
+                   &fonts.collection,
+               );
 
-            let mut builder = ParagraphBuilder::new(
-                ParagraphStyle::new()
-                    .set_text_align(TextAlign::Left)
-                    .set_max_lines(1)
-                    .set_text_style(&style),
-                &fonts.collection,
-            );
+               if status.candidates.is_empty() {
+                   builder.push_style(&changing);
+                   builder.add_text(&status.buffer);
+                   builder.pop();
+               } else {
+                   for (i, can) in status.candidates.iter().enumerate() {
+                       if i == status.candidates_idx {
+                           builder.push_style(&changing);
+                       } else {
+                           builder.push_style(&not_changing);
+                       }
+                       builder.add_text(&can.candidates[can.index]);
+                       builder.pop();
 
-            if status.candidates.is_empty() {
-                builder.push_style(&changing);
-                builder.add_text(&status.buffer);
-                builder.pop();
-            } else {
-                for (i, can) in status.candidates.iter().enumerate() {
-                    if i == status.candidates_idx {
-                        builder.push_style(&changing);
-                    } else {
-                        builder.push_style(&not_changing);
-                    }
-                    builder.add_text(&can.candidates[can.index]);
-                    builder.pop();
+                       builder.add_text(" ");
+                   }
+               }
 
-                    builder.add_text(" ");
-                }
-            }
+               builder.build()
+           },
+       );
 
-            builder.build()
-        },
-    );
+       let base = lane_height;
+       let lane_height = 2.0 * 0.13;
+       let font_size = lane_height * FONT_SIZE_RATIO;
+       let space = lane_height * SPACE_RATIO;
+       if !status.candidates.is_empty() {
+           let recommendations = status.candidates[status.candidates_idx]
+               .candidates
+               .as_slice();
 
-    let base = lane_height;
-    let lane_height = surface.height() as scalar * 0.13;
-    let font_size = lane_height * FONT_SIZE_RATIO;
-    let space = lane_height * SPACE_RATIO;
-    if !status.candidates.is_empty() {
-        let recommendations = status.candidates[status.candidates_idx]
-            .candidates
-            .as_slice();
+           let style = {
+               let mut style = TextStyle::new();
+               style.set_color(config.inputting_char_color.to_color());
+               style.set_height_override(true);
+               style.set_height(1.0);
+               style.set_font_families(fonts.families);
+               style.set_font_size(font_size);
+               style
+           };
 
-        let style = {
-            let mut style = TextStyle::new();
-            style.set_color(config.inputting_char_color.to_color());
-            style.set_height_override(true);
-            style.set_height(1.0);
-            style.set_font_families(fonts.families);
-            style.set_font_size(font_size);
-            style
-        };
+           let paragraphs = recommendations
+               .iter()
+               .map(|txt| {
+                   let mut builder = ParagraphBuilder::new(
+                       ParagraphStyle::new()
+                           .set_text_align(TextAlign::Left)
+                           .set_max_lines(1)
+                           .set_text_style(&style),
+                       &fonts.collection,
+                   );
 
-        let paragraphs = recommendations
-            .iter()
-            .map(|txt| {
-                let mut builder = ParagraphBuilder::new(
-                    ParagraphStyle::new()
-                        .set_text_align(TextAlign::Left)
-                        .set_max_lines(1)
-                        .set_text_style(&style),
-                    &fonts.collection,
-                );
+                   builder.add_text(txt);
+                   let mut p = builder.build();
+                   p.layout(width);
+                   p
+               })
+               .collect::<Vec<_>>();
 
-                builder.add_text(txt);
-                let mut p = builder.build();
-                p.layout(width);
-                p
-            })
-            .collect::<Vec<_>>();
+           let width = paragraphs
+               .iter()
+               .map(|x| x.max_intrinsic_width())
+               .fold(f32::NAN, f32::max)
+               + space * 2.0;
 
-        let width = paragraphs
-            .iter()
-            .map(|x| x.max_intrinsic_width())
-            .fold(f32::NAN, f32::max)
-            + space * 2.0;
+           for (i, p) in paragraphs.into_iter().enumerate() {
+               render(
+                   context,
+                   RectF::new(
+                       vec2f(0.0, base + lane_height * (i as f32)),
+                       vec2f(width, lane_height),
+                   ),
+                   config.background_color,
+                   |_font_size| p,
+               );
+           }
+       }
 
-        for (i, p) in paragraphs.into_iter().enumerate() {
-            render(
-                surface.canvas(),
-                Rect::from_xywh(0.0, base + lane_height * (i as scalar), width, lane_height),
-                config.background_color,
-                |_font_size| p,
-            );
-        }
-    }
+    */
 }

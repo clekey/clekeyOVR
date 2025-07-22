@@ -5,6 +5,8 @@ mod utils;
 mod config;
 #[cfg(feature = "debug_window")]
 mod debug_graphics;
+mod font_rendering;
+mod gl_primitives;
 mod global;
 mod graphics;
 mod input_method;
@@ -14,18 +16,13 @@ mod ovr_controller;
 mod resources;
 
 use crate::config::{CleKeyConfig, UIMode, load_config};
+use crate::graphics::GraphicsContext;
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use gl::types::GLuint;
 use glam::Vec2;
 use glfw::{Context, OpenGlProfileHint, WindowHint};
-use graphics::FontInfo;
 use log::info;
-use skia_safe::font_style::{Slant, Weight, Width};
-use skia_safe::gpu::gl::TextureInfo;
-use skia_safe::gpu::{Mipmapped, SurfaceOrigin};
-use skia_safe::textlayout::FontCollection;
-use skia_safe::{ColorType, FontMgr, FontStyle, Surface, gpu};
 use std::collections::VecDeque;
 use std::mem::take;
 use std::ptr::null;
@@ -96,9 +93,7 @@ fn main() {
     let loader = |s: &str| glfw.get_proc_address_raw(s);
     gl::load_with(loader);
 
-    let skia_interfaces = gpu::gl::Interface::new_load_with(loader).expect("initializing skia api");
-    let mut skia_ctx =
-        gpu::direct_contexts::make_gl(skia_interfaces, None).expect("skia gpu context creation");
+    let mut graphics_context = GraphicsContext::new();
 
     // debug block
     #[cfg(feature = "debug_window")]
@@ -127,48 +122,11 @@ fn main() {
             Rc::new(Inputting)
         },
         Surfaces {
-            left_ring: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT),
-            right_ring: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT),
-            center_field: create_surface(&mut skia_ctx, WINDOW_WIDTH, WINDOW_HEIGHT / 2),
+            left_ring: create_surface(WINDOW_WIDTH, WINDOW_HEIGHT),
+            right_ring: create_surface(WINDOW_WIDTH, WINDOW_HEIGHT),
+            center_field: create_surface(WINDOW_WIDTH, WINDOW_HEIGHT / 2),
         },
     );
-
-    let font_mgr = FontMgr::new();
-    let mut fonts = FontCollection::new();
-    let mut font_families = Vec::new();
-
-    for e in global::get_resources_dir()
-        .join("fonts")
-        .read_dir()
-        .expect("read dir")
-    {
-        let e = e.expect("read dir");
-        if e.path().extension() == Some("otf".as_ref())
-            || e.path().extension() == Some("ttf".as_ref())
-        {
-            let face = font_mgr
-                .new_from_data(&std::fs::read(e.path()).expect("read data"), None)
-                .expect("new from data");
-            font_families.push(face.family_name());
-            info!("loaded: {face:?}");
-        }
-    }
-    info!("font_families: {font_families:?}");
-
-    // TODO: find way to use Noto Sans in rendering instead of system fonts
-    fonts.set_default_font_manager(Some(font_mgr), None);
-    info!(
-        "find_typefaces: {:?}",
-        fonts.find_typefaces(
-            &font_families,
-            FontStyle::new(Weight::MEDIUM, Width::NORMAL, Slant::Upright)
-        )
-    );
-
-    let fonts = FontInfo {
-        collection: fonts,
-        families: &font_families,
-    };
 
     // gl initialiation
 
@@ -202,33 +160,17 @@ fn main() {
         // I don't know why this is working but It's working so I'm using that.
 
         ovr_controller.draw_if_visible(LeftRight::Left.into(), || {
-            let surface = &app.surfaces.left_ring;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            gpu::images::get_backend_texture_from_image(
-                &app.surfaces.left_ring.surface.image_snapshot(),
-                true,
-            );
-            app.surfaces.left_ring.gl_tex_id
+            app.surfaces.left_ring.render(&mut graphics_context, &app)
         });
 
         ovr_controller.draw_if_visible(LeftRight::Right.into(), || {
-            let surface = &app.surfaces.right_ring;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            gpu::images::get_backend_texture_from_image(
-                &app.surfaces.right_ring.surface.image_snapshot(),
-                true,
-            );
-            app.surfaces.right_ring.gl_tex_id
+            app.surfaces.right_ring.render(&mut graphics_context, &app)
         });
 
         ovr_controller.draw_if_visible(OverlayPlane::Center, || {
-            let surface = &app.surfaces.center_field;
-            (surface.renderer)(surface.surface.clone(), &app, &fonts);
-            gpu::images::get_backend_texture_from_image(
-                &app.surfaces.center_field.surface.image_snapshot(),
-                true,
-            );
-            app.surfaces.center_field.gl_tex_id
+            app.surfaces
+                .center_field
+                .render(&mut graphics_context, &app)
         });
 
         #[cfg(feature = "debug_window")]
@@ -459,8 +401,24 @@ impl ApplicationStatus for Suspending {
 
 struct SurfaceInfo {
     gl_tex_id: GLuint,
-    surface: Surface,
-    renderer: fn(Surface, app: &Application, fonts: &FontInfo) -> (),
+    gl_framebuffer_id: GLuint,
+    width: i32,
+    height: i32,
+    renderer: fn(context: &mut GraphicsContext, app: &Application) -> (),
+}
+
+impl SurfaceInfo {
+    fn render(&self, context: &mut GraphicsContext, app: &Application) -> GLuint {
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.gl_framebuffer_id);
+            gl::Viewport(0, 0, self.width, self.height);
+        }
+        (self.renderer)(context, app);
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+        }
+        self.gl_tex_id
+    }
 }
 
 mod renderer_fn {
@@ -468,13 +426,12 @@ mod renderer_fn {
     use crate::config;
     use crate::graphics::{draw_center, draw_ring};
 
-    pub(crate) fn nop_renderer(_: Surface, _: &Application, _: &FontInfo) {}
+    pub(crate) fn nop_renderer(_: &mut GraphicsContext, _: &Application) {}
 
-    pub(crate) fn one_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn one_ring_renderer(context: &mut GraphicsContext, app: &Application) {
         draw_ring::<true>(
-            &mut surface,
+            context,
             &app.config.one_ring.ring,
-            fonts,
             app.kbd_status.button_idx,
             app.kbd_status.left.selection,
             app.kbd_status.right.selection,
@@ -483,11 +440,10 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn left_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn left_ring_renderer(context: &mut GraphicsContext, app: &Application) {
         draw_ring::<true>(
-            &mut surface,
+            context,
             &app.config.two_ring.left_ring,
-            fonts,
             app.kbd_status.button_idx,
             app.kbd_status.left.selection,
             app.kbd_status.right.selection,
@@ -496,11 +452,10 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn right_ring_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn right_ring_renderer(context: &mut GraphicsContext, app: &Application) {
         draw_ring::<false>(
-            &mut surface,
+            context,
             &app.config.two_ring.right_ring,
-            fonts,
             app.kbd_status.button_idx,
             app.kbd_status.right.selection,
             app.kbd_status.left.selection,
@@ -509,27 +464,20 @@ mod renderer_fn {
         );
     }
 
-    pub(crate) fn center_field_renderer(mut surface: Surface, app: &Application, fonts: &FontInfo) {
-        draw_center(
-            &app.kbd_status,
-            &app.config.two_ring.completion,
-            fonts,
-            &mut surface,
-        );
+    pub(crate) fn center_field_renderer(context: &mut GraphicsContext, app: &Application) {
+        draw_center(&app.kbd_status, &app.config.two_ring.completion, context);
     }
 
     pub(crate) fn henkan_renderer_impl(
-        mut surface: Surface,
+        context: &mut GraphicsContext,
         config0: &CleKeyConfig,
         config: &config::RingOverlayConfig,
         hand: &HandInfo,
-        fonts: &FontInfo,
     ) {
         if config0.always_enter_paste {
             draw_ring::<false>(
-                &mut surface,
+                context,
                 config,
-                fonts,
                 0,
                 hand.selection,
                 1,
@@ -538,9 +486,8 @@ mod renderer_fn {
             );
         } else {
             draw_ring::<false>(
-                &mut surface,
+                context,
                 config,
-                fonts,
                 0,
                 hand.selection,
                 1,
@@ -550,65 +497,57 @@ mod renderer_fn {
         }
     }
 
-    pub(crate) fn left_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn left_ring_henkan_renderer(context: &mut GraphicsContext, app: &Application) {
         henkan_renderer_impl(
-            surface,
+            context,
             app.config,
             &app.config.two_ring.left_ring,
             &app.kbd_status.left,
-            fonts,
         );
     }
 
-    pub(crate) fn right_ring_henkan_renderer(
-        surface: Surface,
-        app: &Application,
-        fonts: &FontInfo,
-    ) {
+    pub(crate) fn right_ring_henkan_renderer(context: &mut GraphicsContext, app: &Application) {
         henkan_renderer_impl(
-            surface,
+            context,
             app.config,
             &app.config.two_ring.right_ring,
             &app.kbd_status.right,
-            fonts,
         );
     }
 
-    pub(crate) fn one_ring_henkan_renderer(surface: Surface, app: &Application, fonts: &FontInfo) {
+    pub(crate) fn one_ring_henkan_renderer(context: &mut GraphicsContext, app: &Application) {
         match app.kbd_status.henkan_using {
             None => {
                 henkan_renderer_impl(
-                    surface,
+                    context,
                     app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.left,
-                    fonts,
                 );
             }
             Some(LeftRight::Left) => {
                 henkan_renderer_impl(
-                    surface,
+                    context,
                     app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.left,
-                    fonts,
                 );
             }
             Some(LeftRight::Right) => {
                 henkan_renderer_impl(
-                    surface,
+                    context,
                     app.config,
                     &app.config.one_ring.ring,
                     &app.kbd_status.right,
-                    fonts,
                 );
             }
         }
     }
 }
 
-fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) -> SurfaceInfo {
+fn create_surface(width: i32, height: i32) -> SurfaceInfo {
     let mut gl_tex_id = 0;
+    let mut gl_framebuffer_id = 0;
     unsafe {
         gl::GenTextures(1, &mut gl_tex_id);
         gl::BindTexture(gl::TEXTURE_2D, gl_tex_id);
@@ -625,35 +564,27 @@ fn create_surface(context: &mut gpu::RecordingContext, width: i32, height: i32) 
         );
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
-    }
 
-    let backend_texture = unsafe {
-        gpu::backend_textures::make_gl(
-            (width, height),
-            Mipmapped::No,
-            TextureInfo {
-                target: gl::TEXTURE_2D,
-                format: gl::RGBA8,
-                id: gl_tex_id,
-                ..TextureInfo::default()
-            },
-            "backend_texture",
-        )
-    };
-    let surface = gpu::surfaces::wrap_backend_texture(
-        context,
-        &backend_texture,
-        SurfaceOrigin::BottomLeft,
-        None,
-        ColorType::RGBA8888,
-        None,
-        None,
-    )
-    .expect("creating surface");
+        gl::GenFramebuffers(1, &mut gl_framebuffer_id);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, gl_framebuffer_id);
+
+        gl::FramebufferTexture(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl_tex_id, 0);
+        gl::DrawBuffers(1, [gl::COLOR_ATTACHMENT0].as_ptr());
+
+        if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+            panic!(
+                "Framebuffer rendering failed: {:x}",
+                gl::CheckFramebufferStatus(gl::FRAMEBUFFER)
+            );
+        }
+        gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+    }
 
     SurfaceInfo {
         gl_tex_id,
-        surface,
+        gl_framebuffer_id,
+        width,
+        height,
         renderer: renderer_fn::nop_renderer,
     }
 }

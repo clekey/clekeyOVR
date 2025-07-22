@@ -719,6 +719,13 @@ impl TextArranger {
     }
 
     pub fn layout(&self, mut text: &str, features: &[Feature]) -> Layout {
+        if text.is_empty() {
+            return Layout {
+                glyphs: vec![],
+                transforms: vec![],
+                advance: Vector2F::zero(),
+            };
+        }
         let chars = text.chars().count();
         let mut glyphs = Vec::with_capacity(chars);
         let mut transforms = Vec::with_capacity(chars);
