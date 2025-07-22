@@ -3,10 +3,10 @@
 use crate::gl_primitives::{compile_shader, link_shader};
 use font_kit::canvas::{Canvas, Format, RasterizationOptions};
 use font_kit::error::GlyphLoadingError;
-use font_kit::font::Font;
+use font_kit::font::Font as FKFont;
 use font_kit::hinting::HintingOptions;
 use gl::types::{GLint, GLuint};
-use harfbuzz_rs::{Feature, Font as HFont, Owned, UnicodeBuffer};
+use harfbuzz_rs::{Feature, Font as HBFont, Owned, UnicodeBuffer};
 use pathfinder_color::ColorF;
 use pathfinder_geometry::rect::{RectF, RectI};
 use pathfinder_geometry::transform2d::Transform2F;
@@ -99,7 +99,7 @@ impl CanvasState {
     }
 }
 
-struct GlyphId(Weak<Font>, u32);
+struct GlyphId(Weak<FKFont>, u32);
 
 impl PartialEq<Self> for GlyphId {
     fn eq(&self, other: &Self) -> bool {
@@ -176,7 +176,7 @@ impl FontAtlas {
     /// Prepares glyphs and returns list of UV location
     pub fn prepare_glyphs(
         &mut self,
-        glyphs: &[(&Arc<Font>, u32)],
+        glyphs: &[(&Arc<FKFont>, u32)],
     ) -> Result<(Vec<GlyphInfo>, bool), GlyphLoadingError> {
         let hinting = HintingOptions::None;
         let options = RasterizationOptions::GrayscaleAa;
@@ -199,7 +199,7 @@ impl FontAtlas {
             let mut tall_rasterize_information = vec![];
 
             struct RasterizeInformation {
-                font: Arc<Font>,
+                font: Arc<FKFont>,
                 glyph_id: u32,
                 rasterize_offset: Vector2I,
                 rasterize_size: Vector2I,
@@ -666,7 +666,7 @@ impl FontRenderer {
     pub fn draw_text_simple(
         &mut self,
         atlas: &mut FontAtlas,
-        font: &Arc<Font>,
+        font: &Arc<FKFont>,
         color: ColorF,
         transform: Transform2F,
         text: &str,
@@ -701,11 +701,11 @@ impl FontRenderer {
     }
 }
 
-pub struct TextLayout {
-    fonts: Vec<(Arc<Owned<HFont<'static>>>, Arc<Font>)>,
+pub struct TextArranger {
+    fonts: Vec<(Arc<Owned<HBFont<'static>>>, Arc<FKFont>)>,
 }
 
-impl TextLayout {
+impl TextArranger {
     pub fn new(
         handles: impl IntoIterator<Item = font_kit::handle::Handle>,
     ) -> Result<Self, font_kit::error::FontLoadingError> {
@@ -713,22 +713,17 @@ impl TextLayout {
         let mut fonts = Vec::with_capacity(handles.size_hint().0);
         for handle in handles {
             let (harfbuzz, font_kit) = loader::load_font(&handle)?;
-            fonts.push((Arc::new(HFont::new(harfbuzz)), Arc::new(font_kit)));
+            fonts.push((Arc::new(HBFont::new(harfbuzz)), Arc::new(font_kit)));
         }
         Ok(Self { fonts })
     }
 
-    pub fn layout(
-        &self,
-        mut text: &str,
-        features: &[Feature],
-        transform: Transform2F,
-    ) -> (Vec<(&Arc<Font>, u32)>, Vec<Transform2F>) {
+    pub fn layout(&self, mut text: &str, features: &[Feature]) -> Layout {
         let chars = text.chars().count();
         let mut glyphs = Vec::with_capacity(chars);
         let mut transforms = Vec::with_capacity(chars);
 
-        let mut cursor = transform.vector;
+        let mut cursor = vec2f(0., 0.);
 
         let mut buffer = UnicodeBuffer::new().add_str(text);
 
@@ -776,28 +771,78 @@ impl TextLayout {
                     tried_with_primary_font = false;
                 }
 
-                let transform = Transform2F {
-                    matrix: transform.matrix,
-                    vector: cursor + transform.matrix * offset,
-                };
+                let transform = Transform2F::from_translation(cursor + offset);
 
                 glyphs.push((&self.fonts[font_index].1, glyph_id));
                 transforms.push(transform);
 
-                cursor += transform.matrix * advance;
+                cursor += advance;
             }
             break;
         }
 
-        (glyphs, transforms)
+        Layout {
+            glyphs,
+            transforms,
+            advance: cursor,
+        }
     }
+
+    pub fn metrics(&self) -> FontMetrics {
+        let metrics = self.fonts[0].1.metrics();
+        let y_scale = 1.0 / metrics.units_per_em as f32;
+        FontMetrics {
+            underline_position: metrics.underline_position * y_scale,
+            underline_thickness: metrics.underline_thickness * y_scale,
+            line_gap: metrics.line_gap * y_scale,
+            cap_height: metrics.cap_height * y_scale,
+            x_height: metrics.x_height * y_scale,
+        }
+    }
+}
+
+pub struct Layout<'arranger> {
+    glyphs: Vec<(&'arranger Arc<FKFont>, u32)>,
+    transforms: Vec<Transform2F>,
+    advance: Vector2F,
+}
+
+impl<'arranger> Layout<'arranger> {
+    pub fn apply_transform(&mut self, transform: Transform2F) {
+        for t in &mut self.transforms {
+            *t = transform * *t;
+        }
+        self.advance = transform.matrix * self.advance;
+    }
+
+    pub fn glyphs(&self) -> &[(&'arranger Arc<FKFont>, u32)] {
+        &self.glyphs
+    }
+
+    pub fn transforms(&self) -> &[Transform2F] {
+        &self.transforms
+    }
+
+    pub fn cursor_advance(&self) -> Vector2F {
+        self.advance
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug)]
+pub struct FontMetrics {
+    pub underline_position: f32,
+    pub underline_thickness: f32,
+    pub line_gap: f32,
+    pub cap_height: f32,
+    pub x_height: f32,
 }
 
 mod loader {
     use font_kit::canvas::{Canvas, RasterizationOptions};
     use font_kit::error::{FontLoadingError, GlyphLoadingError};
     use font_kit::file_type::FileType;
-    use font_kit::font::Font;
+    use font_kit::font::Font as FKFont;
     use font_kit::handle::Handle;
     use font_kit::hinting::HintingOptions;
     use font_kit::loader::{FallbackResult, Loader};
@@ -812,7 +857,7 @@ mod loader {
 
     pub(super) fn load_font(
         handle: &Handle,
-    ) -> Result<(Owned<Face<'static>>, Font), FontLoadingError> {
+    ) -> Result<(Owned<Face<'static>>, FKFont), FontLoadingError> {
         let loader = HarfbuzzLoader::from_handle(handle)?;
         let harfbuzz = Rc::try_unwrap(loader.0).unwrap();
         let font = loader.1;
@@ -820,14 +865,14 @@ mod loader {
     }
 
     #[derive(Clone)]
-    struct HarfbuzzLoader(Rc<Owned<Face<'static>>>, Font);
+    struct HarfbuzzLoader(Rc<Owned<Face<'static>>>, FKFont);
 
     impl Loader for HarfbuzzLoader {
         type NativeFont = ();
 
         fn from_bytes(font_data: Arc<Vec<u8>>, font_index: u32) -> Result<Self, FontLoadingError> {
             let harfbuzz = Rc::new(Face::<'static>::new(Vec::clone(&font_data), font_index));
-            let font_kit = Font::from_bytes(font_data, font_index)?;
+            let font_kit = FKFont::from_bytes(font_data, font_index)?;
             Ok(HarfbuzzLoader(harfbuzz, font_kit))
         }
 
@@ -835,7 +880,7 @@ mod loader {
             let mut font_data = vec![];
             file.read_to_end(&mut font_data)?;
             let harfbuzz = Rc::new(Face::<'static>::new(Vec::clone(&font_data), font_index));
-            let font_kit = Font::from_bytes(font_data.into(), font_index)?;
+            let font_kit = FKFont::from_bytes(font_data.into(), font_index)?;
             Ok(HarfbuzzLoader(harfbuzz, font_kit))
         }
 

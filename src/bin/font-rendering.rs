@@ -1,4 +1,4 @@
-use crate::font_rendering::{FontAtlas, FontRenderer, TextLayout};
+use crate::font_rendering::{FontAtlas, FontRenderer, TextArranger};
 use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer, gl_clear};
 use font_kit::handle::Handle;
 use gl::types::{GLsizei, GLuint};
@@ -34,7 +34,7 @@ fn main() {
         .unwrap(),
     );
 
-    let layout = TextLayout::new([
+    let arranger = TextArranger::new([
         Handle::from_memory(
             Arc::new(Vec::from(include_bytes!(
                 "../../resources/fonts/NotoSansJP-Medium.otf"
@@ -177,22 +177,23 @@ fn main() {
 
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         for text in chars.as_slice() {
-            let (glyphs, transforms) = layout.layout(
-                text,
-                &[],
-                Transform2F {
-                    matrix,
-                    vector: cursor,
-                },
-            );
+            let mut layout = arranger.layout(text, &[]);
 
-            let (glyphs, updated) = atlas.prepare_glyphs(&glyphs).unwrap();
+            layout.apply_transform(Transform2F {
+                matrix,
+                vector: cursor,
+            });
+
+            let (glyphs, updated) = atlas.prepare_glyphs(layout.glyphs()).unwrap();
 
             if updated {
                 font_renderer.update_texture(&atlas);
             }
 
-            font_renderer.draw_glyphs(ColorF::white(), glyphs.into_iter().zip(transforms));
+            font_renderer.draw_glyphs(
+                ColorF::white(),
+                glyphs.into_iter().zip(layout.transforms().iter().copied()),
+            );
 
             cursor -= matrix * vec2f(0.0, 1.0);
         }
@@ -211,17 +212,16 @@ fn main() {
         );
 
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
+        let metrics = arranger.metrics();
         for text in chars.as_slice() {
-            let (glyphs, transforms) = layout.layout(
-                text,
-                &[],
-                Transform2F {
-                    matrix,
-                    vector: cursor,
-                },
-            );
+            let mut layout = arranger.layout(text, &[]);
 
-            let (glyphs, updated) = atlas.prepare_glyphs(&glyphs).unwrap();
+            layout.apply_transform(Transform2F {
+                matrix,
+                vector: cursor,
+            });
+
+            let (glyphs, updated) = atlas.prepare_glyphs(layout.glyphs()).unwrap();
 
             if updated {
                 font_renderer.update_texture(&atlas);
@@ -229,10 +229,23 @@ fn main() {
 
             font_renderer.draw_glyphs(
                 ColorF::new(1.0, 0.0, 0.0, 1.0),
-                glyphs.into_iter().zip(transforms),
+                glyphs.into_iter().zip(layout.transforms().iter().copied()),
             );
 
-            cursor -= matrix * vec2f(0.0, 1.0);
+            println!("metrics: {:?}", metrics);
+            let underline = RectF::new(
+                cursor - matrix * (vec2f(0.0, -metrics.underline_position)),
+                matrix * (vec2f(0.0, -metrics.underline_thickness)) + layout.cursor_advance(),
+            );
+            println!(
+                "underline: {:?}",
+                underline
+                    * pathfinder_geometry::vector::vec2i(WINDOW_WIDTH, WINDOW_HEIGHT).to_f32()
+            );
+
+            rectangle_renderer.draw(underline, 0.0, ColorF::new(1.0, 0.0, 0.0, 1.0));
+
+            cursor -= matrix * vec2f(0.0, 1.0 + metrics.line_gap);
         }
         let render1_end = Instant::now();
         println!("rendering 1 took {:?}", render1_end - render1_start);
@@ -258,19 +271,16 @@ fn main() {
         let mut cursor = vec2f(-1.0, 1.0) - matrix * vec2f(0.0, 1.0);
         let mut info_transforms = Vec::with_capacity(chars.iter().map(|x| x.chars().count()).sum());
         for text in chars.as_slice() {
-            let (glyphs, transforms) = layout.layout(
-                text,
-                &[],
-                Transform2F {
-                    matrix,
-                    vector: cursor,
-                },
-            );
+            let mut layout = arranger.layout(text, &[]);
+            layout.apply_transform(Transform2F {
+                matrix,
+                vector: cursor,
+            });
 
-            let (glyphs, update) = atlas.prepare_glyphs(&glyphs).unwrap();
+            let (glyphs, update) = atlas.prepare_glyphs(layout.glyphs()).unwrap();
             assert!(!update);
 
-            info_transforms.extend(glyphs.into_iter().zip(transforms));
+            info_transforms.extend(glyphs.into_iter().zip(layout.transforms().iter().copied()));
             cursor -= matrix * vec2f(0.0, 1.0);
         }
         font_renderer.draw_glyphs(ColorF::new(0.0, 1.0, 0.0, 1.0), info_transforms);
