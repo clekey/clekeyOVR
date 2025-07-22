@@ -674,11 +674,15 @@ impl FontRenderer {
             let uv_rect =
                 RectI::new(info.atlas_origin, info.atlas_size * vec2i(1, -1)).to_f32() * uv_scale;
 
+            fn as_array(a: Vector2F) -> [f32; 2] {
+                [a.x(), a.y()]
+            }
+
             macro_rules! point {
                 ($f: ident) => {
                     PointInfo {
-                        pos: (transform * poly_rect.$f()).0.0,
-                        uv: uv_rect.$f().0.0,
+                        pos: as_array(transform * poly_rect.$f()),
+                        uv: as_array(uv_rect.$f()),
                         tex: info.canvas_id as f32,
                     }
                 };

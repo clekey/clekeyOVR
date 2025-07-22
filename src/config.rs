@@ -242,32 +242,13 @@ pub enum UIMode {
     OneRing,
 }
 
-#[allow(dead_code)]
-mod serialize_color4f_4f {
-    use super::OptionalValue;
-    use pathfinder_color::ColorF;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    pub fn serialize<S: Serializer>(value: &ColorF, serializer: S) -> Result<S::Ok, S::Error> {
-        Serialize::serialize(&value.0.0, serializer)
-    }
-
-    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<OptionalValue<ColorF>, D::Error> {
-        <[f32; 4] as Deserialize>::deserialize(deserializer)
-            .map(|[r, g, b, a]| ColorF::new(r, g, b, a))
-            .map(OptionalValue::Value)
-    }
-}
-
 mod serialize_color4f_3f {
     use super::OptionalValue;
     use pathfinder_color::ColorF;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     pub fn serialize<S: Serializer>(value: &ColorF, serializer: S) -> Result<S::Ok, S::Error> {
-        Serialize::serialize(&value.0.0[..3], serializer)
+        Serialize::serialize(&[value.r(), value.g(), value.b()], serializer)
     }
 
     pub(super) fn deserialize<'de, D: Deserializer<'de>>(
