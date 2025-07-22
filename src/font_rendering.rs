@@ -848,7 +848,7 @@ impl Layout {
 }
 
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct FontMetrics {
     pub underline_position: f32,
     pub underline_thickness: f32,

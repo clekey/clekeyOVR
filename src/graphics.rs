@@ -1,6 +1,6 @@
 use crate::KeyboardStatus;
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
-use crate::font_rendering::{FontAtlas, FontRenderer, TextArranger};
+use crate::font_rendering::{FontAtlas, FontMetrics, FontRenderer, Layout, TextArranger};
 use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer};
 use crate::input_method::CleKeyButton;
 use font_kit::handle::Handle;
@@ -55,6 +55,19 @@ impl GraphicsContext {
             rectangle_renderer: RectangleRenderer::new(),
             base_background_renderer: BaseBackgroundRenderer::new(),
         }
+    }
+
+    pub fn render_text(&mut self, color: ColorF, layout: &Layout) {
+        let (glyphs, update) = self.font_atlas.prepare_glyphs(layout.glyphs()).unwrap();
+
+        if update {
+            self.font_renderer.update_texture(&self.font_atlas);
+        }
+
+        self.font_renderer.draw_glyphs(
+            color,
+            glyphs.into_iter().zip(layout.transforms().iter().copied()),
+        );
     }
 }
 
@@ -119,16 +132,7 @@ fn render_text_in_box(
 
     layout.apply_transform(text_transform);
 
-    let (glyphs, update) = context.font_atlas.prepare_glyphs(layout.glyphs()).unwrap();
-
-    if update {
-        context.font_renderer.update_texture(&context.font_atlas);
-    }
-
-    context.font_renderer.draw_glyphs(
-        color,
-        glyphs.into_iter().zip(layout.transforms().iter().copied()),
-    );
+    context.render_text(color, &layout);
 }
 
 fn render_ring_chars(context: &mut GraphicsContext, center: Vector2F, ring: &RingInfo) {
@@ -263,124 +267,176 @@ pub fn draw_center(
 
     let width = 2.0;
     let lane_height = 0.36;
-    let space = lane_height * SPACE_RATIO * 0.5;
+    let space_x = lane_height * SPACE_RATIO * 0.5;
     let font_size = lane_height * FONT_SIZE_RATIO;
+    let font_size = vec2f(font_size * 0.5, font_size);
 
-    // configure font settings
-    struct TextRenderer<'a> {
-        context: &'a mut GraphicsContext,
-        cursor: Vector2F,
-        font_size: Vector2F,
-        height: f32,
-    }
-    impl<'a> TextRenderer<'a> {
-        fn draw(&mut self, text: &str, color: ColorF, underline: bool) {
-            let metrics = self.context.font_layout.metrics();
-            let mut layout = self.context.font_layout.layout(text, &[]);
-
-            let mut cursor = self.cursor;
-            cursor.0[1] += self.height / 2.0;
-            cursor.0[1] -= metrics.cap_height * self.font_size.y() / 2.0;
-
-            layout.apply_transform(Transform2F {
-                matrix: Matrix2x2F::from_scale(self.font_size),
-                vector: cursor,
-            });
-
-            let (glyphs, updated) = self
-                .context
-                .font_atlas
-                .prepare_glyphs(layout.glyphs())
-                .unwrap();
-
-            if updated {
-                self.context
-                    .font_renderer
-                    .update_texture(&self.context.font_atlas);
-            }
-
-            self.context.font_renderer.draw_glyphs(
-                color,
-                glyphs.into_iter().zip(layout.transforms().iter().copied()),
-            );
-
-            if underline {
-                let underline_space = self.font_size.x() * 0.05;
-                if layout.cursor_advance().x() > underline_space * 2.0 {
-                    let underline = RectF::new(
-                        cursor - (vec2f(0.0, -metrics.underline_position)) * self.font_size
-                            + vec2f(underline_space, 0.0),
-                        (vec2f(0.0, -metrics.underline_thickness)) * self.font_size
-                            + layout.cursor_advance()
-                            + vec2f(-2.0 * underline_space, 0.0),
-                    );
-
-                    self.context.rectangle_renderer.draw(underline, 0.0, color);
-                }
-            }
-
-            self.cursor += layout.cursor_advance();
-        }
-    }
-
-    let mut text_renderer = TextRenderer {
-        context,
-        font_size: vec2f(font_size * 0.5, font_size),
-        cursor: vec2f(-1., 1. - lane_height) + vec2f(space, 0.),
-        height: lane_height,
-    };
-
-    text_renderer.context.rectangle_renderer.draw(
+    context.rectangle_renderer.draw(
         RectF::new(vec2f(-1.0, 1.0), vec2f(width, -lane_height)),
         0.,
         config.background_color,
     );
 
-    // TODO: scroll horizontally to show the end of input or currently changing text.
+    let max_width = 2.0 - 2.0 * space_x;
+
     if status.candidates.is_empty() {
-        text_renderer.draw(&status.buffer, config.inputting_char_color, true);
+        let metrics = context.font_layout.metrics();
+        let mut layout = context.font_layout.layout(&status.buffer, &[]);
+        let color = config.inputting_char_color;
+
+        let mut cursor = vec2f(-1. + space_x, 1. - lane_height);
+        cursor.0[1] += lane_height / 2.0;
+        cursor.0[1] -= metrics.cap_height * font_size.y() / 2.0;
+
+        let length = layout.cursor_advance().x() * font_size.x() + font_size.x();
+        if length > max_width {
+            cursor.0[0] += max_width - length;
+        }
+
+        layout.apply_transform(Transform2F {
+            matrix: Matrix2x2F::from_scale(font_size),
+            vector: cursor,
+        });
+
+        context.render_text(color, &layout);
+        draw_underline(
+            &context.rectangle_renderer,
+            font_size,
+            &layout,
+            metrics,
+            color,
+        );
     } else {
-        for (i, can) in status.candidates.iter().enumerate() {
-            if i == status.candidates_idx {
-                text_renderer.draw(
-                    &can.candidates[can.index],
-                    config.inputting_char_color,
-                    true,
-                );
+        let metrics = context.font_layout.metrics();
+        let mut advance = 0.0;
+        let layouts = status
+            .candidates
+            .iter()
+            .map(|can| {
+                let layout = context.font_layout.layout(&can.candidates[can.index], &[]);
+                let result = (advance, layout);
+                advance += result.1.cursor_advance().x();
+                result
+            })
+            .collect::<Vec<_>>();
+
+        let mut cursor_x;
+        if advance * font_size.x() < max_width {
+            // for short text, align to first
+            cursor_x = -1. + space_x;
+        } else {
+            let current_candidate = &layouts[status.candidates_idx];
+            cursor_x = -(current_candidate.0 + current_candidate.1.cursor_advance().x() * 0.5)
+                * font_size.x();
+            cursor_x = cursor_x.min(-1. + space_x);
+            cursor_x = cursor_x.max(-advance * font_size.x() + 1.0 - space_x);
+        }
+
+        let mut cursor_y = 1. - lane_height;
+        cursor_y += lane_height / 2.0;
+        cursor_y -= metrics.cap_height * font_size.y() / 2.0;
+
+        let mut cursor = vec2f(cursor_x, cursor_y);
+
+        for (i, (_, mut layout)) in layouts.into_iter().enumerate() {
+            let color = if i == status.candidates_idx {
+                config.inputting_char_color
             } else {
-                text_renderer.draw(&can.candidates[can.index], ColorF::black(), true);
-            }
+                ColorF::black()
+            };
+
+            layout.apply_transform(Transform2F {
+                matrix: Matrix2x2F::from_scale(font_size),
+                vector: cursor,
+            });
+
+            cursor += layout.cursor_advance();
+
+            context.render_text(color, &layout);
+            draw_underline(
+                &context.rectangle_renderer,
+                font_size,
+                &layout,
+                metrics,
+                color,
+            );
         }
     }
 
-    let base = lane_height;
-    let lane_height = 2.0 * 0.13;
-    let font_size = lane_height * FONT_SIZE_RATIO;
-    let space = lane_height * SPACE_RATIO;
-    let font_size = vec2f(font_size * 0.5, font_size);
-    text_renderer.font_size = font_size;
-    text_renderer.height = lane_height;
     if !status.candidates.is_empty() {
+        // rendering selections
+        let base = lane_height;
+        let lane_height = 2.0 * 0.13;
+        let font_size = lane_height * FONT_SIZE_RATIO;
+        let space = lane_height * SPACE_RATIO;
+        let font_size = vec2f(font_size * 0.5, font_size);
+
         let candidates = status.candidates[status.candidates_idx]
             .candidates
             .as_slice();
 
-        for (i, text) in candidates.iter().enumerate() {
-            let mut layout = text_renderer.context.font_layout.layout(text, &[]);
-            layout.apply_transform(Transform2F::from_scale(font_size));
-            let width = layout.cursor_advance().x() + space * 2.0;
-            let rect = RectF::new(
-                vec2f(-1.0, 1. - (base + lane_height * (i as f32))),
-                vec2f(width, -lane_height),
-            );
+        let metrics = context.font_layout.metrics();
 
-            text_renderer
-                .context
-                .rectangle_renderer
-                .draw(rect, 0.0, config.background_color);
+        let layouts = candidates
+            .iter()
+            .enumerate()
+            .map(|(i, text)| {
+                let mut layout = context.font_layout.layout(text, &[]);
 
-            text_renderer.cursor = rect.lower_left() + vec2f(space, 0.);
-            text_renderer.draw(text, config.inputting_char_color, false);
+                let mut cursor = vec2f(-1.0, 1. - (base + lane_height * (i as f32)) - lane_height);
+                cursor += vec2f(space, 0.);
+                cursor.0[1] += lane_height / 2.0;
+                cursor.0[1] -= metrics.cap_height * font_size.y() / 2.0;
+
+                layout.apply_transform(Transform2F {
+                    matrix: Matrix2x2F::from_scale(font_size),
+                    vector: cursor,
+                });
+
+                layout
+            })
+            .collect::<Vec<_>>();
+
+        let width = layouts
+            .iter()
+            .map(|x| x.cursor_advance().x())
+            .max_by(|a, b| a.total_cmp(b))
+            .unwrap_or(0.0)
+            + space * 2.0;
+
+        context.rectangle_renderer.draw(
+            RectF::new(
+                vec2f(-1.0, 1. - base),
+                vec2f(width, -lane_height * candidates.len() as f32),
+            ),
+            0.0,
+            config.background_color,
+        );
+
+        for layout in layouts.iter() {
+            context.render_text(config.inputting_char_color, layout);
         }
+    }
+}
+
+fn draw_underline(
+    rectangle_renderer: &RectangleRenderer,
+    font_size: Vector2F,
+    layout: &Layout,
+    metrics: FontMetrics,
+    color: ColorF,
+) {
+    let underline_space = font_size.x() * 0.05;
+    if layout.cursor_advance().x() > underline_space * 2.0 {
+        let cursor = layout.transform().vector;
+        let underline = RectF::new(
+            cursor - (vec2f(0.0, -metrics.underline_position)) * font_size
+                + vec2f(underline_space, 0.0),
+            (vec2f(0.0, -metrics.underline_thickness)) * font_size
+                + layout.cursor_advance()
+                + vec2f(-2.0 * underline_space, 0.0),
+        );
+
+        rectangle_renderer.draw(underline, 0.0, color);
     }
 }
