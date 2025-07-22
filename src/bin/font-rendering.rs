@@ -113,8 +113,11 @@ fn main() {
     window.make_current();
 
     // gl crate initialization
-    let loader = |s: &str| glfw.get_proc_address_raw(s);
-    gl::load_with(loader);
+    gl::load_with(|s| {
+        glfw.get_proc_address_raw(s)
+            .map(|f| f as _)
+            .unwrap_or_default()
+    });
 
     {
         window.make_current();

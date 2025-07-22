@@ -54,7 +54,9 @@ features = [
 ]
 
 [dependencies.glfw]
-version = "0.59.0"
+git = "https://github.com/PistonDevelopers/glfw-rs"
+rev = "49fdabc5f957d19cc6e2bb198abc23819a7604e9"
+features = ["static-link"]
 
 [target."cfg(windows)".features]
 default = ["openvr"]
