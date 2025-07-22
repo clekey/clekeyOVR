@@ -1,9 +1,8 @@
 use crate::KeyboardStatus;
 use crate::config::{CompletionOverlayConfig, RingOverlayConfig};
-use crate::font_rendering::{FontAtlas, FontMetrics, FontRenderer, Layout, TextArranger};
+use crate::font_rendering::{Font, FontAtlas, FontMetrics, FontRenderer, Layout, TextArranger};
 use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer};
 use crate::input_method::CleKeyButton;
-use font_kit::font::Font as FKFont;
 use font_kit::handle::Handle;
 use glam::Vec2;
 use log::error;
@@ -25,7 +24,7 @@ pub struct GraphicsContext {
     rectangle_renderer: RectangleRenderer,
     base_background_renderer: BaseBackgroundRenderer,
 
-    to_background_channel_sender: std::sync::mpsc::Sender<Vec<(Arc<FKFont>, u32)>>,
+    to_background_channel_sender: std::sync::mpsc::Sender<Vec<(Arc<Font>, u32)>>,
     from_background_channel_receiver: std::sync::mpsc::Receiver<FontAtlas>,
 }
 
@@ -83,7 +82,7 @@ impl GraphicsContext {
         }
     }
 
-    fn send_glyphs(&mut self, mut glyphs: Vec<(Arc<FKFont>, u32)>) {
+    fn send_glyphs(&mut self, mut glyphs: Vec<(Arc<Font>, u32)>) {
         while let Err(e) = self.to_background_channel_sender.send(glyphs) {
             glyphs = e.0;
             let to_background_channel_receiver;

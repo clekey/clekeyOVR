@@ -1,4 +1,4 @@
-use crate::font_rendering::{FontAtlas, FontRenderer, TextArranger};
+use crate::font_rendering::{Font, FontAtlas, FontRenderer, TextArranger};
 use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer, gl_clear};
 use font_kit::handle::Handle;
 use gl::types::{GLsizei, GLuint};
@@ -24,13 +24,12 @@ fn main() {
     let mut atlas = FontAtlas::new(50.0, 65536, 16);
 
     let font = Arc::new(
-        Handle::from_memory(
+        Font::new(
             Arc::new(Vec::from(include_bytes!(
                 "../../resources/fonts/NotoSansJP-Medium.otf"
             ))),
             0,
         )
-        .load()
         .unwrap(),
     );
 
