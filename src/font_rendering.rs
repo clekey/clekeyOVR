@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! This module handles font texture atlasing, and texture layout
 
 use crate::gl_primitives::{compile_shader, link_shader};
