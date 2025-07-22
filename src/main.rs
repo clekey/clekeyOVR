@@ -93,7 +93,7 @@ fn main() {
     gl::load_with(|s| {
         glfw.get_proc_address_raw(s)
             .map(|f| f as _)
-            .unwrap_or_default()
+            .unwrap_or(null())
     });
 
     let mut graphics_context = GraphicsContext::new();
