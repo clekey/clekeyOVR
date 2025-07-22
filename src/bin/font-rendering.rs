@@ -58,9 +58,9 @@ fn main() {
 
     let (glyphs, changed) = atlas
         .prepare_glyphs(&[
-            (&font, font.glyph_for_char('あ').unwrap()),
-            (&font, font.glyph_for_char('い').unwrap()),
-            (&font, font.glyph_for_char('う').unwrap()),
+            (font.clone(), font.glyph_for_char('あ').unwrap()),
+            (font.clone(), font.glyph_for_char('い').unwrap()),
+            (font.clone(), font.glyph_for_char('う').unwrap()),
         ])
         .unwrap();
 
@@ -69,19 +69,19 @@ fn main() {
 
     let (_, changed) = atlas
         .prepare_glyphs(&[
-            (&font, font.glyph_for_char('あ').unwrap()),
-            (&font, font.glyph_for_char('い').unwrap()),
-            (&font, font.glyph_for_char('う').unwrap()),
+            (font.clone(), font.glyph_for_char('あ').unwrap()),
+            (font.clone(), font.glyph_for_char('い').unwrap()),
+            (font.clone(), font.glyph_for_char('う').unwrap()),
         ])
         .unwrap();
     assert!(!changed);
 
     let (_, changed) = atlas
         .prepare_glyphs(&[
-            (&font, font.glyph_for_char('え').unwrap()),
-            (&font, font.glyph_for_char('お').unwrap()),
-            (&font, font.glyph_for_char('か').unwrap()),
-            (&font, font.glyph_for_char('が').unwrap()),
+            (font.clone(), font.glyph_for_char('え').unwrap()),
+            (font.clone(), font.glyph_for_char('お').unwrap()),
+            (font.clone(), font.glyph_for_char('か').unwrap()),
+            (font.clone(), font.glyph_for_char('が').unwrap()),
         ])
         .unwrap();
     assert!(changed);

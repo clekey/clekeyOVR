@@ -176,7 +176,7 @@ impl FontAtlas {
     /// Prepares glyphs and returns list of UV location
     pub fn prepare_glyphs(
         &mut self,
-        glyphs: &[(&Arc<FKFont>, u32)],
+        glyphs: &[(Arc<FKFont>, u32)],
     ) -> Result<(Vec<GlyphInfo>, bool), GlyphLoadingError> {
         let hinting = HintingOptions::None;
         let options = RasterizationOptions::GrayscaleAa;
@@ -184,7 +184,7 @@ impl FontAtlas {
         let mut result = vec![GlyphInfo::default(); glyphs.len()];
         let mut glyphs_to_add = HashMap::new();
 
-        for (i, &(font, glyph_id)) in glyphs.iter().enumerate() {
+        for (i, &(ref font, glyph_id)) in glyphs.iter().enumerate() {
             let id = GlyphId(Arc::downgrade(font), glyph_id);
             if let Some(&info) = self.glyphs.get(&id) {
                 result[i] = info;
@@ -666,7 +666,7 @@ impl FontRenderer {
     pub fn draw_text_simple(
         &mut self,
         atlas: &mut FontAtlas,
-        font: &Arc<FKFont>,
+        font: Arc<FKFont>,
         color: ColorF,
         transform: Transform2F,
         text: &str,
@@ -675,8 +675,12 @@ impl FontRenderer {
             .chars()
             .map(|c| font.glyph_for_char(c).ok_or(GlyphLoadingError::NoSuchGlyph))
             .collect::<Result<Vec<_>, _>>()?;
-        let (glyph_info, update) =
-            atlas.prepare_glyphs(&glyphs.iter().map(|&g| (font, g)).collect::<Vec<_>>())?;
+        let (glyph_info, update) = atlas.prepare_glyphs(
+            &glyphs
+                .iter()
+                .map(|&g| (Arc::clone(&font), g))
+                .collect::<Vec<_>>(),
+        )?;
         if update {
             self.update_texture(atlas);
         }
@@ -721,6 +725,7 @@ impl TextArranger {
     pub fn layout(&self, mut text: &str, features: &[Feature]) -> Layout {
         if text.is_empty() {
             return Layout {
+                transform: Transform2F::default(),
                 glyphs: vec![],
                 transforms: vec![],
                 advance: Vector2F::zero(),
@@ -780,7 +785,7 @@ impl TextArranger {
 
                 let transform = Transform2F::from_translation(cursor + offset);
 
-                glyphs.push((&self.fonts[font_index].1, glyph_id));
+                glyphs.push((Arc::clone(&self.fonts[font_index].1), glyph_id));
                 transforms.push(transform);
 
                 cursor += advance;
@@ -789,6 +794,7 @@ impl TextArranger {
         }
 
         Layout {
+            transform: Transform2F::default(),
             glyphs,
             transforms,
             advance: cursor,
@@ -808,21 +814,27 @@ impl TextArranger {
     }
 }
 
-pub struct Layout<'arranger> {
-    glyphs: Vec<(&'arranger Arc<FKFont>, u32)>,
+pub struct Layout {
+    transform: Transform2F,
+    glyphs: Vec<(Arc<FKFont>, u32)>,
     transforms: Vec<Transform2F>,
     advance: Vector2F,
 }
 
-impl<'arranger> Layout<'arranger> {
+impl Layout {
     pub fn apply_transform(&mut self, transform: Transform2F) {
+        self.transform = transform * self.transform;
         for t in &mut self.transforms {
             *t = transform * *t;
         }
         self.advance = transform.matrix * self.advance;
     }
 
-    pub fn glyphs(&self) -> &[(&'arranger Arc<FKFont>, u32)] {
+    pub fn transform(&self) -> Transform2F {
+        self.transform
+    }
+
+    pub fn glyphs(&self) -> &[(Arc<FKFont>, u32)] {
         &self.glyphs
     }
 
