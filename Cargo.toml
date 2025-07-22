@@ -54,8 +54,7 @@ features = [
 ]
 
 [dependencies.glfw]
-git = "https://github.com/bjz/glfw-rs.git"
-rev = "2221cf05410c3dd2fac6f711c8f28e072c16f1fb"
+version = "0.59.0"
 
 [target."cfg(windows)".features]
 default = ["openvr"]
