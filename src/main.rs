@@ -193,10 +193,14 @@ fn main() {
 
         #[cfg(feature = "debug_window")]
         #[allow(deprecated)]
-        event_loop.pump_events(Some(Duration::ZERO), |_e, _active| {
-            #[cfg(feature = "debug_control")]
-            ovr_controller.accept_debug_control(_e)
-        });
+        winit::platform::pump_events::EventLoopExtPumpEvents::pump_events(
+            &mut event_loop,
+            Some(Duration::ZERO),
+            |_e, _active| {
+                #[cfg(feature = "debug_control")]
+                ovr_controller.accept_debug_control(_e)
+            },
+        );
 
         graphics_context.receive_atlas();
 
