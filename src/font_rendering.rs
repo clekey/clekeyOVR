@@ -158,6 +158,8 @@ pub struct GlyphInfo {
     pub atlas_size: Vector2I,
 }
 
+type UnresolvedGlyph = (Arc<Font>, u32);
+
 impl FontAtlas {
     pub fn new(font_em_size: f32, max_texture_size: u32, mip_cell_size: u32) -> FontAtlas {
         assert!(font_em_size > 0.0);
@@ -203,8 +205,8 @@ impl FontAtlas {
     /// Prepares glyphs and returns list of UV location
     pub fn get_glyphs(
         &mut self,
-        glyphs: &[(Arc<Font>, u32)],
-    ) -> Result<(Vec<GlyphInfo>, Vec<(Arc<Font>, u32)>), GlyphLoadingError> {
+        glyphs: &[UnresolvedGlyph],
+    ) -> Result<(Vec<GlyphInfo>, Vec<UnresolvedGlyph>), GlyphLoadingError> {
         let mut result = vec![GlyphInfo::default(); glyphs.len()];
         let mut glyphs_to_add = HashSet::new();
 
@@ -249,7 +251,7 @@ impl FontAtlas {
 
     pub fn rasterize_glyphs(
         &mut self,
-        glyphs_to_add: &[(Arc<Font>, u32)],
+        glyphs_to_add: &[UnresolvedGlyph],
     ) -> Result<bool, GlyphLoadingError> {
         {
             let hinting = HintingOptions::None;
@@ -270,7 +272,7 @@ impl FontAtlas {
             }
 
             for &(ref font, glyph_id) in glyphs_to_add {
-                let id = GlyphId(Arc::downgrade(&font), glyph_id);
+                let id = GlyphId(Arc::downgrade(font), glyph_id);
                 if self.glyphs.contains_key(&id) {
                     continue;
                 }
@@ -375,7 +377,7 @@ impl FontAtlas {
                         if information.rasterize_position.is_none() {
                             let min_y = canvas_state.tall_glyph_cursor.y()
                                 - information.rasterize_size.y()
-                                - self.pad_size as i32;
+                                - self.pad_size;
 
                             if canvas_state.tall_glyph_cursor.x() + information.rasterize_size.x()
                                 < canvas_state.canvas_size.x()
@@ -385,7 +387,7 @@ impl FontAtlas {
                                 information.rasterize_position =
                                     Some((canvas_index, canvas_state.tall_glyph_cursor));
                                 canvas_state.tall_glyph_cursor +=
-                                    vec2i(information.rasterize_size.x() + self.pad_size as i32, 0);
+                                    vec2i(information.rasterize_size.x() + self.pad_size, 0);
                                 canvas_state.tall_glyph_line_min_y =
                                     canvas_state.tall_glyph_line_min_y.min(min_y);
                             } else {
@@ -398,7 +400,7 @@ impl FontAtlas {
                     // We have to move to next line
                     if canvas_state.tall_glyph_line_min_y != canvas_state.tall_glyph_cursor.y() {
                         canvas_state.tall_glyph_cursor =
-                            vec2i(0, canvas_state.tall_glyph_line_min_y - self.pad_size as i32);
+                            vec2i(0, canvas_state.tall_glyph_line_min_y - self.pad_size);
                     } else {
                         // This means we couldn't insert no characters to the last line due to height problem
                         // so we should move to next canvas
@@ -434,7 +436,7 @@ impl FontAtlas {
                     options,
                 )?;
 
-                let id = GlyphId(Arc::downgrade(&information.font), information.glyph_id);
+                let id = GlyphId(Arc::downgrade(information.font), information.glyph_id);
 
                 self.glyphs.insert(
                     id,
@@ -467,7 +469,7 @@ impl FontAtlas {
 
         self.rasterize_glyphs(&glyphs_to_add)?;
 
-        let (glyph_infos, glyphs_to_add) = self.get_glyphs(&glyphs)?;
+        let (glyph_infos, glyphs_to_add) = self.get_glyphs(glyphs)?;
         assert!(glyphs_to_add.is_empty());
 
         Ok((glyph_infos, true))

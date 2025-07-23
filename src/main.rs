@@ -20,29 +20,23 @@ use crate::graphics::GraphicsContext;
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
 use crate::utils::GlContextExt;
-use cfg_if::cfg_if;
 use gl::types::GLuint;
 use glam::Vec2;
-use glutin::config::{ConfigTemplate, ConfigTemplateBuilder};
+use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{ContextApi, ContextAttributesBuilder};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin_winit::GlWindow;
 use log::info;
-use raw_window_handle::{
-    AppKitDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle,
-    WindowsDisplayHandle,
-};
+use raw_window_handle::HasWindowHandle;
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::mem::take;
-use std::num::NonZeroIsize;
 use std::ptr::null;
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
-use winit::platform::pump_events::EventLoopExtPumpEvents;
 use winit::window::WindowAttributes;
 
 const WINDOW_HEIGHT: i32 = 1024;
@@ -80,6 +74,7 @@ fn main() {
     resources::init();
 
     // glut and winit
+    #[allow(unused_mut)]
     let mut event_loop =
         winit::event_loop::EventLoop::new().expect("Failed to create an event loop");
 
@@ -132,6 +127,7 @@ fn main() {
         })
     }
 
+    #[allow(unused_variables)]
     let gl_context = if let Some(ref gl_surface) = gl_surface {
         gl_context
             .make_current(gl_surface)

@@ -215,6 +215,7 @@ impl GlContextExt for NotCurrentContext {
             NotCurrentContext::Cgl(cgl) => {
                 Ok(PossiblyCurrentContext::Cgl(cgl.make_current_surfaceless()?))
             }
+            #[allow(unreachable_patterns)]
             _ => Err(glutin::error::ErrorKind::NotSupported("surfaceless").into()),
         }
     }

@@ -87,7 +87,7 @@ impl ShaderRenderer {
     }
 
     /// Renders glyphs in specified color.
-    fn draw(&self, transform: Transform2F, set_uniforms: impl FnOnce() -> ()) {
+    fn draw(&self, transform: Transform2F, set_uniforms: impl FnOnce()) {
         unsafe {
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
