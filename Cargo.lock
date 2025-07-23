@@ -341,6 +341,7 @@ dependencies = [
  "gl",
  "glam",
  "glutin",
+ "glutin-winit",
  "harfbuzz_rs",
  "hex",
  "license-gen",
@@ -949,6 +950,18 @@ dependencies = [
  "wayland-sys",
  "windows-sys 0.52.0",
  "x11-dl",
+]
+
+[[package]]
+name = "glutin-winit"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85edca7075f8fc728f28cb8fbb111a96c3b89e930574369e3e9c27eb75d3788f"
+dependencies = [
+ "cfg_aliases",
+ "glutin",
+ "raw-window-handle",
+ "winit",
 ]
 
 [[package]]

@@ -19,21 +19,31 @@ use crate::config::{CleKeyConfig, UIMode, load_config};
 use crate::graphics::GraphicsContext;
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
+use crate::utils::GlContextExt;
 use cfg_if::cfg_if;
 use gl::types::GLuint;
 use glam::Vec2;
-use glutin::config::ConfigTemplate;
+use glutin::config::{ConfigTemplate, ConfigTemplateBuilder};
 use glutin::context::{ContextApi, ContextAttributesBuilder};
+use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
+use glutin_winit::GlWindow;
 use log::info;
-use raw_window_handle::{AppKitDisplayHandle, RawDisplayHandle, WindowsDisplayHandle};
+use raw_window_handle::{
+    AppKitDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, Win32WindowHandle,
+    WindowsDisplayHandle,
+};
 use std::collections::VecDeque;
 use std::ffi::CString;
 use std::mem::take;
+use std::num::NonZeroIsize;
 use std::ptr::null;
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+use winit::dpi::LogicalSize;
+use winit::platform::pump_events::EventLoopExtPumpEvents;
+use winit::window::WindowAttributes;
 
 const WINDOW_HEIGHT: i32 = 1024;
 const WINDOW_WIDTH: i32 = 1024;
@@ -69,63 +79,68 @@ fn main() {
     // resource initialization
     resources::init();
 
-    // winit
-    #[allow(unused_mut)]
-    let mut raw_window_handle = None;
+    // glut and winit
+    let mut event_loop =
+        winit::event_loop::EventLoop::new().expect("Failed to create an event loop");
 
-    #[cfg(feature = "debug_window")]
-    let debug_window = debug_graphics::DebugWindow::new(WINDOW_WIDTH as _, WINDOW_HEIGHT as _);
+    let mut display_builder = glutin_winit::DisplayBuilder::new();
+
+    if cfg!(feature = "debug_window") || cfg!(windows) {
+        let mut window_attributes = WindowAttributes::default();
+
+        window_attributes =
+            window_attributes.with_inner_size(LogicalSize::new(WINDOW_WIDTH, WINDOW_HEIGHT));
+        if !cfg!(feature = "debug_window") {
+            window_attributes = window_attributes.with_visible(false);
+        }
+
+        display_builder = display_builder.with_window_attributes(Some(window_attributes));
+    }
+
+    let (window, gl_config) = display_builder
+        .build(&event_loop, ConfigTemplateBuilder::new(), |mut cfgs| {
+            cfgs.next().unwrap()
+        })
+        .expect("creating window");
+    #[allow(unused_mut)]
+    let mut raw_window_handle = window
+        .as_ref()
+        .and_then(|w| w.window_handle().ok())
+        .map(|h| h.as_raw());
 
     // glutin
     let gl_display;
-    let gl_config;
     let gl_context;
+    let gl_surface;
     unsafe {
-        let display_handle = if cfg!(target_os = "macos") {
-            RawDisplayHandle::AppKit(AppKitDisplayHandle::new())
-        } else if cfg!(windows) {
-            RawDisplayHandle::Windows(WindowsDisplayHandle::new())
-        } else {
-            panic!("Unsupported OS")
-        };
-
-        cfg_if! {
-            if #[cfg(target_os="macos")] {
-                use glutin::api::cgl::display::Display;
-                gl_display = Display::new(display_handle).expect("Failed to create GL display");
-            } else if #[cfg(target_os="windows")] {
-                use glutin::api::wgl::display::Display;
-                gl_display = Display::new(display_handle, None).expect("Failed to create GL display");
-            } else {
-                compile_error!("Unsupported OS");
-            }
-        }
+        gl_display = gl_config.display();
 
         let context_attributes = ContextAttributesBuilder::new()
             .with_context_api(ContextApi::OpenGl(Some(glutin::context::Version::new(
                 4, 1,
             ))))
             .build(raw_window_handle);
-        gl_config = gl_display
-            .find_configs(ConfigTemplate::default())
-            .unwrap()
-            .next()
-            .unwrap();
         gl_context = gl_display
             .create_context(&gl_config, &context_attributes)
             .unwrap();
+        gl_surface = window.as_ref().map(|window| {
+            let attrs = window.build_surface_attributes(Default::default()).unwrap();
+            gl_config
+                .display()
+                .create_window_surface(&gl_config, &attrs)
+                .expect("failed to create surface")
+        })
     }
 
-    #[cfg(feature = "debug_window")]
-    let mut debug_window = debug_window.with_surface(&gl_config);
-    #[cfg(feature = "debug_window")]
-    let gl_context = gl_context
-        .make_current(&debug_window.surface)
-        .expect("creating context");
-    #[cfg(not(feature = "debug_window"))]
-    let _gl_context = gl_context
-        .make_current_surfaceless()
-        .expect("creating context");
+    let gl_context = if let Some(ref gl_surface) = gl_surface {
+        gl_context
+            .make_current(gl_surface)
+            .expect("creating context")
+    } else {
+        gl_context
+            .make_current_surfaceless()
+            .expect("creating context")
+    };
 
     // gl crate initialization
     gl::load_with(|s| gl_display.get_proc_address(&CString::new(s).unwrap()));
@@ -181,7 +196,8 @@ fn main() {
         let frame_end_expected = Instant::now() + frame_duration;
 
         #[cfg(feature = "debug_window")]
-        debug_window.pump_events(|_e| {
+        #[allow(deprecated)]
+        event_loop.pump_events(Some(Duration::ZERO), |_e, _active| {
             #[cfg(feature = "debug_control")]
             ovr_controller.accept_debug_control(_e)
         });
@@ -225,8 +241,9 @@ fn main() {
             );
             gl::Flush();
 
-            debug_window
-                .surface
+            gl_surface
+                .as_ref()
+                .unwrap()
                 .swap_buffers(&gl_context)
                 .expect("Swap buffers");
         }

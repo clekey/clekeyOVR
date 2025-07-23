@@ -40,7 +40,8 @@ png = "0.17.16"
 harfbuzz_rs = "2.0.1"
 glutin = "0.32.3"
 raw-window-handle = "0.6.2"
-winit = { version = "0.30.11", optional = true }
+winit = { version = "0.30.11" }
+glutin-winit = "0.5.0"
 
 [build-dependencies]
 flate2 = "1"
@@ -61,4 +62,4 @@ default = ["openvr"]
 
 [features]
 default = []
-debug_window = ['dep:winit']
+debug_window = []

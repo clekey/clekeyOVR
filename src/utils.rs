@@ -1,4 +1,6 @@
 use glam::{UVec2, Vec2};
+use glutin::context::{NotCurrentContext, PossiblyCurrentContext};
+use glutin::prelude::NotCurrentGlContext;
 use std::ffi::{CString, OsString};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -178,6 +180,42 @@ impl<const AVG_FRAMES: usize> FPSComputer<AVG_FRAMES> {
                 self.full = true;
             }
             (avg_fps, one_fps)
+        }
+    }
+}
+
+pub trait GlContextExt: NotCurrentGlContext {
+    fn make_current_surfaceless(self)
+    -> Result<Self::PossiblyCurrentContext, glutin::error::Error>;
+}
+
+impl GlContextExt for NotCurrentContext {
+    fn make_current_surfaceless(
+        self,
+    ) -> Result<Self::PossiblyCurrentContext, glutin::error::Error> {
+        match self {
+            #[cfg(all(any(unix, windows), not(target_vendor = "apple")))]
+            NotCurrentContext::Egl(egl) => {
+                Ok(PossiblyCurrentContext::Egl(egl.make_current_surfaceless()?))
+            }
+            #[cfg(all(
+                unix,
+                not(target_os = "android"),
+                not(target_env = "ohos"),
+                not(target_vendor = "apple")
+            ))]
+            NotCurrentContext::Glx(glx) => {
+                Ok(PossiblyCurrentContext::Glx(glx.make_current_surfaceless()?))
+            }
+            #[cfg(windows)]
+            NotCurrentContext::Wgl(wgl) => {
+                Ok(PossiblyCurrentContext::Wgl(wgl.make_current_surfaceless()?))
+            }
+            #[cfg(target_os = "macos")]
+            NotCurrentContext::Cgl(cgl) => {
+                Ok(PossiblyCurrentContext::Cgl(cgl.make_current_surfaceless()?))
+            }
+            _ => Err(glutin::error::ErrorKind::NotSupported("surfaceless").into()),
         }
     }
 }
