@@ -19,11 +19,16 @@ use crate::config::{CleKeyConfig, UIMode, load_config};
 use crate::graphics::GraphicsContext;
 use crate::input_method::{CleKeyButton, CleKeyInputTable, HardKeyButton, InputNextAction};
 use crate::ovr_controller::{ActionSetKind, ButtonKind, OVRController, OverlayPlane};
+use cfg_if::cfg_if;
 use gl::types::GLuint;
 use glam::Vec2;
-use glfw::{Context, OpenGlProfileHint, WindowHint};
+use glutin::config::ConfigTemplate;
+use glutin::context::{ContextApi, ContextAttributesBuilder};
+use glutin::prelude::*;
 use log::info;
+use raw_window_handle::{AppKitDisplayHandle, RawDisplayHandle, WindowsDisplayHandle};
 use std::collections::VecDeque;
+use std::ffi::CString;
 use std::mem::take;
 use std::ptr::null;
 use std::rc::Rc;
@@ -63,47 +68,73 @@ fn main() {
 
     // resource initialization
     resources::init();
-    // glfw initialization
-    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
-    glfw.window_hint(WindowHint::DoubleBuffer(true));
-    glfw.window_hint(WindowHint::ContextVersionMajor(4));
-    glfw.window_hint(WindowHint::ContextVersionMinor(1));
-    glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
-    glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
-    glfw.window_hint(WindowHint::Resizable(false));
-    glfw.window_hint(WindowHint::CocoaRetinaFramebuffer(false));
-    glfw.window_hint(WindowHint::Visible(cfg!(feature = "debug_window")));
 
-    let (mut window, events) = glfw
-        .create_window(
-            WINDOW_WIDTH as _,
-            WINDOW_HEIGHT as _,
-            "clekeyOVR",
-            glfw::WindowMode::Windowed,
-        )
-        .expect("window creation");
-    #[cfg(feature = "debug_control")]
-    {
-        window.set_key_polling(true);
+    // winit
+    #[allow(unused_mut)]
+    let mut raw_window_handle = None;
+
+    #[cfg(feature = "debug_window")]
+    let debug_window = debug_graphics::DebugWindow::new(WINDOW_WIDTH as _, WINDOW_HEIGHT as _);
+
+    // glutin
+    let gl_display;
+    let gl_config;
+    let gl_context;
+    unsafe {
+        cfg_if! {
+            if #[cfg(target_os="macos")] {
+                use glutin::api::cgl::display::Display;
+            } else if #[cfg(target_os="windows")] {
+                use glutin::api::wgl::display::Display;
+            } else {
+                compile_error!("Unsupported OS");
+            }
+        }
+
+        let display_handle = if cfg!(target_os = "macos") {
+            RawDisplayHandle::AppKit(AppKitDisplayHandle::new())
+        } else if cfg!(windows) {
+            RawDisplayHandle::Windows(WindowsDisplayHandle::new())
+        } else {
+            panic!("Unsupported OS")
+        };
+
+        gl_display = Display::new(display_handle).expect("Failed to create GL display");
+
+        let context_attributes = ContextAttributesBuilder::new()
+            .with_context_api(ContextApi::OpenGl(Some(glutin::context::Version::new(
+                4, 1,
+            ))))
+            .build(raw_window_handle);
+        gl_config = gl_display
+            .find_configs(ConfigTemplate::default())
+            .unwrap()
+            .next()
+            .unwrap();
+        gl_context = gl_display
+            .create_context(&gl_config, &context_attributes)
+            .unwrap();
     }
 
-    window.make_current();
+    #[cfg(feature = "debug_window")]
+    let mut debug_window = debug_window.with_surface(&gl_config);
+    #[cfg(feature = "debug_window")]
+    let gl_context = gl_context
+        .make_current(&debug_window.surface)
+        .expect("creating context");
+    #[cfg(not(feature = "debug_window"))]
+    let _gl_context = gl_context
+        .make_current_surfaceless()
+        .expect("creating context");
 
     // gl crate initialization
-    gl::load_with(|s| {
-        glfw.get_proc_address_raw(s)
-            .map(|f| f as _)
-            .unwrap_or(null())
-    });
+    gl::load_with(|s| gl_display.get_proc_address(&CString::new(s).unwrap()));
 
     let mut graphics_context = GraphicsContext::new();
 
     // debug block
     #[cfg(feature = "debug_window")]
-    let debug_renderer = unsafe {
-        window.make_current();
-        debug_graphics::DebugRenderer::init()
-    };
+    let debug_renderer = unsafe { debug_graphics::DebugRenderer::init() };
 
     // openvr initialization
 
@@ -146,13 +177,11 @@ fn main() {
         Duration::new(0, frame_dur_nano as u32)
     };
 
-    while !window.should_close() {
+    loop {
         let frame_end_expected = Instant::now() + frame_duration;
-        glfw.poll_events();
-        for (_, _event) in glfw::flush_messages(&events) {
-            #[cfg(feature = "debug_control")]
-            ovr_controller.accept_debug_control(_event);
-        }
+
+        #[cfg(feature = "debug_window")]
+        debug_window.pump_events(|e| ovr_controller.accept_debug_control(e));
 
         graphics_context.receive_atlas();
 
@@ -179,76 +208,30 @@ fn main() {
         });
 
         #[cfg(feature = "debug_window")]
-        {
-            window.make_current();
-            unsafe {
-                // wipe the drawing surface clear
-                let framebuffer = gl_get_uint::<1>(gl::FRAMEBUFFER_BINDING)[0];
-                let viewport = gl_get_int::<4>(gl::VIEWPORT);
-                let color_clear = gl_get_float::<4>(gl::COLOR_CLEAR_VALUE);
-                let texture_binding_2d = gl_get_uint::<1>(gl::TEXTURE_BINDING_2D)[0];
-                let active_texture = gl_get_uint::<1>(gl::ACTIVE_TEXTURE)[0];
-                if false {
-                    info!("================================");
-                    info!("FRAMEBUFFER_BINDING: {framebuffer:?}");
-                    info!("VIEWPORT: {viewport:?}");
-                    info!("COLOR_CLEAR_VALUE: {color_clear:?}");
-                    info!("TEXTURE_BINDING_2D: {texture_binding_2d:?}");
-                    info!("ACTIVE_TEXTURE: {active_texture:?}");
-                    info!("================================");
-                }
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+            gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
 
-                gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-                gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-                gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-                gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            debug_renderer.draw(
+                app.surfaces.left_ring.gl_tex_id,
+                app.surfaces.right_ring.gl_tex_id,
+                app.surfaces.center_field.gl_tex_id,
+            );
+            gl::Flush();
 
-                debug_renderer.draw(
-                    app.surfaces.left_ring.gl_tex_id,
-                    app.surfaces.right_ring.gl_tex_id,
-                    app.surfaces.center_field.gl_tex_id,
-                );
-                gl::Flush();
-
-                window.swap_buffers();
-
-                gl::ActiveTexture(active_texture);
-                gl::BindTexture(gl::TEXTURE_2D, texture_binding_2d);
-                gl::ClearColor(
-                    color_clear[0],
-                    color_clear[1],
-                    color_clear[2],
-                    color_clear[3],
-                );
-                gl::Viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-                gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
-            }
+            debug_window
+                .surface
+                .swap_buffers(&gl_context)
+                .expect("Swap buffers");
         }
         let (average, one_frame) = fps_calc.on_frame();
         print!("FPS: {average:7.3} fps ({one_frame:7.3} fps in short period)\r");
         // sleep for next frame.
         sleep(frame_end_expected.duration_since(Instant::now()));
     }
-}
-
-#[cfg(feature = "debug_window")]
-unsafe fn gl_get_uint<const N: usize>(name: gl::types::GLenum) -> [GLuint; N] {
-    gl_get_int::<N>(name).map(|x| x as GLuint)
-}
-
-#[cfg(feature = "debug_window")]
-unsafe fn gl_get_int<const N: usize>(name: gl::types::GLenum) -> [gl::types::GLint; N] {
-    let mut value = [0; N];
-    gl::GetIntegerv(name, value.as_mut_ptr());
-    value
-}
-
-#[cfg(feature = "debug_window")]
-unsafe fn gl_get_float<const N: usize>(name: gl::types::GLenum) -> [gl::types::GLfloat; N] {
-    let mut value = [0.0; N];
-    gl::GetFloatv(name, value.as_mut_ptr());
-    value
 }
 
 struct Application<'a> {

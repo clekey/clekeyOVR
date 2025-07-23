@@ -1,3 +1,4 @@
+/*
 use crate::font_rendering::{Font, FontAtlas, FontRenderer, TextArranger};
 use crate::gl_primitives::{BaseBackgroundRenderer, CircleRenderer, RectangleRenderer, gl_clear};
 use font_kit::handle::Handle;
@@ -395,3 +396,7 @@ impl RenderTargetTexture {
         writer.finish().unwrap();
     }
 }
+
+ */
+
+fn main() {}

@@ -79,7 +79,7 @@ impl OvrImpl for OVRController {
 
 impl OVRController {
     #[cfg(feature = "debug_control")]
-    pub(crate) fn accept_debug_control(&self, event: glfw::WindowEvent) {
+    pub(crate) fn accept_debug_control(&self, event: winit::event::Event<()>) {
         unsafe { &mut *self.inner.get() }.accept_debug_control(event);
     }
 
@@ -113,21 +113,48 @@ impl Mocked {
     }
 
     #[cfg(feature = "debug_control")]
-    pub(crate) fn accept_debug_control(&mut self, event: glfw::WindowEvent) {
+    pub(crate) fn accept_debug_control(&mut self, event: winit::event::Event<()>) {
         //info!("key event: {:?}", event);
-        use glfw::WindowEvent;
+        use winit::event::ElementState::*;
+        use winit::event::Event;
+        use winit::event::WindowEvent;
+        use winit::keyboard::KeyCode::*;
+        use winit::keyboard::PhysicalKey;
+        use winit::keyboard::PhysicalKey::*;
+        let Event::WindowEvent { event, .. } = event else {
+            return;
+        };
+
         match event {
-            WindowEvent::Key(key, _, action, _) => {
+            WindowEvent::KeyboardInput { event, .. } => {
                 use LeftRight::{Left, Right};
-                use glfw::Action::*;
-                use glfw::Key::*;
-                match (key, action) {
+                const R: PhysicalKey = Code(KeyR);
+                const T: PhysicalKey = Code(KeyT);
+                const G: PhysicalKey = Code(KeyG);
+                const V: PhysicalKey = Code(KeyV);
+                const C: PhysicalKey = Code(KeyC);
+                const X: PhysicalKey = Code(KeyX);
+                const D: PhysicalKey = Code(KeyD);
+                const E: PhysicalKey = Code(KeyE);
+                const F: PhysicalKey = Code(KeyF);
+
+                const U: PhysicalKey = Code(KeyU);
+                const I: PhysicalKey = Code(KeyI);
+                const K: PhysicalKey = Code(KeyK);
+                const M: PhysicalKey = Code(KeyM);
+                const N: PhysicalKey = Code(KeyN);
+                const B: PhysicalKey = Code(KeyB);
+                const H: PhysicalKey = Code(KeyH);
+                const Y: PhysicalKey = Code(KeyY);
+                const J: PhysicalKey = Code(KeyJ);
+
+                match (event.physical_key, event.state) {
                     // following for left stick
                     //ERT
                     //D G
                     //XCV
                     // release to reset to 0
-                    (R | T | G | V | C | X | D | E, Release) => {
+                    (R | T | G | V | C | X | D | E, Released) => {
                         self.sticks.insert(Left, Vec2::new(0.0, 0.0));
                     }
                     // press & continue to tilt
@@ -157,10 +184,10 @@ impl Mocked {
                     }
 
                     // F for left trigger
-                    (F, Press) => {
+                    (F, Pressed) => {
                         self.triggers.insert(Left, true);
                     }
-                    (F, Release) => {
+                    (F, Released) => {
                         self.triggers.insert(Left, false);
                     }
 
@@ -169,7 +196,7 @@ impl Mocked {
                     //H K
                     //BNM
                     // release to reset to 0
-                    (U | I | K | M | N | B | H | Y, Release) => {
+                    (U | I | K | M | N | B | H | Y, Released) => {
                         self.sticks.insert(Right, Vec2::new(0.0, 0.0));
                     }
                     // press & continue to tilt
@@ -199,10 +226,10 @@ impl Mocked {
                     }
 
                     // J for left trigger
-                    (J, Press) => {
+                    (J, Pressed) => {
                         self.triggers.insert(Right, true);
                     }
-                    (J, Release) => {
+                    (J, Released) => {
                         self.triggers.insert(Right, false);
                     }
 

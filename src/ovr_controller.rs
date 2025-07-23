@@ -179,7 +179,7 @@ impl OVRController {
 // mock-only debug_control
 #[cfg(all(feature = "debug_control", not(feature = "openvr")))]
 impl OVRController {
-    pub(crate) fn accept_debug_control(&self, event: glfw::WindowEvent) {
+    pub(crate) fn accept_debug_control(&self, event: winit::event::Event<()>) {
         self.main.accept_debug_control(event);
     }
 }
