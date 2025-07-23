@@ -181,7 +181,10 @@ fn main() {
         let frame_end_expected = Instant::now() + frame_duration;
 
         #[cfg(feature = "debug_window")]
-        debug_window.pump_events(|e| ovr_controller.accept_debug_control(e));
+        debug_window.pump_events(|_e| {
+            #[cfg(feature = "debug_control")]
+            ovr_controller.accept_debug_control(_e)
+        });
 
         graphics_context.receive_atlas();
 
