@@ -38,20 +38,18 @@ impl GraphicsContext {
             font_renderer: FontRenderer::new(),
             font_layout: TextArranger::new([
                 Handle::from_memory(
+                    Arc::new(Vec::from(include_bytes!("../fonts/NotoSansJP-Medium.otf"))),
+                    0,
+                ),
+                Handle::from_memory(
                     Arc::new(Vec::from(include_bytes!(
-                        "../resources/fonts/NotoSansJP-Medium.otf"
+                        "../fonts/NotoEmoji-VariableFont_wght.ttf"
                     ))),
                     0,
                 ),
                 Handle::from_memory(
                     Arc::new(Vec::from(include_bytes!(
-                        "../resources/fonts/NotoEmoji-VariableFont_wght.ttf"
-                    ))),
-                    0,
-                ),
-                Handle::from_memory(
-                    Arc::new(Vec::from(include_bytes!(
-                        "../resources/fonts/NotoSansSymbols2-Regular.ttf"
+                        "../fonts/NotoSansSymbols2-Regular.ttf"
                     ))),
                     0,
                 ),
