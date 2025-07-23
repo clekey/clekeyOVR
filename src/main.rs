@@ -191,7 +191,6 @@ fn main() {
     loop {
         let frame_end_expected = Instant::now() + frame_duration;
 
-        #[cfg(feature = "debug_window")]
         #[allow(deprecated)]
         winit::platform::pump_events::EventLoopExtPumpEvents::pump_events(
             &mut event_loop,
