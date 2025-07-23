@@ -2,20 +2,10 @@
 
 use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
-use glutin::display::GetGlDisplay;
-use glutin::prelude::*;
-use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
 use log::error;
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::mem::size_of_val;
 use std::num::NonZeroU32;
 use std::ptr::null;
-use std::time::Duration;
-use winit::dpi::LogicalSize;
-use winit::event::Event;
-use winit::event_loop::EventLoop;
-use winit::platform::pump_events::EventLoopExtPumpEvents;
-use winit::window::{Window, WindowAttributes};
 
 pub struct DebugRenderer {
     shader_program: GLuint,

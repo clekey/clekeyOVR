@@ -114,7 +114,7 @@ impl GraphicsContext {
                             }
                             Ok(false) => {}
                             Err(e) => {
-                                error!("Error while rasterize font: {}", e);
+                                error!("Error while rasterize font: {e}");
                             }
                         }
                     }
