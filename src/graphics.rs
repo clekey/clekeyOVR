@@ -66,6 +66,17 @@ impl GraphicsContext {
             from_background_channel_receiver,
         };
 
+        // TODO: render glyphs on build to speed-up startup?
+        for text in include_str!("glyphs_to_load_initially.txt").chars() {
+            context.send_glyphs(
+                context
+                    .font_layout
+                    .layout(text.encode_utf8(&mut [0; 4]), &[])
+                    .glyphs()
+                    .to_vec(),
+            );
+        }
+
         context.font_renderer.update_texture(&context.font_atlas);
 
         context
