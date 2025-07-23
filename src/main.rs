@@ -81,16 +81,6 @@ fn main() {
     let gl_config;
     let gl_context;
     unsafe {
-        cfg_if! {
-            if #[cfg(target_os="macos")] {
-                use glutin::api::cgl::display::Display;
-            } else if #[cfg(target_os="windows")] {
-                use glutin::api::wgl::display::Display;
-            } else {
-                compile_error!("Unsupported OS");
-            }
-        }
-
         let display_handle = if cfg!(target_os = "macos") {
             RawDisplayHandle::AppKit(AppKitDisplayHandle::new())
         } else if cfg!(windows) {
@@ -99,7 +89,17 @@ fn main() {
             panic!("Unsupported OS")
         };
 
-        gl_display = Display::new(display_handle).expect("Failed to create GL display");
+        cfg_if! {
+            if #[cfg(target_os="macos")] {
+                use glutin::api::cgl::display::Display;
+                gl_display = Display::new(display_handle).expect("Failed to create GL display");
+            } else if #[cfg(target_os="windows")] {
+                use glutin::api::wgl::display::Display;
+                gl_display = Display::new(display_handle, None).expect("Failed to create GL display");
+            } else {
+                compile_error!("Unsupported OS");
+            }
+        }
 
         let context_attributes = ContextAttributesBuilder::new()
             .with_context_api(ContextApi::OpenGl(Some(glutin::context::Version::new(
