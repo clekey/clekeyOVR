@@ -11,6 +11,7 @@ use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::transform2d::{Matrix2x2F, Transform2F};
 use pathfinder_geometry::vector::{Vector2F, vec2f};
 use std::array::from_fn;
+use std::collections::HashSet;
 use std::f32::consts::FRAC_1_SQRT_2;
 use std::sync::Arc;
 
@@ -24,7 +25,9 @@ pub struct GraphicsContext {
     rectangle_renderer: RectangleRenderer,
     base_background_renderer: BaseBackgroundRenderer,
 
+    requested_chars: HashSet<char>,
     to_background_channel_sender: std::sync::mpsc::Sender<Vec<(Arc<Font>, u32)>>,
+    to_background_channel_sender_low: std::sync::mpsc::Sender<Vec<(Arc<Font>, u32)>>,
     from_background_channel_receiver: std::sync::mpsc::Receiver<FontAtlas>,
 }
 
@@ -60,20 +63,14 @@ impl GraphicsContext {
             rectangle_renderer: RectangleRenderer::new(),
             base_background_renderer: BaseBackgroundRenderer::new(),
 
+            requested_chars: HashSet::new(),
+            to_background_channel_sender_low: to_background_channel_sender.clone(),
             to_background_channel_sender,
             from_background_channel_receiver,
         };
 
         // TODO: render glyphs on build to speed-up startup?
-        for text in include_str!("glyphs_to_load_initially.txt").chars() {
-            context.send_glyphs(
-                context
-                    .font_layout
-                    .layout(text.encode_utf8(&mut [0; 4]), &[])
-                    .glyphs()
-                    .to_vec(),
-            );
-        }
+        context.send_glyphs_text_low_priority(include_str!("glyphs_to_load_initially.txt"));
 
         context.font_renderer.update_texture(&context.font_atlas);
 
@@ -94,9 +91,45 @@ impl GraphicsContext {
     fn send_glyphs(&mut self, mut glyphs: Vec<(Arc<Font>, u32)>) {
         while let Err(e) = self.to_background_channel_sender.send(glyphs) {
             glyphs = e.0;
+            self.create_thread();
+        }
+    }
+
+    pub fn send_glyphs_text_low_priority(&mut self, text: &str) {
+        for c in text.chars() {
+            self.send_glyphs_low(c)
+        }
+    }
+
+    fn send_glyphs_low(&mut self, c: char) {
+        let layout = self.font_layout.layout(c.encode_utf8(&mut [0; 4]), &[]);
+        let Ok((_, mut glyphs)) = self.font_atlas.get_glyphs(layout.glyphs()) else {
+            return;
+        };
+
+        if glyphs.is_empty() {
+            self.requested_chars.remove(&c);
+            return;
+        }
+
+        if self.requested_chars.insert(c) {
+            while let Err(e) = self.to_background_channel_sender_low.send(glyphs) {
+                glyphs = e.0;
+                self.create_thread();
+            }
+        }
+    }
+
+    fn create_thread(&mut self) {
+        {
             let to_background_channel_receiver;
+            let to_background_channel_receiver_low;
             let from_background_channel_sender;
 
+            (
+                self.to_background_channel_sender_low,
+                to_background_channel_receiver_low,
+            ) = std::sync::mpsc::channel::<Vec<_>>();
             (
                 self.to_background_channel_sender,
                 to_background_channel_receiver,
@@ -110,10 +143,25 @@ impl GraphicsContext {
                 let mut font_atlas = self.font_atlas.clone();
                 move || {
                     log::debug!("graphics context background thread: started");
-                    while let Ok(glyphs_to_add) = to_background_channel_receiver.recv() {
+                    let mut canvas_count = font_atlas.canvases().len();
+                    let channels = [
+                        to_background_channel_receiver,
+                        to_background_channel_receiver_low,
+                    ];
+                    while let Ok(glyphs_to_add) = receive(&channels) {
                         match font_atlas.rasterize_glyphs(&glyphs_to_add) {
                             Ok(true) => {
-                                log::debug!("graphics context background thread: updated glyphs");
+                                if canvas_count != font_atlas.canvases().len() {
+                                    canvas_count = font_atlas.canvases().len();
+                                    log::debug!(
+                                        "graphics context background thread: updated glyphs with adding canvas: canvases len: {}",
+                                        canvas_count
+                                    );
+                                } else {
+                                    log::debug!(
+                                        "graphics context background thread: updated glyphs"
+                                    );
+                                }
                                 if from_background_channel_sender
                                     .send(font_atlas.clone())
                                     .is_err()
@@ -130,6 +178,49 @@ impl GraphicsContext {
                     log::debug!("graphics context background thread: exiting");
                 }
             });
+
+            fn receive<T>(
+                channels: &[std::sync::mpsc::Receiver<T>],
+            ) -> Result<T, std::sync::mpsc::RecvError> {
+                use std::sync::mpsc::*;
+                let channels_with_index = channels.iter().enumerate();
+                // first pass: try recv all
+                let mut first_connected_channel_index = None;
+                for (index, recv) in channels_with_index.clone() {
+                    match recv.try_recv() {
+                        Ok(value) => return Ok(value),
+                        Err(TryRecvError::Disconnected) => {}
+                        Err(TryRecvError::Empty) => {
+                            first_connected_channel_index.get_or_insert(index);
+                        }
+                    }
+                }
+
+                let interval = std::time::Duration::from_millis(100);
+                // second pass: wait for first non-disconnected channel with timeout, and try other all
+                while let Some(current_connected) = first_connected_channel_index {
+                    match channels[current_connected].recv_timeout(interval) {
+                        Ok(value) => return Ok(value),
+                        Err(e) => {
+                            if matches!(e, RecvTimeoutError::Disconnected) {
+                                first_connected_channel_index = None;
+                            }
+
+                            for (index, recv) in channels_with_index.clone().skip(current_connected)
+                            {
+                                match recv.try_recv() {
+                                    Ok(value) => return Ok(value),
+                                    Err(TryRecvError::Disconnected) => {}
+                                    Err(TryRecvError::Empty) => {
+                                        first_connected_channel_index.get_or_insert(index);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(RecvError)
+            }
         }
     }
 
