@@ -916,13 +916,19 @@ impl<'a> Application<'a> {
             .add(b'+')
             .add(b',');
 
-        if let Ok(response) = reqwest::blocking::get(format!(
+        if let Ok(mut response) = reqwest::blocking::get(format!(
             "https://www.google.com/transliterate?langpair=ja-Hira|ja&text={text}",
             text =
                 percent_encoding::utf8_percent_encode(&mgr.kbd_status.buffer, COMPONENT_ENCODE_SET)
         ))
         .and_then(|x| x.json::<Vec<(String, Vec<String>)>>())
         {
+            if response.is_empty() {
+                response = vec![(
+                    mgr.kbd_status.buffer.clone(),
+                    vec![mgr.kbd_status.buffer.clone()],
+                )];
+            }
             mgr.kbd_status.candidates_idx = 0;
             mgr.kbd_status.henkan_using = None;
             mgr.kbd_status.candidates = response
