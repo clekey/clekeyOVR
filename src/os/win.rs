@@ -10,7 +10,7 @@ pub fn get_appdata_dir() -> &'static Path {
     static VALUE: Lazy<PathBuf> = Lazy::new(|| {
         PathBuf::from(std::env::var_os("APPDATA").expect("no APPDATA found")).join("clekey_ovr")
     });
-    &*VALUE
+    &VALUE
 }
 
 fn send_input<const N: usize>(keys: &[co::VK; N]) {
@@ -41,11 +41,11 @@ fn send_input<const N: usize>(keys: &[co::VK; N]) {
 }
 
 pub fn enter_char(c: char) {
-    if '0' <= c && c <= '9' || 'a' <= c && c <= 'z' {
+    if c.is_ascii_digit() || c.is_ascii_lowercase() {
         // simple input.
         let key = unsafe { co::VK::from_raw(c as u8 as u16) };
         send_input(&[key]);
-    } else if 'A' <= c && c <= 'Z' {
+    } else if c.is_ascii_uppercase() {
         // input with shift down
         let key = unsafe { co::VK::from_raw(c as u8 as u16) };
         send_input(&[co::VK::LSHIFT, key]);
@@ -125,16 +125,35 @@ pub(crate) fn copy_text(copy: &str) -> bool {
     true
 }
 
-static CURRENT_HWND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static CURRENT_HWND: std::sync::atomic::AtomicPtr::<c_void> = std::sync::atomic::AtomicPtr::<c_void>::new(std::ptr::null_mut());
 
 fn get_hwnd() -> winsafe::HWND {
-    unsafe {
-        winsafe::HWND::from_ptr(
-            CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst) as *mut c_void
-        )
+    let hwnd_ptr = CURRENT_HWND.load(std::sync::atomic::Ordering::SeqCst);
+    if hwnd_ptr.is_null() {
+        let new_hwnd = {
+            unsafe {
+                winsafe::HWND::CreateWindowEx(
+                    Default::default(),
+                    winsafe::AtomStr::from_str("STATIC"),
+                    None,
+                    Default::default(),
+                    Default::default(),
+                    Default::default(),
+                    None,
+                    winsafe::IdMenu::None,
+                    &winsafe::HINSTANCE::GetModuleHandle(None).unwrap(),
+                    None
+                ).unwrap()
+            }
+        };
+        match CURRENT_HWND.compare_exchange(std::ptr::null_mut(), new_hwnd.ptr(), std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst) {
+            Ok(_) => new_hwnd,
+            Err(new) => {
+                unsafe { winsafe::HWND::from_ptr(hwnd_ptr as _) }.DestroyWindow().ok();
+                unsafe { winsafe::HWND::from_ptr(new) }
+            }
+        }
+    } else {
+       unsafe { winsafe::HWND::from_ptr(hwnd_ptr) }
     }
-}
-
-pub(crate) fn set_hwnd(hwnd: *mut c_void) {
-    CURRENT_HWND.swap(hwnd as _, std::sync::atomic::Ordering::SeqCst);
 }

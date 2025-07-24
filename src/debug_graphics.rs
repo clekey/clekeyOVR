@@ -1,3 +1,5 @@
+#![allow(unsafe_op_in_unsafe_fn)] // TODO
+
 use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use gl::types::{GLenum, GLint, GLsizei, GLuint};
 use log::error;

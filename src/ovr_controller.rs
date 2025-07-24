@@ -86,7 +86,7 @@ impl OVRController {
                 a += 8.0
             }
             // [0, 8)
-            return a.floor() as i8;
+            a.floor() as i8
         }
 
         const LOWER_BOUND: f32 = 0.75 * 0.75;
@@ -96,9 +96,7 @@ impl OVRController {
         status.selection = if clicking {
             // do not change if clicking
             status.selection
-        } else if len_sqrt >= UPPER_BOUND {
-            compute_angle(status.stick)
-        } else if len_sqrt >= LOWER_BOUND && status.selection != -1 {
+        } else if len_sqrt >= UPPER_BOUND || len_sqrt >= LOWER_BOUND && status.selection != -1 {
             compute_angle(status.stick)
         } else {
             -1
@@ -181,7 +179,7 @@ impl OVRController {
 // mock-only debug_control
 #[cfg(all(feature = "debug_control", not(feature = "openvr")))]
 impl OVRController {
-    pub(crate) fn accept_debug_control(&self, event: glfw::WindowEvent) {
+    pub(crate) fn accept_debug_control(&self, event: winit::event::Event<()>) {
         self.main.accept_debug_control(event);
     }
 }

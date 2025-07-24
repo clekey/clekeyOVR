@@ -2,7 +2,6 @@
 members = [
     ".",
     "openvr",
-    "license-gen"
 ]
 
 [package]
@@ -25,7 +24,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4.17"
 once_cell = "1.15.0"
-skia-safe = { version = "0.87.0", features = ["gl", "textlayout"] }
 gl = "0.14.0"
 cfg-if = "1.0.0"
 openvr = { path = "openvr", optional = true }
@@ -35,13 +33,22 @@ tar = "0.4"
 reqwest = { version = "0.11.13", features = ["blocking", "deflate", "gzip", "json"] }
 percent-encoding = "2.2.0"
 bytemuck = "1.13.1"
+font-kit = "0.14.3"
+pathfinder_geometry = "0.5.1"
+pathfinder_color = "0.5.0"
+png = "0.17.16"
+harfbuzz_rs = "2.0.1"
+glutin = "0.32.3"
+raw-window-handle = "0.6.2"
+winit = { version = "0.30.11" }
+glutin-winit = "0.5.0"
 
 [build-dependencies]
 flate2 = "1"
 tar = "0.4"
 sha2 = "0.10"
 hex = "0.4"
-license-gen = { path = "license-gen" }
+license-gen = { git = "https://github.com/anatawa12/license-gen.git" }
 
 [target."cfg(windows)".dependencies.winsafe]
 version = "0.0.25"
@@ -50,15 +57,9 @@ features = [
     "kernel",
 ]
 
-[dependencies.glfw]
-git = "https://github.com/bjz/glfw-rs.git"
-rev = "2221cf05410c3dd2fac6f711c8f28e072c16f1fb"
-
 [target."cfg(windows)".features]
 default = ["openvr"]
 
 [features]
-# by build.rs, 
-#  - debug_window is enabled in default on debug build (cfg(debug_assertions))
 default = []
 debug_window = []
