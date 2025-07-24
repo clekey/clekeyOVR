@@ -581,6 +581,12 @@ pub fn draw_center(
         for layout in layouts.iter() {
             context.render_text(config.inputting_char_color, layout);
         }
+
+        for candidate in &status.candidates {
+            for candidate in &candidate.candidates {
+                context.send_glyphs_text_low_priority(candidate);
+            }
+        }
     }
 }
 
